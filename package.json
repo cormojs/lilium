@@ -8,10 +8,12 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "package": "electron-builder",
+    "package": "electron-vite build && electron-builder",
+    "package:win": "electron-vite build && electron-builder --win",
     "format": "prettier --write \"src/**/*.{ts,tsx}\" --no-error-on-unmatched-pattern",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\" --no-error-on-unmatched-pattern",
     "lint": "eslint src/",
+    "postinstall": "electron-builder install-app-deps",
     "lint:fix": "eslint src/ --fix",
     "typecheck": "tsc -b"
   },
@@ -38,13 +40,19 @@
     "globals": "^17.3.0",
     "prettier": "^3.8.1",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.56.1"
+    "typescript-eslint": "^8.56.1",
+    "vite": "^7.3.1"
   },
   "build": {
     "appId": "dev.lilium.app",
     "productName": "lilium",
     "files": [
-      "out/**/*"
+      {
+        "from": "out",
+        "to": "out",
+        "filter": ["**/*"]
+      },
+      "package.json"
     ],
     "directories": {
       "output": "release"

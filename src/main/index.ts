@@ -9,11 +9,16 @@ function createWindow(): void {
   const mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
+    show: true,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
   });
 
   // Open external links in the default browser
@@ -60,9 +65,13 @@ function registerIpcHandlers(): void {
   );
 }
 
+app.commandLine.appendSwitch('disable-gpu-sandbox');
+
 app.whenReady().then(() => {
   registerIpcHandlers();
+  console.log('Registered IPC handlers');
   createWindow();
+  console.log('App is ready');
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
