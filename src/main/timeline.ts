@@ -34,5 +34,14 @@ export async function fetchTimeline(
       displayName: status.account.displayName,
       avatarUrl: status.account.avatar,
     },
+    mediaAttachments: status.mediaAttachments
+      .filter((m) => m.url != null && m.previewUrl != null)
+      .map((m) => ({
+        id: m.id,
+        type: m.type,
+        url: m.url!,
+        previewUrl: m.previewUrl!,
+        description: m.description ?? null,
+      })),
   }));
 }

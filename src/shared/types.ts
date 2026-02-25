@@ -33,6 +33,21 @@ export interface OAuthExchangeTokenParams {
 /** Timeline type */
 export type TimelineType = 'home' | 'public' | 'favourites';
 
+/** Media attachment type */
+export type MediaAttachmentType = 'image' | 'video' | 'gifv' | 'audio' | 'unknown';
+
+/** A media attachment on a post */
+export interface PostMediaAttachment {
+  id: string;
+  type: MediaAttachmentType;
+  /** Full-size URL */
+  url: string;
+  /** Scaled-down preview URL */
+  previewUrl: string;
+  /** Alt text */
+  description: string | null;
+}
+
 /** A post (status) to render in the timeline */
 export interface Post {
   id: string;
@@ -47,6 +62,8 @@ export interface Post {
     displayName: string;
     avatarUrl: string;
   };
+  /** Media attachments (images, videos, etc.) */
+  mediaAttachments: PostMediaAttachment[];
 }
 
 /** Parameters for fetching a timeline */
