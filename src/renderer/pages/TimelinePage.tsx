@@ -124,9 +124,22 @@ export function TimelinePage({
   const [modalOpen, setModalOpen] = useState(false);
   const [newTabAccount, setNewTabAccount] = useState<string>('');
   const [newTabType, setNewTabType] = useState<TimelineType>('home');
+  const [tabsLoaded, setTabsLoaded] = useState(false);
 
-  // Initialize with a default tab if accounts exist and no tabs yet
+  // Load saved tabs on mount
   useEffect(() => {
+    window.api.listTabs().then((savedTabs) => {
+      if (savedTabs.length > 0) {
+        setTabs(savedTabs);
+        setActiveTabId(savedTabs[0]?.id ?? '');
+      }
+      setTabsLoaded(true);
+    });
+  }, []);
+
+  // Initialize with a default tab if accounts exist and no saved tabs
+  useEffect(() => {
+    if (!tabsLoaded) return;
     const firstAccount = accounts[0];
     if (firstAccount && tabs.length === 0) {
       const defaultTab: TabDefinition = {
@@ -137,8 +150,9 @@ export function TimelinePage({
       };
       setTabs([defaultTab]);
       setActiveTabId(defaultTab.id);
+      window.api.saveTabs([defaultTab]);
     }
-  }, [accounts, tabs.length]);
+  }, [accounts, tabs.length, tabsLoaded]);
 
   const handleAddTab = (): void => {
     if (!newTabAccount) return;
@@ -151,7 +165,11 @@ export function TimelinePage({
       accountUsername: username,
       timelineType: newTabType,
     };
-    setTabs((prev) => [...prev, tab]);
+    setTabs((prev) => {
+      const next = [...prev, tab];
+      window.api.saveTabs(next);
+      return next;
+    });
     setActiveTabId(tab.id);
     setModalOpen(false);
     setNewTabAccount('');
@@ -165,6 +183,7 @@ export function TimelinePage({
       if (activeTabId === tabId && firstRemaining) {
         setActiveTabId(firstRemaining.id);
       }
+      window.api.saveTabs(next);
       return next;
     });
   };

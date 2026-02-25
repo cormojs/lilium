@@ -4,6 +4,7 @@ import type {
   Account,
   OAuthStartLoginResult,
   OAuthExchangeTokenParams,
+  TabDefinition,
   TimelineFetchParams,
   Post,
 } from '../shared/types.ts';
@@ -28,6 +29,14 @@ const api = {
   /** Fetch timeline posts */
   fetchTimeline(params: TimelineFetchParams): Promise<Post[]> {
     return ipcRenderer.invoke(IpcChannels.TimelineFetch, params);
+  },
+  /** Get the list of saved tabs */
+  listTabs(): Promise<TabDefinition[]> {
+    return ipcRenderer.invoke(IpcChannels.TabsList);
+  },
+  /** Save the current tabs */
+  saveTabs(tabs: TabDefinition[]): Promise<void> {
+    return ipcRenderer.invoke(IpcChannels.TabsSave, tabs);
   },
 };
 
