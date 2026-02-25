@@ -17,6 +17,9 @@ export default [
         ...globals.node,
       },
     },
+    settings: {
+      react: { version: '19' },
+    },
   },
   reactPlugin.configs.flat['jsx-runtime'],
   {
