@@ -105,7 +105,56 @@ bun run lint:fix     # eslint src/ --fix
 
 ---
 
+## UI ライブラリ
+
+### Ant Design (`antd`)
+
+UI コンポーネントには **Ant Design** を使用します。
+
+- ボタン・フォーム・モーダル・レイアウトなど汎用 UI コンポーネントは `antd` から利用する
+- `antd` が提供していないコンポーネントのみカスタム実装する
+- テーマのカスタマイズは `ConfigProvider` の `theme` prop で行う
+
+```tsx
+import { Button, ConfigProvider } from 'antd';
+```
+
+### styled-components
+
+コンポーネント固有のスタイルには **styled-components** を使用します。
+
+- `antd` コンポーネントのスタイル上書きや、カスタムコンポーネントのスタイリングに使用する
+- グローバルスタイルは `createGlobalStyle` で定義する
+- テンプレートリテラル内では TypeScript の型付き props を活用する
+
+```tsx
+import styled from 'styled-components';
+
+const Container = styled.div<{ $active: boolean }>`
+  color: ${(props) => (props.$active ? 'blue' : 'gray')};
+`;
+```
+
+---
+
 ## Mastodon API
+
+### masto ライブラリ
+
+Mastodon API クライアントには **masto** を使用します。
+
+- `masto` の `createRestAPIClient` / `createStreamingAPIClient` を利用してAPIクライアントを生成する
+- クライアントの生成は `src/main/` で行い、レンダラープロセスから直接使用しない
+- Streaming API も `masto` の `createStreamingAPIClient` を通じて利用する
+
+```ts
+import { createRestAPIClient } from 'masto';
+
+const client = createRestAPIClient({
+  url: 'https://mastodon.example',
+  accessToken: '...',
+});
+```
 
 - Mastodon REST API および Streaming API を使用する
 - API クライアントは `src/shared/` または `src/main/` に実装する

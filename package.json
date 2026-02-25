@@ -1,27 +1,53 @@
 {
   "name": "lilium",
-  "module": "index.ts",
+  "version": "0.1.0",
+  "main": "./out/main/index.js",
   "type": "module",
   "private": true,
   "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "package": "electron-builder",
     "format": "prettier --write \"src/**/*.{ts,tsx}\" --no-error-on-unmatched-pattern",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\" --no-error-on-unmatched-pattern",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "antd": "^6.3.1",
+    "masto": "^7.10.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "styled-components": "^6.3.11"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/bun": "latest",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/styled-components": "^5.1.36",
+    "@vitejs/plugin-react": "^5.1.4",
+    "electron": "^40.6.1",
+    "electron-builder": "^26.8.1",
+    "electron-vite": "^5.0.0",
     "eslint": "^10.0.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "globals": "^17.3.0",
     "prettier": "^3.8.1",
+    "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1"
   },
-  "peerDependencies": {
-    "typescript": "^5"
+  "build": {
+    "appId": "dev.lilium.app",
+    "productName": "lilium",
+    "files": [
+      "out/**/*"
+    ],
+    "directories": {
+      "output": "release"
+    }
   }
 }
