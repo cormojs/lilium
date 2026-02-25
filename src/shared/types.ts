@@ -64,6 +64,12 @@ export interface Post {
   };
   /** Media attachments (images, videos, etc.) */
   mediaAttachments: PostMediaAttachment[];
+  /** If this post is a boost, info about who boosted it */
+  rebloggedBy?: {
+    acct: string;
+    displayName: string;
+    avatarUrl: string;
+  };
 }
 
 /** Parameters for fetching a timeline */

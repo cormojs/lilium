@@ -24,24 +24,37 @@ export async function fetchTimeline(
       break;
   }
 
-  return statuses.map((status) => ({
-    id: status.id,
-    content: status.content,
-    createdAt: status.createdAt,
-    url: status.url ?? null,
-    account: {
-      acct: status.account.acct,
-      displayName: status.account.displayName,
-      avatarUrl: status.account.avatar,
-    },
-    mediaAttachments: status.mediaAttachments
-      .filter((m) => m.url != null && m.previewUrl != null)
-      .map((m) => ({
-        id: m.id,
-        type: m.type,
-        url: m.url!,
-        previewUrl: m.previewUrl!,
-        description: m.description ?? null,
-      })),
-  }));
+  return statuses.map((status) => {
+    // If this is a reblog, use the original post's content
+    const original = status.reblog ?? status;
+    const rebloggedBy = status.reblog
+      ? {
+          acct: status.account.acct,
+          displayName: status.account.displayName,
+          avatarUrl: status.account.avatar,
+        }
+      : undefined;
+
+    return {
+      id: status.id,
+      content: original.content,
+      createdAt: original.createdAt,
+      url: original.url ?? null,
+      account: {
+        acct: original.account.acct,
+        displayName: original.account.displayName,
+        avatarUrl: original.account.avatar,
+      },
+      mediaAttachments: original.mediaAttachments
+        .filter((m) => m.url != null && m.previewUrl != null)
+        .map((m) => ({
+          id: m.id,
+          type: m.type,
+          url: m.url!,
+          previewUrl: m.previewUrl!,
+          description: m.description ?? null,
+        })),
+      rebloggedBy,
+    };
+  });
 }
