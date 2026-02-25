@@ -1,6 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IpcChannels } from '../shared/ipc.ts';
-import type { Account, OAuthStartLoginResult, OAuthExchangeTokenParams } from '../shared/types.ts';
+import type {
+  Account,
+  OAuthStartLoginResult,
+  OAuthExchangeTokenParams,
+  TabDefinition,
+  TimelineFetchParams,
+  Post,
+} from '../shared/types.ts';
 
 const api = {
   /** Start OAuth login: register app and get authorization URL */
@@ -18,6 +25,18 @@ const api = {
   /** Remove a saved account */
   removeAccount(serverUrl: string, username: string): Promise<void> {
     return ipcRenderer.invoke(IpcChannels.AccountsRemove, serverUrl, username);
+  },
+  /** Fetch timeline posts */
+  fetchTimeline(params: TimelineFetchParams): Promise<Post[]> {
+    return ipcRenderer.invoke(IpcChannels.TimelineFetch, params);
+  },
+  /** Get the list of saved tabs */
+  listTabs(): Promise<TabDefinition[]> {
+    return ipcRenderer.invoke(IpcChannels.TabsList);
+  },
+  /** Save the current tabs */
+  saveTabs(tabs: TabDefinition[]): Promise<void> {
+    return ipcRenderer.invoke(IpcChannels.TabsSave, tabs);
   },
 };
 

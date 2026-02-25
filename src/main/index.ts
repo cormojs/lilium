@@ -1,9 +1,15 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import path from 'node:path';
 import { IpcChannels } from '../shared/ipc.ts';
-import type { OAuthExchangeTokenParams } from '../shared/types.ts';
+import type {
+  OAuthExchangeTokenParams,
+  TabDefinition,
+  TimelineFetchParams,
+} from '../shared/types.ts';
 import { startLogin, exchangeToken } from './oauth.ts';
 import { listAccounts, addAccount, removeAccount } from './accounts.ts';
+import { fetchTimeline } from './timeline.ts';
+import { listTabs, saveTabs } from './tabs.ts';
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -63,6 +69,18 @@ function registerIpcHandlers(): void {
       removeAccount(serverUrl, username);
     },
   );
+
+  ipcMain.handle(IpcChannels.TimelineFetch, async (_event, params: TimelineFetchParams) => {
+    return fetchTimeline(params.serverUrl, params.accessToken, params.type, params.maxId);
+  });
+
+  ipcMain.handle(IpcChannels.TabsList, async () => {
+    return listTabs();
+  });
+
+  ipcMain.handle(IpcChannels.TabsSave, async (_event, tabs: TabDefinition[]) => {
+    saveTabs(tabs);
+  });
 }
 
 app.commandLine.appendSwitch('disable-gpu-sandbox');

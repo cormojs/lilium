@@ -1,10 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button, Input, List, Typography, Space, App, Flex } from 'antd';
-import { CopyOutlined, LinkOutlined, LoginOutlined, DeleteOutlined } from '@ant-design/icons';
+import {
+  ArrowLeftOutlined,
+  CopyOutlined,
+  LinkOutlined,
+  LoginOutlined,
+  DeleteOutlined,
+} from '@ant-design/icons';
 import styled from 'styled-components';
 import type { Account, OAuthStartLoginResult } from '../../shared/types.ts';
 
 const { Text, Title } = Typography;
+
+interface LoginPageProps {
+  onLoginSuccess?: () => void;
+  onNavigateToTimeline?: () => void;
+}
 
 const PageContainer = styled.div`
   max-width: 560px;
@@ -18,7 +29,10 @@ const Section = styled.section`
 
 type LoginStep = 'idle' | 'authorizing' | 'exchanging';
 
-export function LoginPage(): React.JSX.Element {
+export function LoginPage({
+  onLoginSuccess,
+  onNavigateToTimeline,
+}: LoginPageProps): React.JSX.Element {
   const { message } = App.useApp();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [serverUrl, setServerUrl] = useState('');
@@ -81,6 +95,7 @@ export function LoginPage(): React.JSX.Element {
       setAuthCode('');
       setServerUrl('');
       await loadAccounts();
+      onLoginSuccess?.();
     } catch (e) {
       message.error(`ログインに失敗しました: ${e instanceof Error ? e.message : String(e)}`);
       setStep('authorizing');
@@ -103,6 +118,16 @@ export function LoginPage(): React.JSX.Element {
 
   return (
     <PageContainer>
+      {onNavigateToTimeline && (
+        <Button
+          type="text"
+          icon={<ArrowLeftOutlined />}
+          onClick={onNavigateToTimeline}
+          style={{ marginBottom: 8 }}
+        >
+          タイムラインに戻る
+        </Button>
+      )}
       <Title level={3}>ログイン</Title>
 
       {/* Account list */}
