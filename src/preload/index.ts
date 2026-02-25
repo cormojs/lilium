@@ -1,6 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IpcChannels } from '../shared/ipc.ts';
-import type { Account, OAuthStartLoginResult, OAuthExchangeTokenParams } from '../shared/types.ts';
+import type {
+  Account,
+  OAuthStartLoginResult,
+  OAuthExchangeTokenParams,
+  TimelineFetchParams,
+  Post,
+} from '../shared/types.ts';
 
 const api = {
   /** Start OAuth login: register app and get authorization URL */
@@ -18,6 +24,10 @@ const api = {
   /** Remove a saved account */
   removeAccount(serverUrl: string, username: string): Promise<void> {
     return ipcRenderer.invoke(IpcChannels.AccountsRemove, serverUrl, username);
+  },
+  /** Fetch timeline posts */
+  fetchTimeline(params: TimelineFetchParams): Promise<Post[]> {
+    return ipcRenderer.invoke(IpcChannels.TimelineFetch, params);
   },
 };
 

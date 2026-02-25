@@ -8,4 +8,6 @@ export const IpcChannels = {
   AccountsList: 'accounts:list',
   /** Remove a saved account */
   AccountsRemove: 'accounts:remove',
+  /** Fetch timeline posts */
+  TimelineFetch: 'timeline:fetch',
 } as const;
