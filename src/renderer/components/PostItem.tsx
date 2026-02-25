@@ -1,3 +1,4 @@
+import { RetweetOutlined } from '@ant-design/icons';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type { Post } from '../../shared/types.ts';
@@ -14,11 +15,46 @@ const PostContainer = styled.div`
   border-bottom: 1px solid #f0f0f0;
 `;
 
+const AvatarColumn = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 48px;
+`;
+
 const Avatar = styled.img`
   width: 48px;
   height: 48px;
   border-radius: 4px;
   flex-shrink: 0;
+`;
+
+const BoosterBadge = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 4px;
+`;
+
+const BoosterAvatar = styled.img`
+  width: 25px;
+  height: 25px;
+  border-radius: 2px;
+`;
+
+const BoostIcon = styled(RetweetOutlined)`
+  font-size: 12px;
+  color: #52c41a;
+`;
+
+const BoostInfo = styled.div`
+  margin-top: 4px;
+  font-size: 12px;
+  color: #52c41a;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 `;
 
 const Content = styled.div`
@@ -118,7 +154,15 @@ export function PostItem({ post }: PostItemProps): React.JSX.Element {
 
   return (
     <PostContainer>
-      <Avatar src={post.account.avatarUrl} alt={post.account.acct} />
+      <AvatarColumn>
+        <Avatar src={post.account.avatarUrl} alt={post.account.acct} />
+        {post.rebloggedBy && (
+          <BoosterBadge>
+            <BoosterAvatar src={post.rebloggedBy.avatarUrl} alt={post.rebloggedBy.acct} />
+            <BoostIcon />
+          </BoosterBadge>
+        )}
+      </AvatarColumn>
       <Content>
         <HeaderLine>
           <Acct>@{post.account.acct}</Acct>
@@ -132,6 +176,12 @@ export function PostItem({ post }: PostItemProps): React.JSX.Element {
           </Timestamp>
         ) : (
           <Timestamp as="span">{formatTimestamp(post.createdAt)}</Timestamp>
+        )}
+        {post.rebloggedBy && (
+          <BoostInfo>
+            <RetweetOutlined />
+            <span>@{post.rebloggedBy.acct} boost this</span>
+          </BoostInfo>
         )}
       </Content>
     </PostContainer>

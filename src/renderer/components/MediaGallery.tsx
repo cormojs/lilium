@@ -15,8 +15,8 @@ const Grid = styled.div`
 `;
 
 const Thumbnail = styled.img`
-  width: 100px;
-  height: 100px;
+  width: 150px;
+  height: 150px;
   object-fit: cover;
   border-radius: 4px;
   cursor: pointer;
