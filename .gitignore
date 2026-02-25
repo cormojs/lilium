@@ -140,3 +140,6 @@ vite.config.ts.timestamp-*
 
 # claude code
 .claude/*.local.*
+
+# electron
+release/
