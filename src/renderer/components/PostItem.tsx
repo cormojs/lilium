@@ -1,6 +1,7 @@
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type { Post } from '../../shared/types.ts';
+import { MediaGallery } from './MediaGallery.tsx';
 
 interface PostItemProps {
   post: Post;
@@ -124,6 +125,7 @@ export function PostItem({ post }: PostItemProps): React.JSX.Element {
           <DisplayName>{post.account.displayName}</DisplayName>
         </HeaderLine>
         <PostBody dangerouslySetInnerHTML={{ __html: sanitizeContent(post.content) }} />
+        {post.mediaAttachments.length > 0 && <MediaGallery attachments={post.mediaAttachments} />}
         {post.url ? (
           <Timestamp href={post.url} onClick={handleTimestampClick}>
             {formatTimestamp(post.createdAt)}
