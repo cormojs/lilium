@@ -22,6 +22,8 @@ export async function fetchTimeline(
     case 'favourites':
       statuses = await client.v1.favourites.list(params);
       break;
+    case 'notifications':
+      return [];
   }
 
   return statuses.map((status) => {

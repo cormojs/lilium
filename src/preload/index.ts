@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { IpcChannels } from '../shared/ipc.ts';
 import type {
   Account,
+  MastoNotification,
+  NotificationFetchParams,
   OAuthStartLoginResult,
   OAuthExchangeTokenParams,
   TabDefinition,
@@ -29,6 +31,10 @@ const api = {
   /** Fetch timeline posts */
   fetchTimeline(params: TimelineFetchParams): Promise<Post[]> {
     return ipcRenderer.invoke(IpcChannels.TimelineFetch, params);
+  },
+  /** Fetch notifications */
+  fetchNotifications(params: NotificationFetchParams): Promise<MastoNotification[]> {
+    return ipcRenderer.invoke(IpcChannels.NotificationsFetch, params);
   },
   /** Get the list of saved tabs */
   listTabs(): Promise<TabDefinition[]> {
