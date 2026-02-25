@@ -10,6 +10,8 @@ export const IpcChannels = {
   AccountsRemove: 'accounts:remove',
   /** Fetch timeline posts */
   TimelineFetch: 'timeline:fetch',
+  /** Fetch notifications */
+  NotificationsFetch: 'notifications:fetch',
   /** Get the list of saved tabs */
   TabsList: 'tabs:list',
   /** Save the current tabs */

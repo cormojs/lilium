@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import path from 'node:path';
 import { IpcChannels } from '../shared/ipc.ts';
 import type {
+  NotificationFetchParams,
   OAuthExchangeTokenParams,
   TabDefinition,
   TimelineFetchParams,
@@ -9,6 +10,7 @@ import type {
 import { startLogin, exchangeToken } from './oauth.ts';
 import { listAccounts, addAccount, removeAccount } from './accounts.ts';
 import { fetchTimeline } from './timeline.ts';
+import { fetchNotifications } from './notifications.ts';
 import { listTabs, saveTabs } from './tabs.ts';
 
 function createWindow(): void {
@@ -73,6 +75,13 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.TimelineFetch, async (_event, params: TimelineFetchParams) => {
     return fetchTimeline(params.serverUrl, params.accessToken, params.type, params.maxId);
   });
+
+  ipcMain.handle(
+    IpcChannels.NotificationsFetch,
+    async (_event, params: NotificationFetchParams) => {
+      return fetchNotifications(params.serverUrl, params.accessToken, params.maxId);
+    },
+  );
 
   ipcMain.handle(IpcChannels.TabsList, async () => {
     return listTabs();

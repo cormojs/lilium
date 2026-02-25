@@ -31,7 +31,7 @@ export interface OAuthExchangeTokenParams {
 }
 
 /** Timeline type */
-export type TimelineType = 'home' | 'public' | 'favourites';
+export type TimelineType = 'home' | 'public' | 'favourites' | 'notifications';
 
 /** Media attachment type */
 export type MediaAttachmentType = 'image' | 'video' | 'gifv' | 'audio' | 'unknown';
@@ -87,4 +87,27 @@ export interface TabDefinition {
   accountServerUrl: string;
   accountUsername: string;
   timelineType: TimelineType;
+}
+
+export type NotificationType = 'follow' | 'follow_request' | 'favourite' | 'reblog';
+
+export interface MastoNotification {
+  id: string;
+  type: NotificationType;
+  /** ISO 8601 timestamp */
+  createdAt: string;
+  account: {
+    acct: string;
+    displayName: string;
+    avatarUrl: string;
+  };
+  /** The target post for favourite/reblog notifications */
+  status?: Post;
+}
+
+export interface NotificationFetchParams {
+  serverUrl: string;
+  accessToken: string;
+  /** For pagination — fetch notifications older than this ID */
+  maxId?: string;
 }

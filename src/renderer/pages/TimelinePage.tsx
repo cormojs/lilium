@@ -2,8 +2,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { Tabs, Modal, Select, Button, App, Flex, Typography, Spin } from 'antd';
 import { SettingOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
-import type { Account, Post, TabDefinition, TimelineType } from '../../shared/types.ts';
+import type {
+  Account,
+  MastoNotification,
+  Post,
+  TabDefinition,
+  TimelineType,
+} from '../../shared/types.ts';
 import { PostItem } from '../components/PostItem.tsx';
+import { NotificationItem } from '../components/NotificationItem.tsx';
 
 const { Text } = Typography;
 
@@ -38,6 +45,7 @@ const TIMELINE_TYPE_LABELS: Record<TimelineType, string> = {
   home: 'Home',
   public: 'Public',
   favourites: 'Favourites',
+  notifications: 'Notifications',
 };
 
 function generateTabId(): string {
@@ -113,6 +121,79 @@ function TimelineTabContent({
       ))}
     </TimelineList>
   );
+}
+
+function NotificationTabContent({
+  tab,
+  accounts,
+}: {
+  tab: TabDefinition;
+  accounts: Account[];
+}): React.JSX.Element {
+  const { message } = App.useApp();
+  const [notifications, setNotifications] = useState<MastoNotification[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const account = accounts.find(
+    (a) => a.serverUrl === tab.accountServerUrl && a.username === tab.accountUsername,
+  );
+
+  const loadNotifications = useCallback(async () => {
+    if (!account) return;
+    setLoading(true);
+    try {
+      const result = await window.api.fetchNotifications({
+        serverUrl: account.serverUrl,
+        accessToken: account.accessToken,
+      });
+      setNotifications(result);
+    } catch (e) {
+      message.error(`通知の取得に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [account, message]);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
+
+  if (!account) {
+    return <EmptyMessage>アカウントが見つかりません</EmptyMessage>;
+  }
+
+  if (loading && notifications.length === 0) {
+    return (
+      <SpinContainer>
+        <Spin />
+      </SpinContainer>
+    );
+  }
+
+  if (notifications.length === 0) {
+    return <EmptyMessage>通知はありません</EmptyMessage>;
+  }
+
+  return (
+    <TimelineList>
+      {notifications.map((notification) => (
+        <NotificationItem key={notification.id} notification={notification} />
+      ))}
+    </TimelineList>
+  );
+}
+
+function TabContent({
+  tab,
+  accounts,
+}: {
+  tab: TabDefinition;
+  accounts: Account[];
+}): React.JSX.Element {
+  if (tab.timelineType === 'notifications') {
+    return <NotificationTabContent tab={tab} accounts={accounts} />;
+  }
+  return <TimelineTabContent tab={tab} accounts={accounts} />;
 }
 
 export function TimelinePage({
@@ -197,13 +278,14 @@ export function TimelinePage({
     { value: 'home', label: 'Home' },
     { value: 'public', label: 'Public' },
     { value: 'favourites', label: 'Favourites' },
+    { value: 'notifications', label: 'Notifications' },
   ];
 
   const tabItems = [
     ...tabs.map((tab) => ({
       key: tab.id,
       label: buildTabLabel(tab, accounts),
-      children: <TimelineTabContent tab={tab} accounts={accounts} />,
+      children: <TabContent tab={tab} accounts={accounts} />,
       closable: tabs.length > 1,
     })),
   ];
