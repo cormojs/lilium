@@ -1,15 +1,32 @@
 # lilium
 
-To install dependencies:
+Electron + React で動作する Mastodon デスクトップクライアントです。
 
-```bash
+## 主な機能
+
+- 複数アカウント対応
+- タイムラインのリアルタイム更新 (Streaming API)
+
+## 必要なもの
+
+- [Bun](https://bun.sh/) v1 以上
+
+## セットアップ
+
+```sh
 bun install
 ```
 
-To run:
 
-```bash
-bun run index.ts
+## ビルド
+
+```sh
+# アプリケーションのビルド
+bun run build
+
+# 配布用パッケージの作成
+bun run package
+
+# Windows 向けパッケージの作成
+bun run package:win
 ```
-
-This project was created using `bun init` in bun v1.2.19. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
