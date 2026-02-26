@@ -89,6 +89,21 @@ export interface TabDefinition {
   timelineType: TimelineType;
 }
 
+export type StreamType = 'user' | 'public';
+
+export interface StreamSubscribeParams {
+  serverUrl: string;
+  accessToken: string;
+  streamType: StreamType;
+  subscriptionId: string;
+}
+
+export interface StreamEventData {
+  subscriptionId: string;
+  event: 'update' | 'notification' | 'delete';
+  payload: Post | MastoNotification | string;
+}
+
 export type NotificationType = 'follow' | 'follow_request' | 'favourite' | 'reblog';
 
 export interface MastoNotification {

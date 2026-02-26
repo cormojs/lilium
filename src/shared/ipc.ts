@@ -16,4 +16,10 @@ export const IpcChannels = {
   TabsList: 'tabs:list',
   /** Save the current tabs */
   TabsSave: 'tabs:save',
+  /** Subscribe to a streaming channel */
+  StreamSubscribe: 'stream:subscribe',
+  /** Unsubscribe from a streaming channel */
+  StreamUnsubscribe: 'stream:unsubscribe',
+  /** Streaming event pushed from main to renderer */
+  StreamEvent: 'stream:event',
 } as const;

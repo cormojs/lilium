@@ -4,6 +4,7 @@ import { IpcChannels } from '../shared/ipc.ts';
 import type {
   NotificationFetchParams,
   OAuthExchangeTokenParams,
+  StreamSubscribeParams,
   TabDefinition,
   TimelineFetchParams,
 } from '../shared/types.ts';
@@ -12,6 +13,7 @@ import { listAccounts, addAccount, removeAccount } from './accounts.ts';
 import { fetchTimeline } from './timeline.ts';
 import { fetchNotifications } from './notifications.ts';
 import { listTabs, saveTabs } from './tabs.ts';
+import { subscribeStream, unsubscribeStream, unsubscribeAllStreams } from './streaming.ts';
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -90,6 +92,14 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.TabsSave, async (_event, tabs: TabDefinition[]) => {
     saveTabs(tabs);
   });
+
+  ipcMain.handle(IpcChannels.StreamSubscribe, async (event, params: StreamSubscribeParams) => {
+    await subscribeStream(params, event.sender);
+  });
+
+  ipcMain.handle(IpcChannels.StreamUnsubscribe, async (_event, subscriptionId: string) => {
+    unsubscribeStream(subscriptionId);
+  });
 }
 
 app.commandLine.appendSwitch('disable-gpu-sandbox');
@@ -108,6 +118,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  unsubscribeAllStreams();
   if (process.platform !== 'darwin') {
     app.quit();
   }

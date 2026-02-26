@@ -6,6 +6,8 @@ import type {
   NotificationFetchParams,
   OAuthStartLoginResult,
   OAuthExchangeTokenParams,
+  StreamEventData,
+  StreamSubscribeParams,
   TabDefinition,
   TimelineFetchParams,
   Post,
@@ -43,6 +45,24 @@ const api = {
   /** Save the current tabs */
   saveTabs(tabs: TabDefinition[]): Promise<void> {
     return ipcRenderer.invoke(IpcChannels.TabsSave, tabs);
+  },
+  /** Subscribe to a streaming channel */
+  subscribeStream(params: StreamSubscribeParams): Promise<void> {
+    return ipcRenderer.invoke(IpcChannels.StreamSubscribe, params);
+  },
+  /** Unsubscribe from a streaming channel */
+  unsubscribeStream(subscriptionId: string): Promise<void> {
+    return ipcRenderer.invoke(IpcChannels.StreamUnsubscribe, subscriptionId);
+  },
+  /** Listen for streaming events */
+  onStreamEvent(callback: (event: StreamEventData) => void): () => void {
+    const listener = (_event: Electron.IpcRendererEvent, data: StreamEventData): void => {
+      callback(data);
+    };
+    ipcRenderer.on(IpcChannels.StreamEvent, listener);
+    return () => {
+      ipcRenderer.removeListener(IpcChannels.StreamEvent, listener);
+    };
   },
 };
 
