@@ -109,6 +109,12 @@ export function Composer({ accounts }: ComposerProps): React.JSX.Element {
           <TextArea
             value={text}
             onChange={(event) => setText(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+                event.preventDefault();
+                void handleSubmit();
+              }
+            }}
             placeholder="いまどうしてる？"
             autoSize={{ minRows: 3, maxRows: 6 }}
             maxLength={500}
