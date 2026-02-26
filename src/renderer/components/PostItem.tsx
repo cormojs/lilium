@@ -1,4 +1,11 @@
-import { RetweetOutlined } from '@ant-design/icons';
+import { useState } from 'react';
+import {
+  RetweetOutlined,
+  HeartOutlined,
+  HeartFilled,
+  BookOutlined,
+  BookFilled,
+} from '@ant-design/icons';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type { Post } from '../../shared/types.ts';
@@ -7,6 +14,8 @@ import { MediaGallery } from './MediaGallery.tsx';
 
 interface PostItemProps {
   post: Post;
+  serverUrl: string;
+  accessToken: string;
 }
 
 const PostContainer = styled.div`
@@ -100,9 +109,14 @@ const PostBody = styled.div<{ $fontSize: number }>`
   }
 `;
 
-const Timestamp = styled.a<{ $fontSize: number }>`
-  display: inline-block;
+const FooterLine = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin-top: 4px;
+`;
+
+const Timestamp = styled.a<{ $fontSize: number }>`
   font-size: ${(props) => props.$fontSize}px;
   color: #8c8c8c;
   text-decoration: none;
@@ -110,6 +124,23 @@ const Timestamp = styled.a<{ $fontSize: number }>`
   &:hover {
     text-decoration: underline;
     color: #595959;
+  }
+`;
+
+const ActionButton = styled.button<{ $active: boolean; $activeColor: string; $fontSize: number }>`
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  font-size: ${(props) => props.$fontSize}px;
+  color: ${(props) => (props.$active ? props.$activeColor : '#8c8c8c')};
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+
+  &:hover {
+    background: #f5f5f5;
+    color: ${(props) => props.$activeColor};
   }
 `;
 
@@ -145,8 +176,43 @@ function sanitizeContent(html: string): string {
   });
 }
 
-export function PostItem({ post }: PostItemProps): React.JSX.Element {
+export function PostItem({ post, serverUrl, accessToken }: PostItemProps): React.JSX.Element {
   const { settings } = useSettings();
+  const [favourited, setFavourited] = useState(post.favourited);
+  const [reblogged, setReblogged] = useState(post.reblogged);
+  const [bookmarked, setBookmarked] = useState(post.bookmarked);
+
+  const actionParams = { serverUrl, accessToken, statusId: post.id };
+
+  const handleFavourite = async (): Promise<void> => {
+    if (favourited) {
+      setFavourited(false);
+      await window.api.unfavouriteStatus(actionParams);
+    } else {
+      setFavourited(true);
+      await window.api.favouriteStatus(actionParams);
+    }
+  };
+
+  const handleReblog = async (): Promise<void> => {
+    if (reblogged) {
+      setReblogged(false);
+      await window.api.unreblogStatus(actionParams);
+    } else {
+      setReblogged(true);
+      await window.api.reblogStatus(actionParams);
+    }
+  };
+
+  const handleBookmark = async (): Promise<void> => {
+    if (bookmarked) {
+      setBookmarked(false);
+      await window.api.unbookmarkStatus(actionParams);
+    } else {
+      setBookmarked(true);
+      await window.api.bookmarkStatus(actionParams);
+    }
+  };
 
   const handleTimestampClick = (e: React.MouseEvent): void => {
     e.preventDefault();
@@ -154,6 +220,8 @@ export function PostItem({ post }: PostItemProps): React.JSX.Element {
       window.open(post.url, '_blank');
     }
   };
+
+  const smallFontSize = settings.uiFontSize - 2;
 
   return (
     <PostContainer>
@@ -166,7 +234,7 @@ export function PostItem({ post }: PostItemProps): React.JSX.Element {
               src={post.rebloggedBy.avatarUrl}
               alt={post.rebloggedBy.acct}
             />
-            <BoostIcon $fontSize={settings.uiFontSize - 2} />
+            <BoostIcon $fontSize={smallFontSize} />
           </BoosterBadge>
         )}
       </AvatarColumn>
@@ -180,21 +248,46 @@ export function PostItem({ post }: PostItemProps): React.JSX.Element {
           dangerouslySetInnerHTML={{ __html: sanitizeContent(post.content) }}
         />
         {post.mediaAttachments.length > 0 && <MediaGallery attachments={post.mediaAttachments} />}
-        {post.url ? (
-          <Timestamp
-            $fontSize={settings.uiFontSize - 2}
-            href={post.url}
-            onClick={handleTimestampClick}
+        <FooterLine>
+          {post.url ? (
+            <Timestamp $fontSize={smallFontSize} href={post.url} onClick={handleTimestampClick}>
+              {formatTimestamp(post.createdAt)}
+            </Timestamp>
+          ) : (
+            <Timestamp as="span" $fontSize={smallFontSize}>
+              {formatTimestamp(post.createdAt)}
+            </Timestamp>
+          )}
+          <ActionButton
+            $active={favourited}
+            $activeColor="#eb2f96"
+            $fontSize={smallFontSize}
+            onClick={handleFavourite}
+            title="お気に入り"
           >
-            {formatTimestamp(post.createdAt)}
-          </Timestamp>
-        ) : (
-          <Timestamp as="span" $fontSize={settings.uiFontSize - 2}>
-            {formatTimestamp(post.createdAt)}
-          </Timestamp>
-        )}
+            {favourited ? <HeartFilled /> : <HeartOutlined />}
+          </ActionButton>
+          <ActionButton
+            $active={reblogged}
+            $activeColor="#52c41a"
+            $fontSize={smallFontSize}
+            onClick={handleReblog}
+            title="ブースト"
+          >
+            <RetweetOutlined />
+          </ActionButton>
+          <ActionButton
+            $active={bookmarked}
+            $activeColor="#1677ff"
+            $fontSize={smallFontSize}
+            onClick={handleBookmark}
+            title="ブックマーク"
+          >
+            {bookmarked ? <BookFilled /> : <BookOutlined />}
+          </ActionButton>
+        </FooterLine>
         {post.rebloggedBy && (
-          <BoostInfo $fontSize={settings.uiFontSize - 2}>
+          <BoostInfo $fontSize={smallFontSize}>
             <RetweetOutlined />
             <span>@{post.rebloggedBy.acct} boost this</span>
           </BoostInfo>

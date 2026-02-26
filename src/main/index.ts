@@ -5,6 +5,7 @@ import type {
   AppSettings,
   NotificationFetchParams,
   OAuthExchangeTokenParams,
+  StatusActionParams,
   StatusCreateParams,
   StreamSubscribeParams,
   TabDefinition,
@@ -17,7 +18,15 @@ import { fetchNotifications } from './notifications.ts';
 import { listTabs, saveTabs } from './tabs.ts';
 import { loadSettings, saveSettings } from './settings.ts';
 import { subscribeStream, unsubscribeStream, unsubscribeAllStreams } from './streaming.ts';
-import { createStatus } from './statuses.ts';
+import {
+  createStatus,
+  favouriteStatus,
+  unfavouriteStatus,
+  reblogStatus,
+  unreblogStatus,
+  bookmarkStatus,
+  unbookmarkStatus,
+} from './statuses.ts';
 import { createMainWindowOptions, restoreMaximizeState, saveWindowState } from './windowState.ts';
 
 function createWindow(): void {
@@ -103,6 +112,30 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(IpcChannels.StatusesCreate, async (_event, params: StatusCreateParams) => {
     await createStatus(params.serverUrl, params.accessToken, params.status, params.visibility);
+  });
+
+  ipcMain.handle(IpcChannels.StatusFavourite, async (_event, params: StatusActionParams) => {
+    await favouriteStatus(params.serverUrl, params.accessToken, params.statusId);
+  });
+
+  ipcMain.handle(IpcChannels.StatusUnfavourite, async (_event, params: StatusActionParams) => {
+    await unfavouriteStatus(params.serverUrl, params.accessToken, params.statusId);
+  });
+
+  ipcMain.handle(IpcChannels.StatusReblog, async (_event, params: StatusActionParams) => {
+    await reblogStatus(params.serverUrl, params.accessToken, params.statusId);
+  });
+
+  ipcMain.handle(IpcChannels.StatusUnreblog, async (_event, params: StatusActionParams) => {
+    await unreblogStatus(params.serverUrl, params.accessToken, params.statusId);
+  });
+
+  ipcMain.handle(IpcChannels.StatusBookmark, async (_event, params: StatusActionParams) => {
+    await bookmarkStatus(params.serverUrl, params.accessToken, params.statusId);
+  });
+
+  ipcMain.handle(IpcChannels.StatusUnbookmark, async (_event, params: StatusActionParams) => {
+    await unbookmarkStatus(params.serverUrl, params.accessToken, params.statusId);
   });
 
   ipcMain.handle(IpcChannels.StreamSubscribe, async (event, params: StreamSubscribeParams) => {

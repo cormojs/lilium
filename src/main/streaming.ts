@@ -47,6 +47,9 @@ function convertStatus(status: mastodon.v1.Status): Post {
         previewUrl: m.previewUrl!,
         description: m.description ?? null,
       })),
+    favourited: status.favourited ?? false,
+    reblogged: status.reblogged ?? false,
+    bookmarked: status.bookmarked ?? false,
     rebloggedBy,
   };
 }

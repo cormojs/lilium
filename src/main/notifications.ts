@@ -51,6 +51,9 @@ export async function fetchNotifications(
               previewUrl: m.previewUrl!,
               description: m.description ?? null,
             })),
+          favourited: n.status.favourited ?? false,
+          reblogged: n.status.reblogged ?? false,
+          bookmarked: n.status.bookmarked ?? false,
         };
         result.status = status;
       }

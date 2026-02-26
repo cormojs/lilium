@@ -56,6 +56,9 @@ export async function fetchTimeline(
           previewUrl: m.previewUrl!,
           description: m.description ?? null,
         })),
+      favourited: status.favourited ?? false,
+      reblogged: status.reblogged ?? false,
+      bookmarked: status.bookmarked ?? false,
       rebloggedBy,
     };
   });
