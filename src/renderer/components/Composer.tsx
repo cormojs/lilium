@@ -1,11 +1,9 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Dropdown, Input, Select, Space, Typography } from 'antd';
-import { EditOutlined, DownOutlined } from '@ant-design/icons';
+import { App, Avatar, Button, Dropdown, Input, Select } from 'antd';
 import styled from 'styled-components';
 import type { Account, PostVisibility } from '../../shared/types.ts';
 
 const { TextArea } = Input;
-const { Text } = Typography;
 
 interface ComposerProps {
   accounts: Account[];
@@ -17,11 +15,15 @@ const Container = styled.div`
   background: #fff;
 `;
 
-const HeaderRow = styled.div`
+const ComposerBody = styled.div`
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
+  gap: 12px;
+  align-items: flex-start;
+`;
+
+const ComposerRight = styled.div`
+  flex: 1;
+  min-width: 0;
 `;
 
 const FooterRow = styled.div`
@@ -49,14 +51,11 @@ export function Composer({ accounts }: ComposerProps): React.JSX.Element {
     () =>
       accounts.map((account) => ({
         key: `${account.serverUrl}|${account.username}`,
+        icon: <Avatar src={account.avatarUrl} size={24} shape="square" />,
         label: `@${account.username}@${new URL(account.serverUrl).host}`,
       })),
     [accounts],
   );
-
-  const selectedLabel = selectedAccount
-    ? `@${selectedAccount.username}@${new URL(selectedAccount.serverUrl).host}`
-    : 'アカウントを選択';
 
   const handleSubmit = async (): Promise<void> => {
     const trimmedText = text.trim();
@@ -83,7 +82,7 @@ export function Composer({ accounts }: ComposerProps): React.JSX.Element {
 
   return (
     <Container>
-      <HeaderRow>
+      <ComposerBody>
         <Dropdown
           menu={{
             items: accountMenuItems,
@@ -98,40 +97,42 @@ export function Composer({ accounts }: ComposerProps): React.JSX.Element {
           }}
           trigger={['click']}
         >
-          <Button type="text" icon={<EditOutlined />}>
-            <Space>
-              <Text>{selectedLabel}</Text>
-              <DownOutlined />
-            </Space>
-          </Button>
+          <Avatar
+            src={selectedAccount?.avatarUrl}
+            size={40}
+            shape="square"
+            style={{ cursor: 'pointer', flexShrink: 0 }}
+          />
         </Dropdown>
-      </HeaderRow>
 
-      <TextArea
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-        placeholder="いまどうしてる？"
-        autoSize={{ minRows: 3, maxRows: 6 }}
-        maxLength={500}
-      />
+        <ComposerRight>
+          <TextArea
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            placeholder="いまどうしてる？"
+            autoSize={{ minRows: 3, maxRows: 6 }}
+            maxLength={500}
+          />
 
-      <FooterRow>
-        <Select
-          value={visibility}
-          options={visibilityOptions}
-          onChange={setVisibility}
-          style={{ width: 180 }}
-        />
+          <FooterRow>
+            <Select
+              value={visibility}
+              options={visibilityOptions}
+              onChange={setVisibility}
+              style={{ width: 180 }}
+            />
 
-        <Button
-          type="primary"
-          onClick={() => void handleSubmit()}
-          disabled={!selectedAccount || text.trim().length === 0}
-          loading={submitting}
-        >
-          トゥート
-        </Button>
-      </FooterRow>
+            <Button
+              type="primary"
+              onClick={() => void handleSubmit()}
+              disabled={!selectedAccount || text.trim().length === 0}
+              loading={submitting}
+            >
+              トゥート
+            </Button>
+          </FooterRow>
+        </ComposerRight>
+      </ComposerBody>
     </Container>
   );
 }
