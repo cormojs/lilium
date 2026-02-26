@@ -1,5 +1,5 @@
 import { createRestAPIClient } from 'masto';
-import type { TimelineType, Post } from '../shared/types.ts';
+import type { TimelineType, Post, PostVisibility } from '../shared/types.ts';
 
 export async function fetchTimeline(
   serverUrl: string,
@@ -42,6 +42,7 @@ export async function fetchTimeline(
       content: original.content,
       createdAt: original.createdAt,
       url: original.url ?? null,
+      visibility: original.visibility as PostVisibility,
       account: {
         acct: original.account.acct,
         displayName: original.account.displayName,

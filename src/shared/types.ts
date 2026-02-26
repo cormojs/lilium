@@ -64,6 +64,8 @@ export interface Post {
   };
   /** Media attachments (images, videos, etc.) */
   mediaAttachments: PostMediaAttachment[];
+  /** Visibility of the post */
+  visibility: PostVisibility;
   /** Whether the current user has favourited this post */
   favourited: boolean;
   /** Whether the current user has reblogged this post */

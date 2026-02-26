@@ -4,6 +4,7 @@ import type { WebContents } from 'electron';
 import type {
   MastoNotification,
   Post,
+  PostVisibility,
   StreamEventData,
   StreamSubscribeParams,
   StreamType,
@@ -33,6 +34,7 @@ function convertStatus(status: mastodon.v1.Status): Post {
     content: original.content,
     createdAt: original.createdAt,
     url: original.url ?? null,
+    visibility: original.visibility as PostVisibility,
     account: {
       acct: original.account.acct,
       displayName: original.account.displayName,

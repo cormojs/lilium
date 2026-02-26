@@ -1,5 +1,5 @@
 import { createRestAPIClient } from 'masto';
-import type { MastoNotification, Post } from '../shared/types.ts';
+import type { MastoNotification, Post, PostVisibility } from '../shared/types.ts';
 
 const NOTIFICATION_TYPES = ['follow', 'follow_request', 'favourite', 'reblog'] as const;
 
@@ -37,6 +37,7 @@ export async function fetchNotifications(
           content: original.content,
           createdAt: original.createdAt,
           url: original.url ?? null,
+          visibility: original.visibility as PostVisibility,
           account: {
             acct: original.account.acct,
             displayName: original.account.displayName,

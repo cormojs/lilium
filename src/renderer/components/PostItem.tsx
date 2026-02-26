@@ -138,9 +138,14 @@ const ActionButton = styled.button<{ $active: boolean; $activeColor: string; $fo
   align-items: center;
   border-radius: 4px;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: #f5f5f5;
     color: ${(props) => props.$activeColor};
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.3;
   }
 `;
 
@@ -183,6 +188,7 @@ export function PostItem({ post, serverUrl, accessToken }: PostItemProps): React
   const [bookmarked, setBookmarked] = useState(post.bookmarked);
 
   const actionParams = { serverUrl, accessToken, statusId: post.id };
+  const reblogDisabled = post.visibility === 'private' || post.visibility === 'direct';
 
   const handleFavourite = async (): Promise<void> => {
     if (favourited) {
@@ -272,7 +278,8 @@ export function PostItem({ post, serverUrl, accessToken }: PostItemProps): React
             $activeColor="#52c41a"
             $fontSize={smallFontSize}
             onClick={handleReblog}
-            title="ブースト"
+            title={reblogDisabled ? 'この投稿はブーストできません' : 'ブースト'}
+            disabled={reblogDisabled}
           >
             <RetweetOutlined />
           </ActionButton>
