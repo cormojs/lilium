@@ -154,6 +154,10 @@ export async function subscribeStream(
       if (!abortController.signal.aborted) {
         console.error(`Streaming error for ${params.subscriptionId}:`, e);
       }
+    } finally {
+      // Clean up when the loop exits for any reason
+      // (webContents destroyed, server disconnect, error, abort)
+      unsubscribeStream(params.subscriptionId);
     }
   })();
 }
