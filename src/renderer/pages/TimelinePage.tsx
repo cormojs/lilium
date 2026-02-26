@@ -12,6 +12,7 @@ import type {
 } from '../../shared/types.ts';
 import { PostItem } from '../components/PostItem.tsx';
 import { NotificationItem } from '../components/NotificationItem.tsx';
+import { Composer } from '../components/Composer.tsx';
 
 const { Text } = Typography;
 
@@ -358,6 +359,7 @@ export function TimelinePage({
 
   return (
     <PageContainer>
+      <Composer accounts={accounts} />
       <Tabs
         type="editable-card"
         activeKey={activeTabId}

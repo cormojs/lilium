@@ -4,6 +4,7 @@ import { IpcChannels } from '../shared/ipc.ts';
 import type {
   NotificationFetchParams,
   OAuthExchangeTokenParams,
+  StatusCreateParams,
   StreamSubscribeParams,
   TabDefinition,
   TimelineFetchParams,
@@ -14,6 +15,7 @@ import { fetchTimeline } from './timeline.ts';
 import { fetchNotifications } from './notifications.ts';
 import { listTabs, saveTabs } from './tabs.ts';
 import { subscribeStream, unsubscribeStream, unsubscribeAllStreams } from './streaming.ts';
+import { createStatus } from './statuses.ts';
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -91,6 +93,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(IpcChannels.TabsSave, async (_event, tabs: TabDefinition[]) => {
     saveTabs(tabs);
+  });
+
+  ipcMain.handle(IpcChannels.StatusesCreate, async (_event, params: StatusCreateParams) => {
+    await createStatus(params.serverUrl, params.accessToken, params.status, params.visibility);
   });
 
   ipcMain.handle(IpcChannels.StreamSubscribe, async (event, params: StreamSubscribeParams) => {

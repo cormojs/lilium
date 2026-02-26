@@ -12,6 +12,8 @@ export const IpcChannels = {
   TimelineFetch: 'timeline:fetch',
   /** Fetch notifications */
   NotificationsFetch: 'notifications:fetch',
+  /** Post a new status */
+  StatusesCreate: 'statuses:create',
   /** Get the list of saved tabs */
   TabsList: 'tabs:list',
   /** Save the current tabs */
