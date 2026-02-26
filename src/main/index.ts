@@ -16,12 +16,11 @@ import { fetchNotifications } from './notifications.ts';
 import { listTabs, saveTabs } from './tabs.ts';
 import { subscribeStream, unsubscribeStream, unsubscribeAllStreams } from './streaming.ts';
 import { createStatus } from './statuses.ts';
+import { createMainWindowOptions, restoreMaximizeState, saveWindowState } from './windowState.ts';
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
-    show: true,
+    ...createMainWindowOptions(),
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -31,6 +30,11 @@ function createWindow(): void {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+  });
+
+  restoreMaximizeState(mainWindow);
+  mainWindow.on('close', () => {
+    saveWindowState(mainWindow);
   });
 
   // Open external links in the default browser
