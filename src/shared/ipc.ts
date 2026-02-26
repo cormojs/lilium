@@ -24,4 +24,8 @@ export const IpcChannels = {
   StreamUnsubscribe: 'stream:unsubscribe',
   /** Streaming event pushed from main to renderer */
   StreamEvent: 'stream:event',
+  /** Load application settings */
+  SettingsLoad: 'settings:load',
+  /** Save application settings */
+  SettingsSave: 'settings:save',
 } as const;

@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import path from 'node:path';
 import { IpcChannels } from '../shared/ipc.ts';
 import type {
+  AppSettings,
   NotificationFetchParams,
   OAuthExchangeTokenParams,
   StatusCreateParams,
@@ -14,6 +15,7 @@ import { listAccounts, addAccount, removeAccount } from './accounts.ts';
 import { fetchTimeline } from './timeline.ts';
 import { fetchNotifications } from './notifications.ts';
 import { listTabs, saveTabs } from './tabs.ts';
+import { loadSettings, saveSettings } from './settings.ts';
 import { subscribeStream, unsubscribeStream, unsubscribeAllStreams } from './streaming.ts';
 import { createStatus } from './statuses.ts';
 
@@ -105,6 +107,14 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(IpcChannels.StreamUnsubscribe, async (_event, subscriptionId: string) => {
     unsubscribeStream(subscriptionId);
+  });
+
+  ipcMain.handle(IpcChannels.SettingsLoad, async () => {
+    return loadSettings();
+  });
+
+  ipcMain.handle(IpcChannels.SettingsSave, async (_event, settings: AppSettings) => {
+    saveSettings(settings);
   });
 }
 

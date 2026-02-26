@@ -2,6 +2,7 @@ import { RetweetOutlined } from '@ant-design/icons';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type { Post } from '../../shared/types.ts';
+import { useSettings } from '../hooks/useSettings.ts';
 import { MediaGallery } from './MediaGallery.tsx';
 
 interface PostItemProps {
@@ -15,17 +16,17 @@ const PostContainer = styled.div`
   border-bottom: 1px solid #f0f0f0;
 `;
 
-const AvatarColumn = styled.div`
+const AvatarColumn = styled.div<{ $width: number }>`
   display: flex;
   flex-direction: column;
   align-items: center;
   flex-shrink: 0;
-  width: 48px;
+  width: ${(props) => props.$width}px;
 `;
 
-const Avatar = styled.img`
-  width: 48px;
-  height: 48px;
+const Avatar = styled.img<{ $size: number }>`
+  width: ${(props) => props.$size}px;
+  height: ${(props) => props.$size}px;
   border-radius: 4px;
   flex-shrink: 0;
 `;
@@ -37,20 +38,20 @@ const BoosterBadge = styled.div`
   margin-top: 4px;
 `;
 
-const BoosterAvatar = styled.img`
-  width: 25px;
-  height: 25px;
+const BoosterAvatar = styled.img<{ $size: number }>`
+  width: ${(props) => props.$size}px;
+  height: ${(props) => props.$size}px;
   border-radius: 2px;
 `;
 
-const BoostIcon = styled(RetweetOutlined)`
-  font-size: 12px;
+const BoostIcon = styled(RetweetOutlined)<{ $fontSize: number }>`
+  font-size: ${(props) => props.$fontSize}px;
   color: #52c41a;
 `;
 
-const BoostInfo = styled.div`
+const BoostInfo = styled.div<{ $fontSize: number }>`
   margin-top: 4px;
-  font-size: 12px;
+  font-size: ${(props) => props.$fontSize}px;
   color: #52c41a;
   display: flex;
   align-items: center;
@@ -69,19 +70,19 @@ const HeaderLine = styled.div`
   margin-bottom: 4px;
 `;
 
-const Acct = styled.span`
+const Acct = styled.span<{ $fontSize: number }>`
   color: #000;
   font-weight: 600;
-  font-size: 14px;
+  font-size: ${(props) => props.$fontSize}px;
 `;
 
-const DisplayName = styled.span`
+const DisplayName = styled.span<{ $fontSize: number }>`
   color: #8c8c8c;
-  font-size: 14px;
+  font-size: ${(props) => props.$fontSize}px;
 `;
 
-const PostBody = styled.div`
-  font-size: 14px;
+const PostBody = styled.div<{ $fontSize: number }>`
+  font-size: ${(props) => props.$fontSize}px;
   line-height: 1.6;
   word-break: break-word;
 
@@ -99,10 +100,10 @@ const PostBody = styled.div`
   }
 `;
 
-const Timestamp = styled.a`
+const Timestamp = styled.a<{ $fontSize: number }>`
   display: inline-block;
   margin-top: 4px;
-  font-size: 12px;
+  font-size: ${(props) => props.$fontSize}px;
   color: #8c8c8c;
   text-decoration: none;
 
@@ -145,6 +146,8 @@ function sanitizeContent(html: string): string {
 }
 
 export function PostItem({ post }: PostItemProps): React.JSX.Element {
+  const { settings } = useSettings();
+
   const handleTimestampClick = (e: React.MouseEvent): void => {
     e.preventDefault();
     if (post.url) {
@@ -154,31 +157,44 @@ export function PostItem({ post }: PostItemProps): React.JSX.Element {
 
   return (
     <PostContainer>
-      <AvatarColumn>
-        <Avatar src={post.account.avatarUrl} alt={post.account.acct} />
+      <AvatarColumn $width={settings.avatarSize}>
+        <Avatar $size={settings.avatarSize} src={post.account.avatarUrl} alt={post.account.acct} />
         {post.rebloggedBy && (
           <BoosterBadge>
-            <BoosterAvatar src={post.rebloggedBy.avatarUrl} alt={post.rebloggedBy.acct} />
-            <BoostIcon />
+            <BoosterAvatar
+              $size={settings.boostAvatarSize}
+              src={post.rebloggedBy.avatarUrl}
+              alt={post.rebloggedBy.acct}
+            />
+            <BoostIcon $fontSize={settings.uiFontSize - 2} />
           </BoosterBadge>
         )}
       </AvatarColumn>
       <Content>
         <HeaderLine>
-          <Acct>@{post.account.acct}</Acct>
-          <DisplayName>{post.account.displayName}</DisplayName>
+          <Acct $fontSize={settings.uiFontSize}>@{post.account.acct}</Acct>
+          <DisplayName $fontSize={settings.uiFontSize}>{post.account.displayName}</DisplayName>
         </HeaderLine>
-        <PostBody dangerouslySetInnerHTML={{ __html: sanitizeContent(post.content) }} />
+        <PostBody
+          $fontSize={settings.postFontSize}
+          dangerouslySetInnerHTML={{ __html: sanitizeContent(post.content) }}
+        />
         {post.mediaAttachments.length > 0 && <MediaGallery attachments={post.mediaAttachments} />}
         {post.url ? (
-          <Timestamp href={post.url} onClick={handleTimestampClick}>
+          <Timestamp
+            $fontSize={settings.uiFontSize - 2}
+            href={post.url}
+            onClick={handleTimestampClick}
+          >
             {formatTimestamp(post.createdAt)}
           </Timestamp>
         ) : (
-          <Timestamp as="span">{formatTimestamp(post.createdAt)}</Timestamp>
+          <Timestamp as="span" $fontSize={settings.uiFontSize - 2}>
+            {formatTimestamp(post.createdAt)}
+          </Timestamp>
         )}
         {post.rebloggedBy && (
-          <BoostInfo>
+          <BoostInfo $fontSize={settings.uiFontSize - 2}>
             <RetweetOutlined />
             <span>@{post.rebloggedBy.acct} boost this</span>
           </BoostInfo>

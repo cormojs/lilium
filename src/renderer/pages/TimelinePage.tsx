@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Tabs, Modal, Select, Button, App, Flex, Typography, Spin } from 'antd';
-import { SettingOutlined } from '@ant-design/icons';
+import { SettingOutlined, UserOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
 import type {
   Account,
@@ -19,6 +19,7 @@ const { Text } = Typography;
 interface TimelinePageProps {
   accounts: Account[];
   onNavigateToLogin: () => void;
+  onNavigateToSettings: () => void;
 }
 
 const PageContainer = styled.div`
@@ -266,6 +267,7 @@ function TabContent({
 export function TimelinePage({
   accounts,
   onNavigateToLogin,
+  onNavigateToSettings,
 }: TimelinePageProps): React.JSX.Element {
   const [tabs, setTabs] = useState<TabDefinition[]>([]);
   const [activeTabId, setActiveTabId] = useState<string>('');
@@ -378,13 +380,22 @@ export function TimelinePage({
         items={tabItems}
         tabBarExtraContent={{
           right: (
-            <Button
-              type="text"
-              icon={<SettingOutlined />}
-              onClick={onNavigateToLogin}
-              title="アカウント管理"
-              style={{ marginRight: 8 }}
-            />
+            <>
+              <Button
+                type="text"
+                icon={<SettingOutlined />}
+                onClick={onNavigateToSettings}
+                title="設定"
+                style={{ marginRight: 4 }}
+              />
+              <Button
+                type="text"
+                icon={<UserOutlined />}
+                onClick={onNavigateToLogin}
+                title="アカウント管理"
+                style={{ marginRight: 8 }}
+              />
+            </>
           ),
         }}
         style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
