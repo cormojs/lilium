@@ -64,6 +64,14 @@ export interface Post {
   };
   /** Media attachments (images, videos, etc.) */
   mediaAttachments: PostMediaAttachment[];
+  /** Visibility of the post */
+  visibility: PostVisibility;
+  /** Whether the current user has favourited this post */
+  favourited: boolean;
+  /** Whether the current user has reblogged this post */
+  reblogged: boolean;
+  /** Whether the current user has bookmarked this post */
+  bookmarked: boolean;
   /** If this post is a boost, info about who boosted it */
   rebloggedBy?: {
     acct: string;
@@ -134,6 +142,13 @@ export interface StatusCreateParams {
   accessToken: string;
   status: string;
   visibility: PostVisibility;
+}
+
+/** Parameters for status actions (favourite, reblog, bookmark) */
+export interface StatusActionParams {
+  serverUrl: string;
+  accessToken: string;
+  statusId: string;
 }
 
 /** Application display settings */

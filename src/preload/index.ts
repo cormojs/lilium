@@ -7,6 +7,7 @@ import type {
   NotificationFetchParams,
   OAuthStartLoginResult,
   OAuthExchangeTokenParams,
+  StatusActionParams,
   StatusCreateParams,
   StreamEventData,
   StreamSubscribeParams,
@@ -59,6 +60,30 @@ const api = {
   /** Unsubscribe from a streaming channel */
   unsubscribeStream(subscriptionId: string): Promise<void> {
     return ipcRenderer.invoke(IpcChannels.StreamUnsubscribe, subscriptionId);
+  },
+  /** Favourite a status */
+  favouriteStatus(params: StatusActionParams): Promise<void> {
+    return ipcRenderer.invoke(IpcChannels.StatusFavourite, params);
+  },
+  /** Unfavourite a status */
+  unfavouriteStatus(params: StatusActionParams): Promise<void> {
+    return ipcRenderer.invoke(IpcChannels.StatusUnfavourite, params);
+  },
+  /** Reblog a status */
+  reblogStatus(params: StatusActionParams): Promise<void> {
+    return ipcRenderer.invoke(IpcChannels.StatusReblog, params);
+  },
+  /** Unreblog a status */
+  unreblogStatus(params: StatusActionParams): Promise<void> {
+    return ipcRenderer.invoke(IpcChannels.StatusUnreblog, params);
+  },
+  /** Bookmark a status */
+  bookmarkStatus(params: StatusActionParams): Promise<void> {
+    return ipcRenderer.invoke(IpcChannels.StatusBookmark, params);
+  },
+  /** Unbookmark a status */
+  unbookmarkStatus(params: StatusActionParams): Promise<void> {
+    return ipcRenderer.invoke(IpcChannels.StatusUnbookmark, params);
   },
   /** Load application settings */
   loadSettings(): Promise<AppSettings> {

@@ -160,7 +160,12 @@ function TimelineTabContent({
   return (
     <TimelineList>
       {posts.map((post) => (
-        <PostItem key={post.id} post={post} />
+        <PostItem
+          key={post.id}
+          post={post}
+          serverUrl={account.serverUrl}
+          accessToken={account.accessToken}
+        />
       ))}
     </TimelineList>
   );
