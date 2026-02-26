@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Tabs, Modal, Select, Button, App, Flex, Typography, Spin } from 'antd';
-import { SettingOutlined, UserOutlined } from '@ant-design/icons';
+import { Tabs, Modal, Select, Button, App, Flex, Typography, Spin, Dropdown } from 'antd';
+import { SettingOutlined, UserOutlined, SwapOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
 import type {
   Account,
   MastoNotification,
+  PaneDefinition,
   Post,
   StreamType,
   TabDefinition,
@@ -13,6 +14,7 @@ import type {
 import { PostItem } from '../components/PostItem.tsx';
 import { NotificationItem } from '../components/NotificationItem.tsx';
 import { Composer } from '../components/Composer.tsx';
+import { PaneContainer } from '../components/PaneContainer.tsx';
 
 const { Text } = Typography;
 
@@ -44,6 +46,35 @@ const SpinContainer = styled.div`
   text-align: center;
 `;
 
+const StyledTabs = styled(Tabs)`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+
+  .ant-tabs-content-holder {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .ant-tabs-content {
+    height: 100%;
+  }
+
+  .ant-tabs-tabpane-active {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+`;
+
+const TabLabelWrapper = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+`;
+
 const TIMELINE_TYPE_LABELS: Record<TimelineType, string> = {
   home: 'Home',
   public: 'Public',
@@ -51,7 +82,7 @@ const TIMELINE_TYPE_LABELS: Record<TimelineType, string> = {
   notifications: 'Notifications',
 };
 
-function generateTabId(): string {
+function generateId(): string {
   return crypto.randomUUID();
 }
 
@@ -269,79 +300,340 @@ function TabContent({
   return <TimelineTabContent tab={tab} accounts={accounts} />;
 }
 
+interface PaneProps {
+  pane: PaneDefinition;
+  paneIndex: number;
+  totalPanes: number;
+  tabs: TabDefinition[];
+  accounts: Account[];
+  onActiveTabChange: (paneId: string, tabId: string) => void;
+  onAddTab: (paneId: string) => void;
+  onRemoveTab: (paneId: string, tabId: string) => void;
+  onMoveTab: (tabId: string, fromPaneId: string, direction: 'left' | 'right') => void;
+}
+
+function Pane({
+  pane,
+  paneIndex,
+  totalPanes,
+  tabs,
+  accounts,
+  onActiveTabChange,
+  onAddTab,
+  onRemoveTab,
+  onMoveTab,
+}: PaneProps): React.JSX.Element {
+  const paneTabs = pane.tabIds
+    .map((id) => tabs.find((t) => t.id === id))
+    .filter((t): t is TabDefinition => t !== undefined);
+
+  const tabItems = paneTabs.map((tab) => {
+    const moveMenuItems = [];
+    if (paneIndex > 0 || totalPanes > 1) {
+      moveMenuItems.push({
+        key: 'left',
+        label: '左のペインへ移動',
+        disabled: paneIndex === 0,
+      });
+    }
+    if (paneIndex < totalPanes - 1 || totalPanes > 1) {
+      moveMenuItems.push({
+        key: 'right',
+        label: '右のペインへ移動',
+        disabled: paneIndex === totalPanes - 1,
+      });
+    }
+
+    return {
+      key: tab.id,
+      label: (
+        <TabLabelWrapper>
+          {totalPanes > 1 && (
+            <Dropdown
+              menu={{
+                items: moveMenuItems,
+                onClick: ({ key }) => {
+                  onMoveTab(tab.id, pane.id, key as 'left' | 'right');
+                },
+              }}
+              trigger={['click']}
+            >
+              <SwapOutlined
+                style={{ fontSize: 10, cursor: 'pointer' }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </Dropdown>
+          )}
+          {buildTabLabel(tab, accounts)}
+        </TabLabelWrapper>
+      ),
+      children: <TabContent tab={tab} accounts={accounts} />,
+      closable: paneTabs.length > 1 || totalPanes > 1,
+    };
+  });
+
+  return (
+    <StyledTabs
+      type="editable-card"
+      activeKey={pane.activeTabId}
+      onChange={(key) => onActiveTabChange(pane.id, key)}
+      onEdit={(targetKey, action) => {
+        if (action === 'add') {
+          onAddTab(pane.id);
+        } else if (action === 'remove' && typeof targetKey === 'string') {
+          onRemoveTab(pane.id, targetKey);
+        }
+      }}
+      items={
+        tabItems.length > 0
+          ? tabItems
+          : [
+              {
+                key: '__empty__',
+                label: '',
+                children: <EmptyMessage>「＋」ボタンからタブを追加してください</EmptyMessage>,
+                closable: false,
+                disabled: true,
+              },
+            ]
+      }
+    />
+  );
+}
+
 export function TimelinePage({
   accounts,
   onNavigateToLogin,
   onNavigateToSettings,
 }: TimelinePageProps): React.JSX.Element {
   const [tabs, setTabs] = useState<TabDefinition[]>([]);
-  const [activeTabId, setActiveTabId] = useState<string>('');
+  const [panes, setPanes] = useState<PaneDefinition[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  // Modal state
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalPaneId, setModalPaneId] = useState<string>('');
   const [newTabAccount, setNewTabAccount] = useState<string>('');
   const [newTabType, setNewTabType] = useState<TimelineType>('home');
-  const [tabsLoaded, setTabsLoaded] = useState(false);
 
-  // Load saved tabs on mount
+  // Load saved data on mount
   useEffect(() => {
-    window.api.listTabs().then((savedTabs) => {
-      if (savedTabs.length > 0) {
-        setTabs(savedTabs);
-        setActiveTabId(savedTabs[0]?.id ?? '');
-      }
-      setTabsLoaded(true);
-    });
+    Promise.all([window.api.listTabs(), window.api.loadPaneLayout()]).then(
+      ([savedTabs, savedLayout]) => {
+        if (savedTabs.length > 0 && savedLayout && savedLayout.panes.length > 0) {
+          setTabs(savedTabs);
+          setPanes(savedLayout.panes);
+        } else if (savedTabs.length > 0) {
+          // Migrate: existing tabs but no pane layout
+          setTabs(savedTabs);
+          const defaultPane: PaneDefinition = {
+            id: generateId(),
+            tabIds: savedTabs.map((t) => t.id),
+            activeTabId: savedTabs[0]?.id ?? '',
+            widthRatio: 1,
+          };
+          setPanes([defaultPane]);
+        }
+        setLoaded(true);
+      },
+    );
   }, []);
 
   // Initialize with a default tab if accounts exist and no saved tabs
   useEffect(() => {
-    if (!tabsLoaded) return;
+    if (!loaded) return;
     const firstAccount = accounts[0];
     if (firstAccount && tabs.length === 0) {
       const defaultTab: TabDefinition = {
-        id: generateTabId(),
+        id: generateId(),
         accountServerUrl: firstAccount.serverUrl,
         accountUsername: firstAccount.username,
         timelineType: 'home',
       };
+      const defaultPane: PaneDefinition = {
+        id: generateId(),
+        tabIds: [defaultTab.id],
+        activeTabId: defaultTab.id,
+        widthRatio: 1,
+      };
       setTabs([defaultTab]);
-      setActiveTabId(defaultTab.id);
+      setPanes([defaultPane]);
       window.api.saveTabs([defaultTab]);
+      window.api.savePaneLayout({ panes: [defaultPane] });
     }
-  }, [accounts, tabs.length, tabsLoaded]);
+  }, [accounts, tabs.length, loaded]);
 
-  const handleAddTab = (): void => {
+  const persistLayout = useCallback((newTabs: TabDefinition[], newPanes: PaneDefinition[]) => {
+    window.api.saveTabs(newTabs);
+    window.api.savePaneLayout({ panes: newPanes });
+  }, []);
+
+  const handleActiveTabChange = useCallback((paneId: string, tabId: string) => {
+    setPanes((prev) => {
+      const next = prev.map((p) => (p.id === paneId ? { ...p, activeTabId: tabId } : p));
+      window.api.savePaneLayout({ panes: next });
+      return next;
+    });
+  }, []);
+
+  const handleAddTab = useCallback(
+    (paneId: string) => {
+      setModalPaneId(paneId);
+      const firstOption = accounts[0];
+      if (firstOption) {
+        setNewTabAccount(`${firstOption.serverUrl}|${firstOption.username}`);
+      }
+      setModalOpen(true);
+    },
+    [accounts],
+  );
+
+  const handleConfirmAddTab = useCallback((): void => {
     if (!newTabAccount) return;
     const parts = newTabAccount.split('|');
     const serverUrl = parts[0] ?? '';
     const username = parts[1] ?? '';
     const tab: TabDefinition = {
-      id: generateTabId(),
+      id: generateId(),
       accountServerUrl: serverUrl,
       accountUsername: username,
       timelineType: newTabType,
     };
-    setTabs((prev) => {
-      const next = [...prev, tab];
-      window.api.saveTabs(next);
-      return next;
+
+    setTabs((prevTabs) => {
+      const nextTabs = [...prevTabs, tab];
+      setPanes((prevPanes) => {
+        const nextPanes = prevPanes.map((p) =>
+          p.id === modalPaneId ? { ...p, tabIds: [...p.tabIds, tab.id], activeTabId: tab.id } : p,
+        );
+        persistLayout(nextTabs, nextPanes);
+        return nextPanes;
+      });
+      return nextTabs;
     });
-    setActiveTabId(tab.id);
+
     setModalOpen(false);
     setNewTabAccount('');
     setNewTabType('home');
-  };
+  }, [newTabAccount, newTabType, modalPaneId, persistLayout]);
 
-  const handleRemoveTab = (tabId: string): void => {
-    setTabs((prev) => {
-      const next = prev.filter((t) => t.id !== tabId);
-      const firstRemaining = next[0];
-      if (activeTabId === tabId && firstRemaining) {
-        setActiveTabId(firstRemaining.id);
-      }
-      window.api.saveTabs(next);
-      return next;
+  const handleRemoveTab = useCallback(
+    (paneId: string, tabId: string): void => {
+      setPanes((prevPanes) => {
+        const pane = prevPanes.find((p) => p.id === paneId);
+        if (!pane) return prevPanes;
+
+        const newTabIds = pane.tabIds.filter((id) => id !== tabId);
+
+        // If pane becomes empty, remove the pane (unless it's the last one)
+        if (newTabIds.length === 0 && prevPanes.length > 1) {
+          const nextPanes = prevPanes.filter((p) => p.id !== paneId);
+          // Normalize width ratios
+          const totalRatio = nextPanes.reduce((sum, p) => sum + p.widthRatio, 0);
+          const normalizedPanes = nextPanes.map((p) => ({
+            ...p,
+            widthRatio: p.widthRatio / totalRatio,
+          }));
+
+          setTabs((prevTabs) => {
+            const nextTabs = prevTabs.filter((t) => t.id !== tabId);
+            persistLayout(nextTabs, normalizedPanes);
+            return nextTabs;
+          });
+          return normalizedPanes;
+        }
+
+        const newActiveTabId = pane.activeTabId === tabId ? (newTabIds[0] ?? '') : pane.activeTabId;
+
+        const nextPanes = prevPanes.map((p) =>
+          p.id === paneId ? { ...p, tabIds: newTabIds, activeTabId: newActiveTabId } : p,
+        );
+
+        setTabs((prevTabs) => {
+          const nextTabs = prevTabs.filter((t) => t.id !== tabId);
+          persistLayout(nextTabs, nextPanes);
+          return nextTabs;
+        });
+        return nextPanes;
+      });
+    },
+    [persistLayout],
+  );
+
+  const handleMoveTab = useCallback(
+    (tabId: string, fromPaneId: string, direction: 'left' | 'right'): void => {
+      setPanes((prevPanes) => {
+        const fromIndex = prevPanes.findIndex((p) => p.id === fromPaneId);
+        if (fromIndex === -1) return prevPanes;
+
+        const toIndex = direction === 'left' ? fromIndex - 1 : fromIndex + 1;
+        if (toIndex < 0 || toIndex >= prevPanes.length) return prevPanes;
+
+        const fromPane = prevPanes[fromIndex]!;
+        const toPane = prevPanes[toIndex]!;
+
+        const newFromTabIds = fromPane.tabIds.filter((id) => id !== tabId);
+        const newFromActiveTabId =
+          fromPane.activeTabId === tabId ? (newFromTabIds[0] ?? '') : fromPane.activeTabId;
+
+        let nextPanes = prevPanes.map((p, i) => {
+          if (i === fromIndex) {
+            return { ...p, tabIds: newFromTabIds, activeTabId: newFromActiveTabId };
+          }
+          if (i === toIndex) {
+            return { ...p, tabIds: [...toPane.tabIds, tabId], activeTabId: tabId };
+          }
+          return p;
+        });
+
+        // Remove empty panes (unless it's the last one)
+        if (newFromTabIds.length === 0 && nextPanes.length > 1) {
+          nextPanes = nextPanes.filter((p) => p.id !== fromPaneId);
+          const totalRatio = nextPanes.reduce((sum, p) => sum + p.widthRatio, 0);
+          nextPanes = nextPanes.map((p) => ({
+            ...p,
+            widthRatio: p.widthRatio / totalRatio,
+          }));
+        }
+
+        window.api.savePaneLayout({ panes: nextPanes });
+        return nextPanes;
+      });
+    },
+    [],
+  );
+
+  const handleWidthRatiosChange = useCallback((ratios: number[]): void => {
+    setPanes((prevPanes) => {
+      const nextPanes = prevPanes.map((p, i) => ({
+        ...p,
+        widthRatio: ratios[i] ?? p.widthRatio,
+      }));
+      window.api.savePaneLayout({ panes: nextPanes });
+      return nextPanes;
     });
-  };
+  }, []);
+
+  const handleAddPane = useCallback((position: 'left' | 'right'): void => {
+    const newPane: PaneDefinition = {
+      id: generateId(),
+      tabIds: [],
+      activeTabId: '',
+      widthRatio: 1,
+    };
+
+    setPanes((prevPanes) => {
+      const nextPanes = position === 'left' ? [newPane, ...prevPanes] : [...prevPanes, newPane];
+      // Normalize ratios
+      const totalRatio = nextPanes.reduce((sum, p) => sum + p.widthRatio, 0);
+      const normalizedPanes = nextPanes.map((p) => ({
+        ...p,
+        widthRatio: p.widthRatio / totalRatio,
+      }));
+      window.api.savePaneLayout({ panes: normalizedPanes });
+      return normalizedPanes;
+    });
+  }, []);
 
   const accountOptions = accounts.map((a) => ({
     value: `${a.serverUrl}|${a.username}`,
@@ -355,61 +647,52 @@ export function TimelinePage({
     { value: 'notifications', label: 'Notifications' },
   ];
 
-  const tabItems = [
-    ...tabs.map((tab) => ({
-      key: tab.id,
-      label: buildTabLabel(tab, accounts),
-      children: <TabContent tab={tab} accounts={accounts} />,
-      closable: tabs.length > 1,
-    })),
-  ];
+  const widthRatios = panes.map((p) => p.widthRatio);
 
   return (
     <PageContainer>
       <Composer accounts={accounts} />
-      <Tabs
-        type="editable-card"
-        activeKey={activeTabId}
-        onChange={setActiveTabId}
-        onEdit={(targetKey, action) => {
-          if (action === 'add') {
-            const firstOption = accountOptions[0];
-            if (firstOption) {
-              setNewTabAccount(firstOption.value);
-            }
-            setModalOpen(true);
-          } else if (action === 'remove' && typeof targetKey === 'string') {
-            handleRemoveTab(targetKey);
-          }
-        }}
-        items={tabItems}
-        tabBarExtraContent={{
-          right: (
-            <>
-              <Button
-                type="text"
-                icon={<SettingOutlined />}
-                onClick={onNavigateToSettings}
-                title="設定"
-                style={{ marginRight: 4 }}
-              />
-              <Button
-                type="text"
-                icon={<UserOutlined />}
-                onClick={onNavigateToLogin}
-                title="アカウント管理"
-                style={{ marginRight: 8 }}
-              />
-            </>
-          ),
-        }}
-        style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
-      />
+      <Flex align="center" justify="flex-end" style={{ padding: '0 8px', flexShrink: 0 }}>
+        <Button
+          type="text"
+          icon={<SettingOutlined />}
+          onClick={onNavigateToSettings}
+          title="設定"
+          style={{ marginRight: 4 }}
+        />
+        <Button
+          type="text"
+          icon={<UserOutlined />}
+          onClick={onNavigateToLogin}
+          title="アカウント管理"
+        />
+      </Flex>
+      <PaneContainer
+        paneCount={panes.length}
+        widthRatios={widthRatios}
+        onWidthRatiosChange={handleWidthRatiosChange}
+        onAddPane={handleAddPane}
+      >
+        {panes.map((pane, index) => (
+          <Pane
+            key={pane.id}
+            pane={pane}
+            paneIndex={index}
+            totalPanes={panes.length}
+            tabs={tabs}
+            accounts={accounts}
+            onActiveTabChange={handleActiveTabChange}
+            onAddTab={handleAddTab}
+            onRemoveTab={handleRemoveTab}
+            onMoveTab={handleMoveTab}
+          />
+        ))}
+      </PaneContainer>
 
       <Modal
         title="タブを追加"
         open={modalOpen}
-        onOk={handleAddTab}
+        onOk={handleConfirmAddTab}
         onCancel={() => setModalOpen(false)}
         okText="追加"
         cancelText="キャンセル"

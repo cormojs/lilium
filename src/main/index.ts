@@ -5,6 +5,7 @@ import type {
   AppSettings,
   NotificationFetchParams,
   OAuthExchangeTokenParams,
+  PaneLayout,
   StatusActionParams,
   StatusCreateParams,
   StreamSubscribeParams,
@@ -17,6 +18,7 @@ import { fetchTimeline } from './timeline.ts';
 import { fetchNotifications } from './notifications.ts';
 import { listTabs, saveTabs } from './tabs.ts';
 import { loadSettings, saveSettings } from './settings.ts';
+import { loadPaneLayout, savePaneLayout } from './panes.ts';
 import { subscribeStream, unsubscribeStream, unsubscribeAllStreams } from './streaming.ts';
 import {
   createStatus,
@@ -152,6 +154,14 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(IpcChannels.SettingsSave, async (_event, settings: AppSettings) => {
     saveSettings(settings);
+  });
+
+  ipcMain.handle(IpcChannels.PaneLayoutLoad, async () => {
+    return loadPaneLayout();
+  });
+
+  ipcMain.handle(IpcChannels.PaneLayoutSave, async (_event, layout: PaneLayout) => {
+    savePaneLayout(layout);
   });
 }
 
