@@ -6,6 +6,7 @@ import type {
   NotificationFetchParams,
   OAuthStartLoginResult,
   OAuthExchangeTokenParams,
+  StatusCreateParams,
   StreamEventData,
   StreamSubscribeParams,
   TabDefinition,
@@ -37,6 +38,10 @@ const api = {
   /** Fetch notifications */
   fetchNotifications(params: NotificationFetchParams): Promise<MastoNotification[]> {
     return ipcRenderer.invoke(IpcChannels.NotificationsFetch, params);
+  },
+  /** Create a new status */
+  createStatus(params: StatusCreateParams): Promise<void> {
+    return ipcRenderer.invoke(IpcChannels.StatusesCreate, params);
   },
   /** Get the list of saved tabs */
   listTabs(): Promise<TabDefinition[]> {

@@ -126,3 +126,12 @@ export interface NotificationFetchParams {
   /** For pagination — fetch notifications older than this ID */
   maxId?: string;
 }
+
+export type PostVisibility = 'public' | 'unlisted' | 'private' | 'direct';
+
+export interface StatusCreateParams {
+  serverUrl: string;
+  accessToken: string;
+  status: string;
+  visibility: PostVisibility;
+}
