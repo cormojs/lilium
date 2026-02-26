@@ -7,6 +7,7 @@ import {
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type { MastoNotification, NotificationType } from '../../shared/types.ts';
+import { useSettings } from '../hooks/useSettings.ts';
 
 interface NotificationItemProps {
   notification: MastoNotification;
@@ -19,9 +20,9 @@ const NotificationContainer = styled.div`
   border-bottom: 1px solid #f0f0f0;
 `;
 
-const Avatar = styled.img`
-  width: 48px;
-  height: 48px;
+const Avatar = styled.img<{ $size: number }>`
+  width: ${(props) => props.$size}px;
+  height: ${(props) => props.$size}px;
   border-radius: 4px;
   flex-shrink: 0;
 `;
@@ -31,12 +32,12 @@ const Content = styled.div`
   min-width: 0;
 `;
 
-const NotificationHeader = styled.div`
+const NotificationHeader = styled.div<{ $fontSize: number }>`
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 4px;
-  font-size: 14px;
+  font-size: ${(props) => props.$fontSize}px;
 `;
 
 const Acct = styled.span`
@@ -47,11 +48,11 @@ const NotificationMessage = styled.span`
   color: #8c8c8c;
 `;
 
-const StatusPreview = styled.div`
+const StatusPreview = styled.div<{ $fontSize: number }>`
   margin-top: 8px;
   padding: 8px 12px;
   border-left: 3px solid #d9d9d9;
-  font-size: 13px;
+  font-size: ${(props) => props.$fontSize}px;
   color: #595959;
   line-height: 1.5;
 
@@ -69,10 +70,10 @@ const StatusPreview = styled.div`
   }
 `;
 
-const Timestamp = styled.span`
+const Timestamp = styled.span<{ $fontSize: number }>`
   display: inline-block;
   margin-top: 4px;
-  font-size: 12px;
+  font-size: ${(props) => props.$fontSize}px;
   color: #8c8c8c;
 `;
 
@@ -107,11 +108,17 @@ function sanitizeContent(html: string): string {
 }
 
 export function NotificationItem({ notification }: NotificationItemProps): React.JSX.Element {
+  const { settings } = useSettings();
+
   return (
     <NotificationContainer>
-      <Avatar src={notification.account.avatarUrl} alt={notification.account.acct} />
+      <Avatar
+        $size={settings.avatarSize}
+        src={notification.account.avatarUrl}
+        alt={notification.account.acct}
+      />
       <Content>
-        <NotificationHeader>
+        <NotificationHeader $fontSize={settings.uiFontSize}>
           {NOTIFICATION_ICON[notification.type]}
           <span>
             <Acct>@{notification.account.acct}</Acct>
@@ -120,10 +127,13 @@ export function NotificationItem({ notification }: NotificationItemProps): React
         </NotificationHeader>
         {notification.status && (
           <StatusPreview
+            $fontSize={settings.postFontSize - 1}
             dangerouslySetInnerHTML={{ __html: sanitizeContent(notification.status.content) }}
           />
         )}
-        <Timestamp>{formatTimestamp(notification.createdAt)}</Timestamp>
+        <Timestamp $fontSize={settings.uiFontSize - 2}>
+          {formatTimestamp(notification.createdAt)}
+        </Timestamp>
       </Content>
     </NotificationContainer>
   );

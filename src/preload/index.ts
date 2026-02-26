@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { IpcChannels } from '../shared/ipc.ts';
 import type {
   Account,
+  AppSettings,
   MastoNotification,
   NotificationFetchParams,
   OAuthStartLoginResult,
@@ -58,6 +59,14 @@ const api = {
   /** Unsubscribe from a streaming channel */
   unsubscribeStream(subscriptionId: string): Promise<void> {
     return ipcRenderer.invoke(IpcChannels.StreamUnsubscribe, subscriptionId);
+  },
+  /** Load application settings */
+  loadSettings(): Promise<AppSettings> {
+    return ipcRenderer.invoke(IpcChannels.SettingsLoad);
+  },
+  /** Save application settings */
+  saveSettings(settings: AppSettings): Promise<void> {
+    return ipcRenderer.invoke(IpcChannels.SettingsSave, settings);
   },
   /** Listen for streaming events */
   onStreamEvent(callback: (event: StreamEventData) => void): () => void {

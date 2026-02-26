@@ -135,3 +135,15 @@ export interface StatusCreateParams {
   status: string;
   visibility: PostVisibility;
 }
+
+/** Application display settings */
+export interface AppSettings {
+  /** Avatar icon size in pixels */
+  avatarSize: number;
+  /** Boost avatar icon size in pixels */
+  boostAvatarSize: number;
+  /** Post body font size in pixels */
+  postFontSize: number;
+  /** UI font size (acct, display name, timestamp, etc.) in pixels */
+  uiFontSize: number;
+}
