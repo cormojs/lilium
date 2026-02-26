@@ -6,6 +6,7 @@ import type {
   Account,
   MastoNotification,
   Post,
+  StreamType,
   TabDefinition,
   TimelineType,
 } from '../../shared/types.ts';
@@ -50,6 +51,17 @@ const TIMELINE_TYPE_LABELS: Record<TimelineType, string> = {
 
 function generateTabId(): string {
   return crypto.randomUUID();
+}
+
+function getStreamType(timelineType: TimelineType): StreamType | null {
+  switch (timelineType) {
+    case 'home':
+      return 'user';
+    case 'public':
+      return 'public';
+    default:
+      return null;
+  }
 }
 
 function buildTabLabel(tab: TabDefinition, accounts: Account[]): string {
@@ -97,6 +109,35 @@ function TimelineTabContent({
   useEffect(() => {
     loadTimeline();
   }, [loadTimeline]);
+
+  // Subscribe to streaming for real-time updates
+  useEffect(() => {
+    if (!account) return;
+    const streamType = getStreamType(tab.timelineType);
+    if (!streamType) return;
+
+    const subscriptionId = `timeline-${tab.id}`;
+    window.api.subscribeStream({
+      serverUrl: account.serverUrl,
+      accessToken: account.accessToken,
+      streamType,
+      subscriptionId,
+    });
+
+    const removeListener = window.api.onStreamEvent((event) => {
+      if (event.subscriptionId !== subscriptionId) return;
+      if (event.event === 'update') {
+        setPosts((prev) => [event.payload as Post, ...prev]);
+      } else if (event.event === 'delete') {
+        setPosts((prev) => prev.filter((p) => p.id !== event.payload));
+      }
+    });
+
+    return () => {
+      removeListener();
+      window.api.unsubscribeStream(subscriptionId);
+    };
+  }, [account, tab.id, tab.timelineType]);
 
   if (!account) {
     return <EmptyMessage>アカウントが見つかりません</EmptyMessage>;
@@ -157,6 +198,31 @@ function NotificationTabContent({
   useEffect(() => {
     loadNotifications();
   }, [loadNotifications]);
+
+  // Subscribe to user stream for real-time notification updates
+  useEffect(() => {
+    if (!account) return;
+
+    const subscriptionId = `notifications-${tab.id}`;
+    window.api.subscribeStream({
+      serverUrl: account.serverUrl,
+      accessToken: account.accessToken,
+      streamType: 'user',
+      subscriptionId,
+    });
+
+    const removeListener = window.api.onStreamEvent((event) => {
+      if (event.subscriptionId !== subscriptionId) return;
+      if (event.event === 'notification') {
+        setNotifications((prev) => [event.payload as MastoNotification, ...prev]);
+      }
+    });
+
+    return () => {
+      removeListener();
+      window.api.unsubscribeStream(subscriptionId);
+    };
+  }, [account, tab.id]);
 
   if (!account) {
     return <EmptyMessage>アカウントが見つかりません</EmptyMessage>;
