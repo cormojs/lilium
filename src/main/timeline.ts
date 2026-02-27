@@ -40,6 +40,8 @@ export async function fetchTimeline(
     return {
       id: status.id,
       content: original.content,
+      spoilerText: original.spoilerText,
+      sensitive: original.sensitive,
       createdAt: original.createdAt,
       url: original.url ?? null,
       visibility: original.visibility as PostVisibility,
