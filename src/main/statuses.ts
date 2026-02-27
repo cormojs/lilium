@@ -1,5 +1,5 @@
-import { createRestAPIClient } from 'masto';
 import type { PostVisibility } from '../shared/types.ts';
+import { getRestClient, withRateLimit } from './apiClient.ts';
 
 export async function createStatus(
   serverUrl: string,
@@ -7,8 +7,8 @@ export async function createStatus(
   status: string,
   visibility: PostVisibility,
 ): Promise<void> {
-  const client = createRestAPIClient({ url: serverUrl, accessToken });
-  await client.v1.statuses.create({ status, visibility });
+  const client = getRestClient(serverUrl, accessToken);
+  await withRateLimit(serverUrl, () => client.v1.statuses.create({ status, visibility }));
 }
 
 export async function favouriteStatus(
@@ -16,8 +16,8 @@ export async function favouriteStatus(
   accessToken: string,
   statusId: string,
 ): Promise<void> {
-  const client = createRestAPIClient({ url: serverUrl, accessToken });
-  await client.v1.statuses.$select(statusId).favourite();
+  const client = getRestClient(serverUrl, accessToken);
+  await withRateLimit(serverUrl, () => client.v1.statuses.$select(statusId).favourite());
 }
 
 export async function unfavouriteStatus(
@@ -25,8 +25,8 @@ export async function unfavouriteStatus(
   accessToken: string,
   statusId: string,
 ): Promise<void> {
-  const client = createRestAPIClient({ url: serverUrl, accessToken });
-  await client.v1.statuses.$select(statusId).unfavourite();
+  const client = getRestClient(serverUrl, accessToken);
+  await withRateLimit(serverUrl, () => client.v1.statuses.$select(statusId).unfavourite());
 }
 
 export async function reblogStatus(
@@ -34,8 +34,8 @@ export async function reblogStatus(
   accessToken: string,
   statusId: string,
 ): Promise<void> {
-  const client = createRestAPIClient({ url: serverUrl, accessToken });
-  await client.v1.statuses.$select(statusId).reblog();
+  const client = getRestClient(serverUrl, accessToken);
+  await withRateLimit(serverUrl, () => client.v1.statuses.$select(statusId).reblog());
 }
 
 export async function unreblogStatus(
@@ -43,8 +43,8 @@ export async function unreblogStatus(
   accessToken: string,
   statusId: string,
 ): Promise<void> {
-  const client = createRestAPIClient({ url: serverUrl, accessToken });
-  await client.v1.statuses.$select(statusId).unreblog();
+  const client = getRestClient(serverUrl, accessToken);
+  await withRateLimit(serverUrl, () => client.v1.statuses.$select(statusId).unreblog());
 }
 
 export async function bookmarkStatus(
@@ -52,8 +52,8 @@ export async function bookmarkStatus(
   accessToken: string,
   statusId: string,
 ): Promise<void> {
-  const client = createRestAPIClient({ url: serverUrl, accessToken });
-  await client.v1.statuses.$select(statusId).bookmark();
+  const client = getRestClient(serverUrl, accessToken);
+  await withRateLimit(serverUrl, () => client.v1.statuses.$select(statusId).bookmark());
 }
 
 export async function unbookmarkStatus(
@@ -61,6 +61,6 @@ export async function unbookmarkStatus(
   accessToken: string,
   statusId: string,
 ): Promise<void> {
-  const client = createRestAPIClient({ url: serverUrl, accessToken });
-  await client.v1.statuses.$select(statusId).unbookmark();
+  const client = getRestClient(serverUrl, accessToken);
+  await withRateLimit(serverUrl, () => client.v1.statuses.$select(statusId).unbookmark());
 }

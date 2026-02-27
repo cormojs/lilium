@@ -1,5 +1,5 @@
-import { createRestAPIClient } from 'masto';
 import type { TimelineType, Post, PostVisibility } from '../shared/types.ts';
+import { getRestClient, withRateLimit } from './apiClient.ts';
 
 export async function fetchTimeline(
   serverUrl: string,
@@ -7,24 +7,22 @@ export async function fetchTimeline(
   type: TimelineType,
   maxId?: string,
 ): Promise<Post[]> {
-  const client = createRestAPIClient({ url: serverUrl, accessToken });
+  const client = getRestClient(serverUrl, accessToken);
 
   const params = { maxId, limit: 20 };
 
-  let statuses;
-  switch (type) {
-    case 'home':
-      statuses = await client.v1.timelines.home.list(params);
-      break;
-    case 'public':
-      statuses = await client.v1.timelines.public.list(params);
-      break;
-    case 'favourites':
-      statuses = await client.v1.favourites.list(params);
-      break;
-    case 'notifications':
-      return [];
-  }
+  const statuses = await withRateLimit(serverUrl, async () => {
+    switch (type) {
+      case 'home':
+        return client.v1.timelines.home.list(params);
+      case 'public':
+        return client.v1.timelines.public.list(params);
+      case 'favourites':
+        return client.v1.favourites.list(params);
+      case 'notifications':
+        return [];
+    }
+  });
 
   return statuses.map((status) => {
     // If this is a reblog, use the original post's content

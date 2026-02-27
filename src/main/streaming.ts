@@ -1,4 +1,4 @@
-import { createRestAPIClient, createStreamingAPIClient } from 'masto';
+import { createStreamingAPIClient } from 'masto';
 import type { mastodon } from 'masto';
 import type { WebContents } from 'electron';
 import type {
@@ -11,6 +11,7 @@ import type {
   StreamType,
 } from '../shared/types.ts';
 import { IpcChannels } from '../shared/ipc.ts';
+import { getRestClient, withRateLimit } from './apiClient.ts';
 
 const POLLING_INTERVAL_MS = 60_000;
 const STREAM_RETRY_INTERVAL_MS = 30_000;
@@ -33,7 +34,6 @@ interface ActiveSubscription {
   streaming?: StreamingHandles;
   retryTimer?: ReturnType<typeof setTimeout>;
   pollingTimer?: ReturnType<typeof setInterval>;
-  pollingClient?: mastodon.rest.Client;
   cursor: PollingCursor;
 }
 
@@ -142,8 +142,8 @@ function maxMastodonId(ids: string[]): string | undefined {
 }
 
 async function getStreamingApiUrl(serverUrl: string, accessToken: string): Promise<string> {
-  const rest = createRestAPIClient({ url: serverUrl, accessToken });
-  const instance = await rest.v2.instance.fetch();
+  const rest = getRestClient(serverUrl, accessToken);
+  const instance = await withRateLimit(serverUrl, () => rest.v2.instance.fetch());
   return instance.configuration.urls.streaming;
 }
 
@@ -186,23 +186,23 @@ function stopPolling(active: ActiveSubscription): void {
 }
 
 async function pollUserStream(active: ActiveSubscription): Promise<void> {
-  if (!active.pollingClient) {
-    active.pollingClient = createRestAPIClient({
-      url: active.params.serverUrl,
-      accessToken: active.params.accessToken,
-    });
-  }
+  const client = getRestClient(active.params.serverUrl, active.params.accessToken);
+  const { serverUrl } = active.params;
 
   const [statuses, notifications] = await Promise.all([
-    active.pollingClient.v1.timelines.home.list({
-      sinceId: active.cursor.statusSinceId,
-      limit: 20,
-    }),
-    active.pollingClient.v1.notifications.list({
-      sinceId: active.cursor.notificationSinceId,
-      limit: 20,
-      types: [...NOTIFICATION_TYPES],
-    }),
+    withRateLimit(serverUrl, () =>
+      client.v1.timelines.home.list({
+        sinceId: active.cursor.statusSinceId,
+        limit: 20,
+      }),
+    ),
+    withRateLimit(serverUrl, () =>
+      client.v1.notifications.list({
+        sinceId: active.cursor.notificationSinceId,
+        limit: 20,
+        types: [...NOTIFICATION_TYPES],
+      }),
+    ),
   ]);
 
   const statusSinceId = maxMastodonId(statuses.map((status) => status.id));
@@ -237,17 +237,14 @@ async function pollUserStream(active: ActiveSubscription): Promise<void> {
 }
 
 async function pollPublicStream(active: ActiveSubscription): Promise<void> {
-  if (!active.pollingClient) {
-    active.pollingClient = createRestAPIClient({
-      url: active.params.serverUrl,
-      accessToken: active.params.accessToken,
-    });
-  }
+  const client = getRestClient(active.params.serverUrl, active.params.accessToken);
 
-  const statuses = await active.pollingClient.v1.timelines.public.list({
-    sinceId: active.cursor.statusSinceId,
-    limit: 20,
-  });
+  const statuses = await withRateLimit(active.params.serverUrl, () =>
+    client.v1.timelines.public.list({
+      sinceId: active.cursor.statusSinceId,
+      limit: 20,
+    }),
+  );
 
   const statusSinceId = maxMastodonId(statuses.map((status) => status.id));
   if (statusSinceId) {

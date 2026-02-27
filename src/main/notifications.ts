@@ -1,5 +1,5 @@
-import { createRestAPIClient } from 'masto';
 import type { MastoNotification, Post, PostVisibility } from '../shared/types.ts';
+import { getRestClient, withRateLimit } from './apiClient.ts';
 
 const NOTIFICATION_TYPES = ['follow', 'follow_request', 'favourite', 'reblog'] as const;
 
@@ -8,13 +8,15 @@ export async function fetchNotifications(
   accessToken: string,
   maxId?: string,
 ): Promise<MastoNotification[]> {
-  const client = createRestAPIClient({ url: serverUrl, accessToken });
+  const client = getRestClient(serverUrl, accessToken);
 
-  const notifications = await client.v1.notifications.list({
-    maxId,
-    limit: 20,
-    types: [...NOTIFICATION_TYPES],
-  });
+  const notifications = await withRateLimit(serverUrl, () =>
+    client.v1.notifications.list({
+      maxId,
+      limit: 20,
+      types: [...NOTIFICATION_TYPES],
+    }),
+  );
 
   return notifications
     .filter((n) => NOTIFICATION_TYPES.includes(n.type as (typeof NOTIFICATION_TYPES)[number]))
