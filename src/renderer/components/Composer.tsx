@@ -24,13 +24,16 @@ const ComposerBody = styled.div`
 const ComposerRight = styled.div`
   flex: 1;
   min-width: 0;
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
 `;
 
-const FooterRow = styled.div`
-  margin-top: 8px;
+const ActionColumn = styled.div`
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
 `;
 
 const visibilityOptions: { value: PostVisibility; label: string }[] = [
@@ -116,16 +119,18 @@ export function Composer({ accounts }: ComposerProps): React.JSX.Element {
               }
             }}
             placeholder="いまどうしてる？"
-            autoSize={{ minRows: 3, maxRows: 6 }}
+            autoSize={{ minRows: 2, maxRows: 6 }}
             maxLength={500}
+            style={{ flex: 1 }}
           />
 
-          <FooterRow>
+          <ActionColumn>
             <Select
               value={visibility}
               options={visibilityOptions}
               onChange={setVisibility}
-              style={{ width: 180 }}
+              size="small"
+              style={{ width: 140 }}
             />
 
             <Button
@@ -133,10 +138,11 @@ export function Composer({ accounts }: ComposerProps): React.JSX.Element {
               onClick={() => void handleSubmit()}
               disabled={!selectedAccount || text.trim().length === 0}
               loading={submitting}
+              style={{ flex: 1 }}
             >
               トゥート
             </Button>
-          </FooterRow>
+          </ActionColumn>
         </ComposerRight>
       </ComposerBody>
     </Container>

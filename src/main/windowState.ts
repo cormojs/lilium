@@ -75,6 +75,7 @@ export function createMainWindowOptions(): BrowserWindowConstructorOptions {
     x: state?.x,
     y: state?.y,
     show: true,
+    autoHideMenuBar: true,
   };
 }
 
