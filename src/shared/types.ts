@@ -166,6 +166,14 @@ export interface StatusActionParams {
   statusId: string;
 }
 
+/** Connection status of a stream subscription */
+export type StreamConnectionStatus = 'streaming' | 'polling' | 'disconnected';
+
+export interface StreamConnectionStatusData {
+  subscriptionId: string;
+  status: StreamConnectionStatus;
+}
+
 /** Application display settings */
 export interface AppSettings {
   /** Avatar icon size in pixels */
