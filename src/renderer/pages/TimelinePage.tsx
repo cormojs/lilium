@@ -14,6 +14,7 @@ import type {
 import { PostItem } from '../components/PostItem.tsx';
 import { NotificationItem } from '../components/NotificationItem.tsx';
 import { Composer } from '../components/Composer.tsx';
+import { CompactPostItem } from '../components/CompactPostItem.tsx';
 import { PaneContainer } from '../components/PaneContainer.tsx';
 
 const { Text } = Typography;
@@ -115,6 +116,7 @@ function TimelineTabContent({
   const { message } = App.useApp();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(false);
+  const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
 
   const account = accounts.find(
     (a) => a.serverUrl === tab.accountServerUrl && a.username === tab.accountUsername,
@@ -190,14 +192,19 @@ function TimelineTabContent({
 
   return (
     <TimelineList>
-      {posts.map((post) => (
-        <PostItem
-          key={post.id}
-          post={post}
-          serverUrl={account.serverUrl}
-          accessToken={account.accessToken}
-        />
-      ))}
+      {posts.map((post) =>
+        expandedPostId === post.id ? (
+          <PostItem
+            key={post.id}
+            post={post}
+            serverUrl={account.serverUrl}
+            accessToken={account.accessToken}
+            onCollapse={() => setExpandedPostId(null)}
+          />
+        ) : (
+          <CompactPostItem key={post.id} post={post} onClick={() => setExpandedPostId(post.id)} />
+        ),
+      )}
     </TimelineList>
   );
 }

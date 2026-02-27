@@ -16,6 +16,7 @@ interface PostItemProps {
   post: Post;
   serverUrl: string;
   accessToken: string;
+  onCollapse?: () => void;
 }
 
 const PostContainer = styled.div`
@@ -198,7 +199,12 @@ function sanitizeContent(html: string): string {
   });
 }
 
-export function PostItem({ post, serverUrl, accessToken }: PostItemProps): React.JSX.Element {
+export function PostItem({
+  post,
+  serverUrl,
+  accessToken,
+  onCollapse,
+}: PostItemProps): React.JSX.Element {
   const { settings } = useSettings();
   const [favourited, setFavourited] = useState(post.favourited);
   const [reblogged, setReblogged] = useState(post.reblogged);
@@ -253,7 +259,13 @@ export function PostItem({ post, serverUrl, accessToken }: PostItemProps): React
   return (
     <PostContainer>
       <AvatarColumn $width={settings.avatarSize}>
-        <Avatar $size={settings.avatarSize} src={post.account.avatarUrl} alt={post.account.acct} />
+        <Avatar
+          $size={settings.avatarSize}
+          src={post.account.avatarUrl}
+          alt={post.account.acct}
+          onClick={onCollapse}
+          style={onCollapse ? { cursor: 'pointer' } : undefined}
+        />
         {post.rebloggedBy && (
           <BoosterBadge>
             <BoosterAvatar
