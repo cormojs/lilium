@@ -7,6 +7,7 @@ import type {
   NotificationFetchParams,
   OAuthStartLoginResult,
   OAuthExchangeTokenParams,
+  PaneLayout,
   StatusActionParams,
   StatusCreateParams,
   StreamEventData,
@@ -92,6 +93,14 @@ const api = {
   /** Save application settings */
   saveSettings(settings: AppSettings): Promise<void> {
     return ipcRenderer.invoke(IpcChannels.SettingsSave, settings);
+  },
+  /** Load pane layout */
+  loadPaneLayout(): Promise<PaneLayout | null> {
+    return ipcRenderer.invoke(IpcChannels.PaneLayoutLoad);
+  },
+  /** Save pane layout */
+  savePaneLayout(layout: PaneLayout): Promise<void> {
+    return ipcRenderer.invoke(IpcChannels.PaneLayoutSave, layout);
   },
   /** Listen for streaming events */
   onStreamEvent(callback: (event: StreamEventData) => void): () => void {

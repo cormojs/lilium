@@ -40,4 +40,8 @@ export const IpcChannels = {
   SettingsLoad: 'settings:load',
   /** Save application settings */
   SettingsSave: 'settings:save',
+  /** Load pane layout */
+  PaneLayoutLoad: 'pane-layout:load',
+  /** Save pane layout */
+  PaneLayoutSave: 'pane-layout:save',
 } as const;

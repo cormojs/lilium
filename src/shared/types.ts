@@ -97,6 +97,17 @@ export interface TabDefinition {
   timelineType: TimelineType;
 }
 
+export interface PaneDefinition {
+  id: string;
+  tabIds: string[];
+  activeTabId: string;
+  widthRatio: number;
+}
+
+export interface PaneLayout {
+  panes: PaneDefinition[];
+}
+
 export type StreamType = 'user' | 'public';
 
 export interface StreamSubscribeParams {
