@@ -33,6 +33,8 @@ function convertStatus(status: mastodon.v1.Status): Post {
     id: status.id,
     content: original.content,
     createdAt: original.createdAt,
+    spoilerText: original.spoilerText,
+    sensitive: original.sensitive,
     url: original.url ?? null,
     visibility: original.visibility as PostVisibility,
     account: {
