@@ -11,6 +11,7 @@ import type {
   StreamType,
 } from '../shared/types.ts';
 import { IpcChannels } from '../shared/ipc.ts';
+import { rateLimitedCall } from './rateLimiter.ts';
 
 const POLLING_INTERVAL_MS = 60_000;
 const STREAM_RETRY_INTERVAL_MS = 30_000;
@@ -46,6 +47,11 @@ function convertStatus(status: mastodon.v1.Status): Post {
         acct: status.account.acct,
         displayName: status.account.displayName,
         avatarUrl: status.account.avatar,
+        emojis: status.account.emojis.map((e) => ({
+          shortcode: e.shortcode,
+          url: e.url,
+          staticUrl: e.staticUrl,
+        })),
       }
     : undefined;
 
@@ -61,6 +67,11 @@ function convertStatus(status: mastodon.v1.Status): Post {
       acct: original.account.acct,
       displayName: original.account.displayName,
       avatarUrl: original.account.avatar,
+      emojis: original.account.emojis.map((e) => ({
+        shortcode: e.shortcode,
+        url: e.url,
+        staticUrl: e.staticUrl,
+      })),
     },
     mediaAttachments: original.mediaAttachments
       .filter((m) => m.url != null && m.previewUrl != null)
@@ -71,6 +82,11 @@ function convertStatus(status: mastodon.v1.Status): Post {
         previewUrl: m.previewUrl!,
         description: m.description ?? null,
       })),
+    emojis: original.emojis.map((emoji) => ({
+      shortcode: emoji.shortcode,
+      url: emoji.url,
+      staticUrl: emoji.staticUrl,
+    })),
     favourited: status.favourited ?? false,
     reblogged: status.reblogged ?? false,
     bookmarked: status.bookmarked ?? false,
@@ -87,6 +103,11 @@ function convertNotification(n: mastodon.v1.Notification): MastoNotification {
       acct: n.account.acct,
       displayName: n.account.displayName,
       avatarUrl: n.account.avatar,
+      emojis: n.account.emojis.map((e) => ({
+        shortcode: e.shortcode,
+        url: e.url,
+        staticUrl: e.staticUrl,
+      })),
     },
   };
 
@@ -143,7 +164,7 @@ function maxMastodonId(ids: string[]): string | undefined {
 
 async function getStreamingApiUrl(serverUrl: string, accessToken: string): Promise<string> {
   const rest = createRestAPIClient({ url: serverUrl, accessToken });
-  const instance = await rest.v2.instance.fetch();
+  const instance = await rateLimitedCall(() => rest.v2.instance.fetch());
   return instance.configuration.urls.streaming;
 }
 
@@ -194,15 +215,19 @@ async function pollUserStream(active: ActiveSubscription): Promise<void> {
   }
 
   const [statuses, notifications] = await Promise.all([
-    active.pollingClient.v1.timelines.home.list({
-      sinceId: active.cursor.statusSinceId,
-      limit: 20,
-    }),
-    active.pollingClient.v1.notifications.list({
-      sinceId: active.cursor.notificationSinceId,
-      limit: 20,
-      types: [...NOTIFICATION_TYPES],
-    }),
+    rateLimitedCall(async () =>
+      active.pollingClient!.v1.timelines.home.list({
+        sinceId: active.cursor.statusSinceId,
+        limit: 20,
+      }),
+    ),
+    rateLimitedCall(async () =>
+      active.pollingClient!.v1.notifications.list({
+        sinceId: active.cursor.notificationSinceId,
+        limit: 20,
+        types: [...NOTIFICATION_TYPES],
+      }),
+    ),
   ]);
 
   const statusSinceId = maxMastodonId(statuses.map((status) => status.id));
@@ -244,10 +269,12 @@ async function pollPublicStream(active: ActiveSubscription): Promise<void> {
     });
   }
 
-  const statuses = await active.pollingClient.v1.timelines.public.list({
-    sinceId: active.cursor.statusSinceId,
-    limit: 20,
-  });
+  const statuses = await rateLimitedCall(async () =>
+    active.pollingClient!.v1.timelines.public.list({
+      sinceId: active.cursor.statusSinceId,
+      limit: 20,
+    }),
+  );
 
   const statusSinceId = maxMastodonId(statuses.map((status) => status.id));
   if (statusSinceId) {

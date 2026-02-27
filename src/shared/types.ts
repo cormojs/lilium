@@ -1,24 +1,182 @@
-/** Persisted account information */
+import type { mastodon } from 'masto';
+
+export type MastodonStatus = mastodon.v1.Status;
+export type MastodonNotification = mastodon.v1.Notification;
+
+export type PostVisibility = 'public' | 'unlisted' | 'private' | 'direct';
+
 export interface Account {
-  /** Mastodon server URL (e.g. "https://mastodon.social") */
   serverUrl: string;
-  /** OAuth access token (stored encrypted at rest) */
   accessToken: string;
-  /** Username (e.g. "alice") */
   username: string;
-  /** Display name */
   displayName: string;
-  /** Avatar URL */
   avatarUrl: string;
+}
+
+export interface TabDefinition {
+  id: string;
+  accountServerUrl: string;
+  accountUsername: string;
+  timelineType: TimelineType;
+}
+
+/**
+ * Notification event forwarded from main process to renderer via IPC
+ */
+export interface NotificationEvent {
+  type: 'favourite' | 'reblog' | 'mention' | 'follow' | 'poll' | 'update' | 'status' | string;
+  accountDisplayName: string;
+  accountAcct: string;
+  statusContent?: string;
+}
+
+/**
+ * Status event from timeline (streaming or polling)
+ */
+export interface StatusEvent {
+  tabId: string;
+  status: MastodonStatus;
+}
+
+/**
+ * Timeline data update from main process to renderer
+ */
+export interface TimelineData {
+  tabId: string;
+  statuses: MastodonStatus[];
+  isStreaming: boolean;
+}
+
+/**
+ * Notification data update from main process to renderer
+ */
+export interface NotificationData {
+  tabId: string;
+  notifications: MastodonNotification[];
+  isStreaming: boolean;
+}
+
+/**
+ * Parameters for fetching older timeline statuses (infinite scroll)
+ */
+export interface FetchOlderParams {
+  tabId: string;
+  maxId: string;
+}
+
+/**
+ * Parameters for fetching older notifications (infinite scroll)
+ */
+export interface FetchOlderNotificationsParams {
+  tabId: string;
+  maxId: string;
+}
+
+/**
+ * Result of fetching older timeline statuses
+ */
+export interface FetchOlderResult {
+  tabId: string;
+  statuses: MastodonStatus[];
+}
+
+/**
+ * Result of fetching older notifications
+ */
+export interface FetchOlderNotificationsResult {
+  tabId: string;
+  notifications: MastodonNotification[];
+}
+
+/**
+ * Custom emoji data for rendering in timeline
+ */
+export interface CustomEmoji {
+  shortcode: string;
+  url: string;
+  staticUrl: string;
+  visibleInPicker: boolean;
+  category?: string;
+}
+
+/**
+ * Parameters for fetching custom emojis
+ */
+export interface FetchCustomEmojisParams {
+  serverUrl: string;
+  accessToken: string;
+}
+
+/**
+ * Payload for requesting a tab connection/streaming setup
+ */
+export interface TabConnectionPayload {
+  tab: TabDefinition;
+}
+
+/**
+ * Connection status update for a tab
+ */
+export interface TabConnectionStatusEvent {
+  tabId: string;
+  isStreaming: boolean;
+}
+
+/**
+ * Represents saved account data in persistent storage
+ */
+export interface SavedAccount {
+  serverUrl: string;
+  accessToken: string;
+}
+
+/**
+ * Login success result with account information
+ */
+export interface LoginResult {
+  serverUrl: string;
+  accessToken: string;
+  username: string;
+  avatarUrl: string;
+}
+
+/**
+ * Parameters for creating a new status
+ */
+export interface StatusCreateParams {
+  serverUrl: string;
+  accessToken: string;
+  status: string;
+  visibility: PostVisibility;
+  inReplyToId?: string;
+  mediaIds?: string[];
+}
+
+export interface MediaUploadParams {
+  serverUrl: string;
+  accessToken: string;
+  fileName: string;
+  mimeType: string;
+  data: Uint8Array;
+}
+
+export interface UploadedMedia {
+  id: string;
+  previewUrl: string;
+  url: string;
+}
+
+/** Parameters for status actions (favourite, reblog, bookmark) */
+export interface StatusActionParams {
+  serverUrl: string;
+  accessToken: string;
+  statusId: string;
 }
 
 /** Result of starting the OAuth login flow */
 export interface OAuthStartLoginResult {
-  /** URL the user should open in a browser to authorize */
   authorizeUrl: string;
-  /** Client ID for the registered app (needed for token exchange) */
   clientId: string;
-  /** Client secret for the registered app (needed for token exchange) */
   clientSecret: string;
 }
 
@@ -40,43 +198,38 @@ export type MediaAttachmentType = 'image' | 'video' | 'gifv' | 'audio' | 'unknow
 export interface PostMediaAttachment {
   id: string;
   type: MediaAttachmentType;
-  /** Full-size URL */
   url: string;
-  /** Scaled-down preview URL */
   previewUrl: string;
-  /** Alt text */
   description: string | null;
+}
+
+/** Custom emoji in a post or account display name */
+export interface PostCustomEmoji {
+  shortcode: string;
+  url: string;
+  staticUrl: string;
 }
 
 /** A post (status) to render in the timeline */
 export interface Post {
   id: string;
-  /** HTML content */
   content: string;
-  /** Content warning text */
   spoilerText: string;
-  /** Whether media should be treated as sensitive */
   sensitive: boolean;
-  /** ISO 8601 timestamp */
   createdAt: string;
-  /** Original URL of the post (may be null for some posts) */
   url: string | null;
   account: {
     acct: string;
     displayName: string;
     avatarUrl: string;
+    emojis: PostCustomEmoji[];
   };
-  /** Media attachments (images, videos, etc.) */
   mediaAttachments: PostMediaAttachment[];
-  /** Visibility of the post */
   visibility: PostVisibility;
-  /** Whether the current user has favourited this post */
   favourited: boolean;
-  /** Whether the current user has reblogged this post */
   reblogged: boolean;
-  /** Whether the current user has bookmarked this post */
   bookmarked: boolean;
-  /** If this post is a boost, info about who boosted it */
+  emojis: PostCustomEmoji[];
   rebloggedBy?: {
     acct: string;
     displayName: string;
@@ -89,16 +242,7 @@ export interface TimelineFetchParams {
   serverUrl: string;
   accessToken: string;
   type: TimelineType;
-  /** For pagination — fetch posts older than this ID */
   maxId?: string;
-}
-
-/** Tab definition for the timeline view */
-export interface TabDefinition {
-  id: string;
-  accountServerUrl: string;
-  accountUsername: string;
-  timelineType: TimelineType;
 }
 
 export interface PaneDefinition {
@@ -132,38 +276,20 @@ export type NotificationType = 'follow' | 'follow_request' | 'favourite' | 'rebl
 export interface MastoNotification {
   id: string;
   type: NotificationType;
-  /** ISO 8601 timestamp */
   createdAt: string;
   account: {
     acct: string;
     displayName: string;
     avatarUrl: string;
+    emojis: PostCustomEmoji[];
   };
-  /** The target post for favourite/reblog notifications */
   status?: Post;
 }
 
 export interface NotificationFetchParams {
   serverUrl: string;
   accessToken: string;
-  /** For pagination — fetch notifications older than this ID */
   maxId?: string;
-}
-
-export type PostVisibility = 'public' | 'unlisted' | 'private' | 'direct';
-
-export interface StatusCreateParams {
-  serverUrl: string;
-  accessToken: string;
-  status: string;
-  visibility: PostVisibility;
-}
-
-/** Parameters for status actions (favourite, reblog, bookmark) */
-export interface StatusActionParams {
-  serverUrl: string;
-  accessToken: string;
-  statusId: string;
 }
 
 /** Connection status of a stream subscription */
@@ -176,12 +302,8 @@ export interface StreamConnectionStatusData {
 
 /** Application display settings */
 export interface AppSettings {
-  /** Avatar icon size in pixels */
   avatarSize: number;
-  /** Boost avatar icon size in pixels */
   boostAvatarSize: number;
-  /** Post body font size in pixels */
   postFontSize: number;
-  /** UI font size (acct, display name, timestamp, etc.) in pixels */
   uiFontSize: number;
 }
