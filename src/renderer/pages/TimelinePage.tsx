@@ -119,6 +119,10 @@ function TimelineTabContent({
   const [loadingMore, setLoadingMore] = useState(false);
   const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const postsRef = useRef(posts);
+  postsRef.current = posts;
+  const loadingMoreRef = useRef(false);
+  const hasMoreRef = useRef(true);
 
   const account = accounts.find(
     (a) => a.serverUrl === tab.accountServerUrl && a.username === tab.accountUsername,
@@ -127,6 +131,7 @@ function TimelineTabContent({
   const loadTimeline = useCallback(async () => {
     if (!account) return;
     setLoading(true);
+    hasMoreRef.current = true;
     try {
       const result = await window.api.fetchTimeline({
         serverUrl: account.serverUrl,
@@ -144,9 +149,12 @@ function TimelineTabContent({
   }, [account, tab.timelineType, message]);
 
   const loadMore = useCallback(async () => {
-    if (!account || loadingMore || posts.length === 0) return;
-    const lastPost = posts[posts.length - 1];
+    if (!account || loadingMoreRef.current || !hasMoreRef.current) return;
+    const currentPosts = postsRef.current;
+    if (currentPosts.length === 0) return;
+    const lastPost = currentPosts[currentPosts.length - 1];
     if (!lastPost) return;
+    loadingMoreRef.current = true;
     setLoadingMore(true);
     try {
       const result = await window.api.fetchTimeline({
@@ -157,15 +165,18 @@ function TimelineTabContent({
       });
       if (result.length > 0) {
         setPosts((prev) => [...prev, ...result]);
+      } else {
+        hasMoreRef.current = false;
       }
     } catch (e) {
       message.error(
         `タイムラインの取得に失敗しました: ${e instanceof Error ? e.message : String(e)}`,
       );
     } finally {
+      loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [account, tab.timelineType, posts, loadingMore, message]);
+  }, [account, tab.timelineType, message]);
 
   useEffect(() => {
     loadTimeline();
@@ -182,7 +193,7 @@ function TimelineTabContent({
     checkAndLoad();
     el.addEventListener('scroll', checkAndLoad);
     return () => el.removeEventListener('scroll', checkAndLoad);
-  }, [loadMore]);
+  }, [loadMore, posts.length]);
 
   // Subscribe to streaming for real-time updates
   useEffect(() => {
@@ -265,6 +276,10 @@ function NotificationTabContent({
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef(notifications);
+  notificationsRef.current = notifications;
+  const loadingMoreRef = useRef(false);
+  const hasMoreRef = useRef(true);
 
   const account = accounts.find(
     (a) => a.serverUrl === tab.accountServerUrl && a.username === tab.accountUsername,
@@ -273,6 +288,7 @@ function NotificationTabContent({
   const loadNotifications = useCallback(async () => {
     if (!account) return;
     setLoading(true);
+    hasMoreRef.current = true;
     try {
       const result = await window.api.fetchNotifications({
         serverUrl: account.serverUrl,
@@ -287,9 +303,12 @@ function NotificationTabContent({
   }, [account, message]);
 
   const loadMoreNotifications = useCallback(async () => {
-    if (!account || loadingMore || notifications.length === 0) return;
-    const lastNotification = notifications[notifications.length - 1];
+    if (!account || loadingMoreRef.current || !hasMoreRef.current) return;
+    const currentNotifications = notificationsRef.current;
+    if (currentNotifications.length === 0) return;
+    const lastNotification = currentNotifications[currentNotifications.length - 1];
     if (!lastNotification) return;
+    loadingMoreRef.current = true;
     setLoadingMore(true);
     try {
       const result = await window.api.fetchNotifications({
@@ -299,13 +318,16 @@ function NotificationTabContent({
       });
       if (result.length > 0) {
         setNotifications((prev) => [...prev, ...result]);
+      } else {
+        hasMoreRef.current = false;
       }
     } catch (e) {
       message.error(`通知の取得に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
+      loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [account, notifications, loadingMore, message]);
+  }, [account, message]);
 
   useEffect(() => {
     loadNotifications();
@@ -322,7 +344,7 @@ function NotificationTabContent({
     checkAndLoad();
     el.addEventListener('scroll', checkAndLoad);
     return () => el.removeEventListener('scroll', checkAndLoad);
-  }, [loadMoreNotifications]);
+  }, [loadMoreNotifications, notifications.length]);
 
   // Subscribe to user stream for real-time notification updates
   useEffect(() => {
