@@ -250,7 +250,6 @@ export function PostItem({ post, serverUrl, accessToken }: PostItemProps): React
   const shouldHideContent = hasContentWarning && !expanded;
   const shouldHideMedia = (hasContentWarning || post.sensitive) && !expanded;
 
-
   return (
     <PostContainer>
       <AvatarColumn $width={settings.avatarSize}>
