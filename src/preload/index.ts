@@ -10,6 +10,7 @@ import type {
   PaneLayout,
   StatusActionParams,
   StatusCreateParams,
+  StreamConnectionStatusData,
   StreamEventData,
   StreamSubscribeParams,
   TabDefinition,
@@ -110,6 +111,19 @@ const api = {
     ipcRenderer.on(IpcChannels.StreamEvent, listener);
     return () => {
       ipcRenderer.removeListener(IpcChannels.StreamEvent, listener);
+    };
+  },
+  /** Listen for stream connection status changes */
+  onStreamConnectionStatus(callback: (data: StreamConnectionStatusData) => void): () => void {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      data: StreamConnectionStatusData,
+    ): void => {
+      callback(data);
+    };
+    ipcRenderer.on(IpcChannels.StreamConnectionStatus, listener);
+    return () => {
+      ipcRenderer.removeListener(IpcChannels.StreamConnectionStatus, listener);
     };
   },
 };

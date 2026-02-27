@@ -24,6 +24,8 @@ export const IpcChannels = {
   StreamUnsubscribe: 'stream:unsubscribe',
   /** Streaming event pushed from main to renderer */
   StreamEvent: 'stream:event',
+  /** Stream connection status changed */
+  StreamConnectionStatus: 'stream:connection-status',
   /** Favourite a status */
   StatusFavourite: 'statuses:favourite',
   /** Unfavourite a status */

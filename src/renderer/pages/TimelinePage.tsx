@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Tabs, Modal, Select, Button, App, Flex, Typography, Spin, Dropdown } from 'antd';
+import { Tabs, Modal, Select, Button, App, Flex, Typography, Spin, Dropdown, Tooltip } from 'antd';
 import { SettingOutlined, UserOutlined, SwapOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
 import type {
@@ -7,6 +7,7 @@ import type {
   MastoNotification,
   PaneDefinition,
   Post,
+  StreamConnectionStatus,
   StreamType,
   TabDefinition,
   TimelineType,
@@ -74,6 +75,26 @@ const TabLabelWrapper = styled.span`
   display: inline-flex;
   align-items: center;
   gap: 4px;
+`;
+
+const CONNECTION_STATUS_COLORS: Record<StreamConnectionStatus, string> = {
+  streaming: '#52c41a',
+  polling: '#faad14',
+  disconnected: '#ff4d4f',
+};
+
+const CONNECTION_STATUS_LABELS: Record<StreamConnectionStatus, string> = {
+  streaming: 'Streaming',
+  polling: 'Polling',
+  disconnected: 'Disconnected',
+};
+
+const StatusDot = styled.span<{ $color: string }>`
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: ${(props) => props.$color};
 `;
 
 const TIMELINE_TYPE_LABELS: Record<TimelineType, string> = {
@@ -212,7 +233,8 @@ function TimelineTabContent({
     const removeListener = window.api.onStreamEvent((event) => {
       if (event.subscriptionId !== subscriptionId) return;
       if (event.event === 'update') {
-        setPosts((prev) => [event.payload as Post, ...prev]);
+        const post = event.payload as Post;
+        setPosts((prev) => (prev.some((p) => p.id === post.id) ? prev : [post, ...prev]));
       } else if (event.event === 'delete') {
         setPosts((prev) => prev.filter((p) => p.id !== event.payload));
       }
@@ -361,7 +383,10 @@ function NotificationTabContent({
     const removeListener = window.api.onStreamEvent((event) => {
       if (event.subscriptionId !== subscriptionId) return;
       if (event.event === 'notification') {
-        setNotifications((prev) => [event.payload as MastoNotification, ...prev]);
+        const notification = event.payload as MastoNotification;
+        setNotifications((prev) =>
+          prev.some((n) => n.id === notification.id) ? prev : [notification, ...prev],
+        );
       }
     });
 
@@ -426,6 +451,15 @@ interface PaneProps {
   onMoveTab: (tabId: string, fromPaneId: string, direction: 'left' | 'right') => void;
 }
 
+function getSubscriptionIds(tab: TabDefinition): string[] {
+  const streamType = getStreamType(tab.timelineType);
+  if (!streamType) return [];
+  if (tab.timelineType === 'notifications') {
+    return [`notifications-${tab.id}`];
+  }
+  return [`timeline-${tab.id}`];
+}
+
 function Pane({
   pane,
   paneIndex,
@@ -437,6 +471,20 @@ function Pane({
   onRemoveTab,
   onMoveTab,
 }: PaneProps): React.JSX.Element {
+  const [connectionStatuses, setConnectionStatuses] = useState<
+    Record<string, StreamConnectionStatus>
+  >({});
+
+  useEffect(() => {
+    const removeListener = window.api.onStreamConnectionStatus((data) => {
+      setConnectionStatuses((prev) => ({
+        ...prev,
+        [data.subscriptionId]: data.status,
+      }));
+    });
+    return removeListener;
+  }, []);
+
   const paneTabs = pane.tabIds
     .map((id) => tabs.find((t) => t.id === id))
     .filter((t): t is TabDefinition => t !== undefined);
@@ -479,6 +527,16 @@ function Pane({
             </Dropdown>
           )}
           {buildTabLabel(tab, accounts)}
+          {(() => {
+            const subIds = getSubscriptionIds(tab);
+            const status = subIds.length > 0 ? connectionStatuses[subIds[0]] : undefined;
+            if (!status) return null;
+            return (
+              <Tooltip title={CONNECTION_STATUS_LABELS[status]}>
+                <StatusDot $color={CONNECTION_STATUS_COLORS[status]} />
+              </Tooltip>
+            );
+          })()}
         </TabLabelWrapper>
       ),
       children: <TabContent tab={tab} accounts={accounts} />,

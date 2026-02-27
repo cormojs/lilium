@@ -5,6 +5,7 @@ import type {
   MastoNotification,
   Post,
   PostVisibility,
+  StreamConnectionStatus,
   StreamEventData,
   StreamSubscribeParams,
   StreamType,
@@ -109,6 +110,17 @@ function sendStreamEvent(active: ActiveSubscription, eventData: StreamEventData)
   }
 
   active.webContents.send(IpcChannels.StreamEvent, eventData);
+}
+
+function sendConnectionStatus(active: ActiveSubscription, status: StreamConnectionStatus): void {
+  if (!isActive(active) || active.webContents.isDestroyed()) {
+    return;
+  }
+
+  active.webContents.send(IpcChannels.StreamConnectionStatus, {
+    subscriptionId: active.params.subscriptionId,
+    status,
+  });
 }
 
 function compareMastodonId(a: string, b: string): number {
@@ -295,6 +307,7 @@ function handleStreamingFailure(
 
   cleanupStreaming(active);
   startPolling(active);
+  sendConnectionStatus(active, 'polling');
   scheduleStreamingRetry(active);
 }
 
@@ -329,6 +342,7 @@ async function startStreaming(active: ActiveSubscription): Promise<void> {
       active.retryTimer = undefined;
     }
     stopPolling(active);
+    sendConnectionStatus(active, 'streaming');
 
     for await (const event of subscription) {
       if (!isActive(active) || active.webContents.isDestroyed()) {
