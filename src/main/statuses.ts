@@ -1,14 +1,46 @@
 import { createRestAPIClient } from 'masto';
-import type { PostVisibility } from '../shared/types.ts';
+import type { PostVisibility, UploadedMedia } from '../shared/types.ts';
 
 export async function createStatus(
   serverUrl: string,
   accessToken: string,
   status: string,
   visibility: PostVisibility,
+  mediaIds?: string[],
 ): Promise<void> {
   const client = createRestAPIClient({ url: serverUrl, accessToken });
+
+  if (mediaIds && mediaIds.length > 0) {
+    await client.v1.statuses.create({
+      status: status.trim().length > 0 ? status : null,
+      visibility,
+      mediaIds,
+    });
+    return;
+  }
+
   await client.v1.statuses.create({ status, visibility });
+}
+
+export async function uploadMedia(
+  serverUrl: string,
+  accessToken: string,
+  fileName: string,
+  mimeType: string,
+  data: Uint8Array,
+): Promise<UploadedMedia> {
+  const client = createRestAPIClient({ url: serverUrl, accessToken });
+  const file = new Blob([data], { type: mimeType || 'application/octet-stream' });
+  const uploaded = await client.v2.media.create({
+    file,
+    description: fileName,
+  });
+
+  return {
+    id: uploaded.id,
+    previewUrl: uploaded.previewUrl ?? uploaded.url ?? '',
+    url: uploaded.url ?? uploaded.previewUrl ?? '',
+  };
 }
 
 export async function favouriteStatus(

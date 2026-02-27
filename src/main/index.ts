@@ -7,6 +7,7 @@ import type {
   OAuthExchangeTokenParams,
   PaneLayout,
   StatusActionParams,
+  MediaUploadParams,
   StatusCreateParams,
   StreamSubscribeParams,
   TabDefinition,
@@ -22,6 +23,7 @@ import { loadPaneLayout, savePaneLayout } from './panes.ts';
 import { subscribeStream, unsubscribeStream, unsubscribeAllStreams } from './streaming.ts';
 import {
   createStatus,
+  uploadMedia,
   favouriteStatus,
   unfavouriteStatus,
   reblogStatus,
@@ -113,7 +115,23 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IpcChannels.StatusesCreate, async (_event, params: StatusCreateParams) => {
-    await createStatus(params.serverUrl, params.accessToken, params.status, params.visibility);
+    await createStatus(
+      params.serverUrl,
+      params.accessToken,
+      params.status,
+      params.visibility,
+      params.mediaIds,
+    );
+  });
+
+  ipcMain.handle(IpcChannels.MediaUpload, async (_event, params: MediaUploadParams) => {
+    return uploadMedia(
+      params.serverUrl,
+      params.accessToken,
+      params.fileName,
+      params.mimeType,
+      params.data,
+    );
   });
 
   ipcMain.handle(IpcChannels.StatusFavourite, async (_event, params: StatusActionParams) => {
