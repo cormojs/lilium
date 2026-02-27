@@ -171,6 +171,21 @@ export interface StatusCreateParams {
   accessToken: string;
   status: string;
   visibility: PostVisibility;
+  mediaIds?: string[];
+}
+
+export interface MediaUploadParams {
+  serverUrl: string;
+  accessToken: string;
+  fileName: string;
+  mimeType: string;
+  data: Uint8Array;
+}
+
+export interface UploadedMedia {
+  id: string;
+  previewUrl: string;
+  url: string;
 }
 
 /** Parameters for status actions (favourite, reblog, bookmark) */

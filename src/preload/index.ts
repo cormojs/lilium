@@ -4,12 +4,14 @@ import type {
   Account,
   AppSettings,
   MastoNotification,
+  MediaUploadParams,
   NotificationFetchParams,
   OAuthStartLoginResult,
   OAuthExchangeTokenParams,
   PaneLayout,
   StatusActionParams,
   StatusCreateParams,
+  UploadedMedia,
   StreamConnectionStatusData,
   StreamEventData,
   StreamSubscribeParams,
@@ -46,6 +48,10 @@ const api = {
   /** Create a new status */
   createStatus(params: StatusCreateParams): Promise<void> {
     return ipcRenderer.invoke(IpcChannels.StatusesCreate, params);
+  },
+  /** Upload media for status posting */
+  uploadMedia(params: MediaUploadParams): Promise<UploadedMedia> {
+    return ipcRenderer.invoke(IpcChannels.MediaUpload, params);
   },
   /** Get the list of saved tabs */
   listTabs(): Promise<TabDefinition[]> {
