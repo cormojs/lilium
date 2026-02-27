@@ -34,6 +34,11 @@ export async function fetchTimeline(
           acct: status.account.acct,
           displayName: status.account.displayName,
           avatarUrl: status.account.avatar,
+          emojis: status.account.emojis.map((e) => ({
+            shortcode: e.shortcode,
+            url: e.url,
+            staticUrl: e.staticUrl,
+          })),
         }
       : undefined;
 
@@ -49,6 +54,11 @@ export async function fetchTimeline(
         acct: original.account.acct,
         displayName: original.account.displayName,
         avatarUrl: original.account.avatar,
+        emojis: original.account.emojis.map((e) => ({
+          shortcode: e.shortcode,
+          url: e.url,
+          staticUrl: e.staticUrl,
+        })),
       },
       mediaAttachments: original.mediaAttachments
         .filter((m) => m.url != null && m.previewUrl != null)
@@ -59,6 +69,11 @@ export async function fetchTimeline(
           previewUrl: m.previewUrl!,
           description: m.description ?? null,
         })),
+      emojis: original.emojis.map((emoji) => ({
+        shortcode: emoji.shortcode,
+        url: emoji.url,
+        staticUrl: emoji.staticUrl,
+      })),
       favourited: status.favourited ?? false,
       reblogged: status.reblogged ?? false,
       bookmarked: status.bookmarked ?? false,

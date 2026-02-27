@@ -1,6 +1,8 @@
 import { PictureOutlined } from '@ant-design/icons';
+import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type { Post } from '../../shared/types.ts';
+import { replaceCustomEmojis } from './customEmojis.ts';
 
 interface CompactPostItemProps {
   post: Post;
@@ -70,6 +72,13 @@ const BodyText = styled.span`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+
+  .custom-emoji {
+    height: 14px;
+    width: auto;
+    vertical-align: middle;
+    margin: 0 1px;
+  }
 `;
 
 const MediaIcon = styled(PictureOutlined)`
@@ -79,10 +88,44 @@ const MediaIcon = styled(PictureOutlined)`
   margin-left: 4px;
 `;
 
-function stripHtml(html: string): string {
+function stripHtmlPreservingEmojis(html: string): string {
   const div = document.createElement('div');
   div.innerHTML = html;
-  return div.textContent ?? '';
+  let result = '';
+  for (const node of div.childNodes) {
+    result += extractTextAndEmojis(node);
+  }
+  return result;
+}
+
+function extractTextAndEmojis(node: Node): string {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return node.textContent ?? '';
+  }
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    const el = node as Element;
+    if (el.tagName === 'IMG' && el.classList.contains('custom-emoji')) {
+      return el.outerHTML;
+    }
+    if (el.tagName === 'BR') {
+      return ' ';
+    }
+    let result = '';
+    for (const child of el.childNodes) {
+      result += extractTextAndEmojis(child);
+    }
+    return result;
+  }
+  return '';
+}
+
+function sanitizeContent(html: string): string {
+  return sanitizeHtml(html, {
+    allowedTags: ['img'],
+    allowedAttributes: {
+      img: ['src', 'alt', 'title', 'class'],
+    },
+  });
 }
 
 function shortAcct(acct: string): string {
@@ -92,7 +135,9 @@ function shortAcct(acct: string): string {
 }
 
 export function CompactPostItem({ post, onClick }: CompactPostItemProps): React.JSX.Element {
-  const plainText = stripHtml(post.content);
+  const bodyHtml = sanitizeContent(
+    stripHtmlPreservingEmojis(replaceCustomEmojis(post.content, post.emojis)),
+  );
   const hasMedia = post.mediaAttachments.length > 0;
 
   return (
@@ -104,7 +149,7 @@ export function CompactPostItem({ post, onClick }: CompactPostItemProps): React.
         <AcctText>{shortAcct(post.account.acct)}</AcctText>
       </AcctCell>
       <BodyCell $visibility={post.visibility}>
-        <BodyText>{plainText}</BodyText>
+        <BodyText dangerouslySetInnerHTML={{ __html: bodyHtml }} />
         {hasMedia && <MediaIcon />}
       </BodyCell>
     </Row>
