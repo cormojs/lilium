@@ -40,14 +40,14 @@ const InputColumn = styled.div`
 
 const MediaGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, 80px);
   gap: 8px;
 `;
 
 const MediaThumb = styled.div`
   position: relative;
-  width: 100%;
-  aspect-ratio: 1;
+  width: 80px;
+  height: 80px;
   overflow: hidden;
   border-radius: 6px;
   border: 1px solid #e5e7eb;
