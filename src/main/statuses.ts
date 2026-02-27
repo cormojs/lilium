@@ -6,9 +6,10 @@ export async function createStatus(
   accessToken: string,
   status: string,
   visibility: PostVisibility,
+  inReplyToId?: string,
 ): Promise<void> {
   const client = createRestAPIClient({ url: serverUrl, accessToken });
-  await client.v1.statuses.create({ status, visibility });
+  await client.v1.statuses.create({ status, visibility, inReplyToId });
 }
 
 export async function favouriteStatus(

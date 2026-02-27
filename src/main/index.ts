@@ -113,7 +113,13 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IpcChannels.StatusesCreate, async (_event, params: StatusCreateParams) => {
-    await createStatus(params.serverUrl, params.accessToken, params.status, params.visibility);
+    await createStatus(
+      params.serverUrl,
+      params.accessToken,
+      params.status,
+      params.visibility,
+      params.inReplyToId,
+    );
   });
 
   ipcMain.handle(IpcChannels.StatusFavourite, async (_event, params: StatusActionParams) => {

@@ -157,6 +157,7 @@ export interface StatusCreateParams {
   accessToken: string;
   status: string;
   visibility: PostVisibility;
+  inReplyToId?: string;
 }
 
 /** Parameters for status actions (favourite, reblog, bookmark) */

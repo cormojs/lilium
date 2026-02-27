@@ -20,6 +20,13 @@ import { PaneContainer } from '../components/PaneContainer.tsx';
 
 const { Text } = Typography;
 
+interface ComposerReplyDraft {
+  serverUrl: string;
+  username: string;
+  inReplyToId: string;
+  mentionAcct: string;
+}
+
 interface TimelinePageProps {
   accounts: Account[];
   onNavigateToLogin: () => void;
@@ -130,9 +137,11 @@ function buildTabLabel(tab: TabDefinition, accounts: Account[]): string {
 function TimelineTabContent({
   tab,
   accounts,
+  onReply,
 }: {
   tab: TabDefinition;
   accounts: Account[];
+  onReply: (tab: TabDefinition, post: Post) => void;
 }): React.JSX.Element {
   const { message } = App.useApp();
   const [posts, setPosts] = useState<Post[]>([]);
@@ -271,6 +280,7 @@ function TimelineTabContent({
             post={post}
             serverUrl={account.serverUrl}
             accessToken={account.accessToken}
+            onReply={(targetPost) => onReply(tab, targetPost)}
             onCollapse={() => setExpandedPostId(null)}
           />
         ) : (
@@ -429,14 +439,16 @@ function NotificationTabContent({
 function TabContent({
   tab,
   accounts,
+  onReply,
 }: {
   tab: TabDefinition;
   accounts: Account[];
+  onReply: (tab: TabDefinition, post: Post) => void;
 }): React.JSX.Element {
   if (tab.timelineType === 'notifications') {
     return <NotificationTabContent tab={tab} accounts={accounts} />;
   }
-  return <TimelineTabContent tab={tab} accounts={accounts} />;
+  return <TimelineTabContent tab={tab} accounts={accounts} onReply={onReply} />;
 }
 
 interface PaneProps {
@@ -449,6 +461,7 @@ interface PaneProps {
   onAddTab: (paneId: string) => void;
   onRemoveTab: (paneId: string, tabId: string) => void;
   onMoveTab: (tabId: string, fromPaneId: string, direction: 'left' | 'right') => void;
+  onReply: (tab: TabDefinition, post: Post) => void;
 }
 
 function getSubscriptionIds(tab: TabDefinition): string[] {
@@ -470,6 +483,7 @@ function Pane({
   onAddTab,
   onRemoveTab,
   onMoveTab,
+  onReply,
 }: PaneProps): React.JSX.Element {
   const [connectionStatuses, setConnectionStatuses] = useState<
     Record<string, StreamConnectionStatus>
@@ -541,7 +555,7 @@ function Pane({
           })()}
         </TabLabelWrapper>
       ),
-      children: <TabContent tab={tab} accounts={accounts} />,
+      children: <TabContent tab={tab} accounts={accounts} onReply={onReply} />,
       closable: paneTabs.length > 1 || totalPanes > 1,
     };
   });
@@ -583,6 +597,7 @@ export function TimelinePage({
   const [tabs, setTabs] = useState<TabDefinition[]>([]);
   const [panes, setPanes] = useState<PaneDefinition[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [replyDraft, setReplyDraft] = useState<ComposerReplyDraft | null>(null);
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -821,13 +836,30 @@ export function TimelinePage({
     { value: 'notifications', label: 'Notifications' },
   ];
 
+  const handleReply = useCallback((tab: TabDefinition, post: Post): void => {
+    setReplyDraft({
+      serverUrl: tab.accountServerUrl,
+      username: tab.accountUsername,
+      inReplyToId: post.id,
+      mentionAcct: post.account.acct,
+    });
+  }, []);
+
+  const handleClearReplyDraft = useCallback((): void => {
+    setReplyDraft(null);
+  }, []);
+
   const widthRatios = panes.map((p) => p.widthRatio);
 
   return (
     <PageContainer>
       <Flex align="flex-start" style={{ flexShrink: 0 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <Composer accounts={accounts} />
+          <Composer
+            accounts={accounts}
+            replyDraft={replyDraft}
+            onClearReplyDraft={handleClearReplyDraft}
+          />
         </div>
         <Flex vertical align="center" style={{ padding: '8px 4px 0 0', flexShrink: 0 }}>
           <Button
@@ -864,6 +896,7 @@ export function TimelinePage({
             onAddTab={handleAddTab}
             onRemoveTab={handleRemoveTab}
             onMoveTab={handleMoveTab}
+            onReply={handleReply}
           />
         ))}
       </PaneContainer>
