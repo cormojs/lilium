@@ -5,6 +5,7 @@ import {
   HeartFilled,
   BookOutlined,
   BookFilled,
+  MessageOutlined,
 } from '@ant-design/icons';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
@@ -17,6 +18,7 @@ interface PostItemProps {
   post: Post;
   serverUrl: string;
   accessToken: string;
+  onReply?: (post: Post) => void;
   onCollapse?: () => void;
 }
 
@@ -227,6 +229,7 @@ export function PostItem({
   post,
   serverUrl,
   accessToken,
+  onReply,
   onCollapse,
 }: PostItemProps): React.JSX.Element {
   const { settings } = useSettings();
@@ -358,6 +361,15 @@ export function PostItem({
             disabled={reblogDisabled}
           >
             <RetweetOutlined />
+          </ActionButton>
+          <ActionButton
+            $active={false}
+            $activeColor="#1677ff"
+            $fontSize={smallFontSize}
+            onClick={() => onReply?.(post)}
+            title="メンションで返信"
+          >
+            <MessageOutlined />
           </ActionButton>
           <ActionButton
             $active={bookmarked}

@@ -1,19 +1,40 @@
-import { useMemo, useRef, useState } from 'react';
-import { App, Avatar, Button, Dropdown, Input, Select } from 'antd';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { App, Avatar, Button, Dropdown, Input, Select, Typography } from 'antd';
 import styled from 'styled-components';
 import type { Account, PostVisibility, UploadedMedia } from '../../shared/types.ts';
 
 const { TextArea } = Input;
+const { Text } = Typography;
 const MAX_MEDIA_ATTACHMENTS = 4;
+
+interface ComposerReplyDraft {
+  serverUrl: string;
+  username: string;
+  inReplyToId: string;
+  mentionAcct: string;
+}
 
 interface ComposerProps {
   accounts: Account[];
+  replyDraft: ComposerReplyDraft | null;
+  onClearReplyDraft: () => void;
 }
 
 const Container = styled.div<{ $dragOver: boolean }>`
   border-bottom: 1px solid #f0f0f0;
   padding: 12px 16px;
   background: ${(props) => (props.$dragOver ? '#f0f7ff' : '#fff')};
+`;
+
+const ReplyBanner = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #d6e4ff;
+  background: #f0f5ff;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-bottom: 8px;
 `;
 
 const ComposerBody = styled.div`
@@ -81,7 +102,11 @@ const visibilityOptions: { value: PostVisibility; label: string }[] = [
   { value: 'direct', label: 'ダイレクト' },
 ];
 
-export function Composer({ accounts }: ComposerProps): React.JSX.Element {
+export function Composer({
+  accounts,
+  replyDraft,
+  onClearReplyDraft,
+}: ComposerProps): React.JSX.Element {
   const { message } = App.useApp();
   const [selectedAccount, setSelectedAccount] = useState(accounts[0]);
   const [text, setText] = useState('');
@@ -91,6 +116,24 @@ export function Composer({ accounts }: ComposerProps): React.JSX.Element {
   const [uploadingCount, setUploadingCount] = useState(0);
   const [mediaAttachments, setMediaAttachments] = useState<UploadedMedia[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!replyDraft) {
+      return;
+    }
+
+    const replyAccount = accounts.find(
+      (account) =>
+        account.serverUrl === replyDraft.serverUrl && account.username === replyDraft.username,
+    );
+
+    if (replyAccount) {
+      setSelectedAccount(replyAccount);
+    }
+
+    const mentionPrefix = `@${replyDraft.mentionAcct} `;
+    setText((prev) => (prev.startsWith(mentionPrefix) ? prev : `${mentionPrefix}${prev}`));
+  }, [accounts, replyDraft]);
 
   const accountMenuItems = useMemo(
     () =>
@@ -164,10 +207,12 @@ export function Composer({ accounts }: ComposerProps): React.JSX.Element {
         accessToken: selectedAccount.accessToken,
         status: trimmedText,
         visibility,
+        inReplyToId: replyDraft?.inReplyToId,
         mediaIds: mediaAttachments.map((media) => media.id),
       });
       setText('');
       setMediaAttachments([]);
+      onClearReplyDraft();
       message.success('投稿しました');
     } catch (e) {
       message.error(`投稿に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
@@ -190,6 +235,14 @@ export function Composer({ accounts }: ComposerProps): React.JSX.Element {
         void uploadFiles(Array.from(event.dataTransfer.files));
       }}
     >
+      {replyDraft && (
+        <ReplyBanner>
+          <Text>@{replyDraft.mentionAcct} への返信</Text>
+          <Button size="small" type="text" onClick={onClearReplyDraft}>
+            返信を解除
+          </Button>
+        </ReplyBanner>
+      )}
       <ComposerBody>
         <Dropdown
           menu={{

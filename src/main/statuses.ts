@@ -6,6 +6,7 @@ export async function createStatus(
   accessToken: string,
   status: string,
   visibility: PostVisibility,
+  inReplyToId?: string,
   mediaIds?: string[],
 ): Promise<void> {
   const client = createRestAPIClient({ url: serverUrl, accessToken });
@@ -14,12 +15,13 @@ export async function createStatus(
     await client.v1.statuses.create({
       status: status.trim().length > 0 ? status : null,
       visibility,
+      inReplyToId,
       mediaIds,
     });
     return;
   }
 
-  await client.v1.statuses.create({ status, visibility });
+  await client.v1.statuses.create({ status, visibility, inReplyToId });
 }
 
 export async function uploadMedia(
