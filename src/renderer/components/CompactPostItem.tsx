@@ -1,4 +1,5 @@
 import { PictureOutlined } from '@ant-design/icons';
+import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type { Post } from '../../shared/types.ts';
 import { replaceCustomEmojis } from './customEmojis.ts';
@@ -125,6 +126,15 @@ function extractTextAndEmojis(node: Node): string {
   return '';
 }
 
+function sanitizeContent(html: string): string {
+  return sanitizeHtml(html, {
+    allowedTags: ['img'],
+    allowedAttributes: {
+      img: ['src', 'alt', 'title', 'class'],
+    },
+  });
+}
+
 function escapeHtml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -136,10 +146,14 @@ function shortAcct(acct: string): string {
 }
 
 export function CompactPostItem({ post, onClick }: CompactPostItemProps): React.JSX.Element {
-  const bodyHtml = stripHtmlPreservingEmojis(replaceCustomEmojis(post.content, post.emojis));
-  const nameHtml = replaceCustomEmojis(
-    escapeHtml(post.account.displayName || shortAcct(post.account.acct)),
-    post.account.emojis,
+  const bodyHtml = sanitizeContent(
+    stripHtmlPreservingEmojis(replaceCustomEmojis(post.content, post.emojis)),
+  );
+  const nameHtml = sanitizeContent(
+    replaceCustomEmojis(
+      escapeHtml(post.account.displayName || shortAcct(post.account.acct)),
+      post.account.emojis,
+    ),
   );
   const hasMedia = post.mediaAttachments.length > 0;
 
