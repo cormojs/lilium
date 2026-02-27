@@ -11,6 +11,7 @@ import type {
   StreamType,
 } from '../shared/types.ts';
 import { IpcChannels } from '../shared/ipc.ts';
+import { rateLimitedCall } from './rateLimiter.ts';
 
 const POLLING_INTERVAL_MS = 60_000;
 const STREAM_RETRY_INTERVAL_MS = 30_000;
@@ -163,7 +164,7 @@ function maxMastodonId(ids: string[]): string | undefined {
 
 async function getStreamingApiUrl(serverUrl: string, accessToken: string): Promise<string> {
   const rest = createRestAPIClient({ url: serverUrl, accessToken });
-  const instance = await rest.v2.instance.fetch();
+  const instance = await rateLimitedCall(() => rest.v2.instance.fetch());
   return instance.configuration.urls.streaming;
 }
 
@@ -214,15 +215,19 @@ async function pollUserStream(active: ActiveSubscription): Promise<void> {
   }
 
   const [statuses, notifications] = await Promise.all([
-    active.pollingClient.v1.timelines.home.list({
-      sinceId: active.cursor.statusSinceId,
-      limit: 20,
-    }),
-    active.pollingClient.v1.notifications.list({
-      sinceId: active.cursor.notificationSinceId,
-      limit: 20,
-      types: [...NOTIFICATION_TYPES],
-    }),
+    rateLimitedCall(async () =>
+      active.pollingClient!.v1.timelines.home.list({
+        sinceId: active.cursor.statusSinceId,
+        limit: 20,
+      }),
+    ),
+    rateLimitedCall(async () =>
+      active.pollingClient!.v1.notifications.list({
+        sinceId: active.cursor.notificationSinceId,
+        limit: 20,
+        types: [...NOTIFICATION_TYPES],
+      }),
+    ),
   ]);
 
   const statusSinceId = maxMastodonId(statuses.map((status) => status.id));
@@ -264,10 +269,12 @@ async function pollPublicStream(active: ActiveSubscription): Promise<void> {
     });
   }
 
-  const statuses = await active.pollingClient.v1.timelines.public.list({
-    sinceId: active.cursor.statusSinceId,
-    limit: 20,
-  });
+  const statuses = await rateLimitedCall(async () =>
+    active.pollingClient!.v1.timelines.public.list({
+      sinceId: active.cursor.statusSinceId,
+      limit: 20,
+    }),
+  );
 
   const statusSinceId = maxMastodonId(statuses.map((status) => status.id));
   if (statusSinceId) {
