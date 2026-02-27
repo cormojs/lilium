@@ -529,7 +529,9 @@ function Pane({
           {buildTabLabel(tab, accounts)}
           {(() => {
             const subIds = getSubscriptionIds(tab);
-            const status = subIds.length > 0 ? connectionStatuses[subIds[0]] : undefined;
+            const subId = subIds[0];
+            if (!subId) return null;
+            const status = connectionStatuses[subId];
             if (!status) return null;
             return (
               <Tooltip title={CONNECTION_STATUS_LABELS[status]}>
