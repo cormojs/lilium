@@ -53,6 +53,10 @@ export interface Post {
   id: string;
   /** HTML content */
   content: string;
+  /** Content warning text */
+  spoilerText: string;
+  /** Whether media should be treated as sensitive */
+  sensitive: boolean;
   /** ISO 8601 timestamp */
   createdAt: string;
   /** Original URL of the post (may be null for some posts) */
