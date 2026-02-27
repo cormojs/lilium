@@ -1,0 +1,112 @@
+import { PictureOutlined } from '@ant-design/icons';
+import styled from 'styled-components';
+import type { Post } from '../../shared/types.ts';
+
+interface CompactPostItemProps {
+  post: Post;
+  onClick: () => void;
+}
+
+const Row = styled.div`
+  display: grid;
+  grid-template-columns: 28px 100px 1fr;
+  align-items: center;
+  height: 24px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f0;
+
+  &:hover {
+    filter: brightness(0.95);
+  }
+`;
+
+const IconCell = styled.div`
+  background: #d9f7be;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+`;
+
+const CompactAvatar = styled.img`
+  width: 26px;
+  height: 18px;
+  object-fit: cover;
+  border-radius: 2px;
+`;
+
+const AcctCell = styled.div<{ $boosted: boolean }>`
+  background: ${(props) => (props.$boosted ? '#fff1f0' : '#fffbe6')};
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  overflow: hidden;
+`;
+
+const AcctText = styled.span`
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const BodyCell = styled.div<{ $visibility: string }>`
+  background: ${(props) => {
+    if (props.$visibility === 'direct') return '#f9f0ff';
+    if (props.$visibility === 'private') return '#f6ffed';
+    return '#e6f7ff';
+  }};
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  overflow: hidden;
+`;
+
+const BodyText = styled.span`
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const MediaIcon = styled(PictureOutlined)`
+  font-size: 12px;
+  color: #8c8c8c;
+  flex-shrink: 0;
+  margin-left: 4px;
+`;
+
+function stripHtml(html: string): string {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return div.textContent ?? '';
+}
+
+function shortAcct(acct: string): string {
+  const atIndex = acct.indexOf('@');
+  if (atIndex === -1) return `@${acct}`;
+  return `@${acct.substring(0, atIndex)}`;
+}
+
+export function CompactPostItem({ post, onClick }: CompactPostItemProps): React.JSX.Element {
+  const plainText = stripHtml(post.content);
+  const hasMedia = post.mediaAttachments.length > 0;
+
+  return (
+    <Row onClick={onClick}>
+      <IconCell>
+        <CompactAvatar src={post.account.avatarUrl} alt={post.account.acct} />
+      </IconCell>
+      <AcctCell $boosted={!!post.rebloggedBy}>
+        <AcctText>{shortAcct(post.account.acct)}</AcctText>
+      </AcctCell>
+      <BodyCell $visibility={post.visibility}>
+        <BodyText>{plainText}</BodyText>
+        {hasMedia && <MediaIcon />}
+      </BodyCell>
+    </Row>
+  );
+}
