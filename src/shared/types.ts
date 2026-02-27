@@ -9,16 +9,15 @@ export interface Account {
   serverUrl: string;
   accessToken: string;
   username: string;
+  displayName: string;
   avatarUrl: string;
 }
 
 export interface TabDefinition {
   id: string;
-  label: string;
-  type: 'home' | 'local' | 'federated' | 'notifications' | 'hashtag' | 'list';
-  account: Account;
-  hashtag?: string;
-  listId?: string;
+  accountServerUrl: string;
+  accountUsername: string;
+  timelineType: TimelineType;
 }
 
 /**
@@ -172,4 +171,139 @@ export interface StatusActionParams {
   serverUrl: string;
   accessToken: string;
   statusId: string;
+}
+
+/** Result of starting the OAuth login flow */
+export interface OAuthStartLoginResult {
+  authorizeUrl: string;
+  clientId: string;
+  clientSecret: string;
+}
+
+/** Parameters for exchanging an authorization code */
+export interface OAuthExchangeTokenParams {
+  serverUrl: string;
+  clientId: string;
+  clientSecret: string;
+  code: string;
+}
+
+/** Timeline type */
+export type TimelineType = 'home' | 'public' | 'favourites' | 'notifications';
+
+/** Media attachment type */
+export type MediaAttachmentType = 'image' | 'video' | 'gifv' | 'audio' | 'unknown';
+
+/** A media attachment on a post */
+export interface PostMediaAttachment {
+  id: string;
+  type: MediaAttachmentType;
+  url: string;
+  previewUrl: string;
+  description: string | null;
+}
+
+/** Custom emoji in a post or account display name */
+export interface PostCustomEmoji {
+  shortcode: string;
+  url: string;
+  staticUrl: string;
+}
+
+/** A post (status) to render in the timeline */
+export interface Post {
+  id: string;
+  content: string;
+  spoilerText: string;
+  sensitive: boolean;
+  createdAt: string;
+  url: string | null;
+  account: {
+    acct: string;
+    displayName: string;
+    avatarUrl: string;
+    emojis: PostCustomEmoji[];
+  };
+  mediaAttachments: PostMediaAttachment[];
+  visibility: PostVisibility;
+  favourited: boolean;
+  reblogged: boolean;
+  bookmarked: boolean;
+  emojis: PostCustomEmoji[];
+  rebloggedBy?: {
+    acct: string;
+    displayName: string;
+    avatarUrl: string;
+  };
+}
+
+/** Parameters for fetching a timeline */
+export interface TimelineFetchParams {
+  serverUrl: string;
+  accessToken: string;
+  type: TimelineType;
+  maxId?: string;
+}
+
+export interface PaneDefinition {
+  id: string;
+  tabIds: string[];
+  activeTabId: string;
+  widthRatio: number;
+}
+
+export interface PaneLayout {
+  panes: PaneDefinition[];
+}
+
+export type StreamType = 'user' | 'public';
+
+export interface StreamSubscribeParams {
+  serverUrl: string;
+  accessToken: string;
+  streamType: StreamType;
+  subscriptionId: string;
+}
+
+export interface StreamEventData {
+  subscriptionId: string;
+  event: 'update' | 'notification' | 'delete';
+  payload: Post | MastoNotification | string;
+}
+
+export type NotificationType = 'follow' | 'follow_request' | 'favourite' | 'reblog';
+
+export interface MastoNotification {
+  id: string;
+  type: NotificationType;
+  createdAt: string;
+  account: {
+    acct: string;
+    displayName: string;
+    avatarUrl: string;
+    emojis: PostCustomEmoji[];
+  };
+  status?: Post;
+}
+
+export interface NotificationFetchParams {
+  serverUrl: string;
+  accessToken: string;
+  maxId?: string;
+}
+
+/** Connection status of a stream subscription */
+export type StreamConnectionStatus = 'streaming' | 'polling' | 'disconnected';
+
+export interface StreamConnectionStatusData {
+  subscriptionId: string;
+  status: StreamConnectionStatus;
+}
+
+/** Application display settings */
+export interface AppSettings {
+  avatarSize: number;
+  boostAvatarSize: number;
+  postFontSize: number;
+  uiFontSize: number;
 }
