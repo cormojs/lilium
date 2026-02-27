@@ -27,6 +27,11 @@ export async function fetchNotifications(
           acct: n.account.acct,
           displayName: n.account.displayName,
           avatarUrl: n.account.avatar,
+          emojis: n.account.emojis.map((e) => ({
+            shortcode: e.shortcode,
+            url: e.url,
+            staticUrl: e.staticUrl,
+          })),
         },
       };
 
@@ -44,6 +49,11 @@ export async function fetchNotifications(
             acct: original.account.acct,
             displayName: original.account.displayName,
             avatarUrl: original.account.avatar,
+            emojis: original.account.emojis.map((e) => ({
+              shortcode: e.shortcode,
+              url: e.url,
+              staticUrl: e.staticUrl,
+            })),
           },
           mediaAttachments: original.mediaAttachments
             .filter((m) => m.url != null && m.previewUrl != null)
@@ -54,6 +64,11 @@ export async function fetchNotifications(
               previewUrl: m.previewUrl!,
               description: m.description ?? null,
             })),
+          emojis: original.emojis.map((emoji) => ({
+            shortcode: emoji.shortcode,
+            url: emoji.url,
+            staticUrl: emoji.staticUrl,
+          })),
           favourited: n.status.favourited ?? false,
           reblogged: n.status.reblogged ?? false,
           bookmarked: n.status.bookmarked ?? false,

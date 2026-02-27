@@ -48,6 +48,15 @@ export interface PostMediaAttachment {
   description: string | null;
 }
 
+/** Custom emoji metadata on a post */
+export interface PostCustomEmoji {
+  shortcode: string;
+  /** Animated image URL */
+  url: string;
+  /** Static fallback image URL */
+  staticUrl: string;
+}
+
 /** A post (status) to render in the timeline */
 export interface Post {
   id: string;
@@ -65,9 +74,12 @@ export interface Post {
     acct: string;
     displayName: string;
     avatarUrl: string;
+    emojis: PostCustomEmoji[];
   };
   /** Media attachments (images, videos, etc.) */
   mediaAttachments: PostMediaAttachment[];
+  /** Custom emojis available in this post */
+  emojis: PostCustomEmoji[];
   /** Visibility of the post */
   visibility: PostVisibility;
   /** Whether the current user has favourited this post */
@@ -81,6 +93,7 @@ export interface Post {
     acct: string;
     displayName: string;
     avatarUrl: string;
+    emojis: PostCustomEmoji[];
   };
 }
 
@@ -138,6 +151,7 @@ export interface MastoNotification {
     acct: string;
     displayName: string;
     avatarUrl: string;
+    emojis: PostCustomEmoji[];
   };
   /** The target post for favourite/reblog notifications */
   status?: Post;
