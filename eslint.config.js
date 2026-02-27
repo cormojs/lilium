@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import reactPlugin from 'eslint-plugin-react';
 import reactHooksPlugin from 'eslint-plugin-react-hooks';
+import reactCompilerPlugin from 'eslint-plugin-react-compiler';
 import prettierConfig from 'eslint-config-prettier';
 import globals from 'globals';
 
@@ -29,6 +30,7 @@ export default [
       'react-hooks/exhaustive-deps': 'warn',
     },
   },
+  reactCompilerPlugin.configs.recommended,
   {
     files: ['**/*.{ts,tsx}'],
     rules: {

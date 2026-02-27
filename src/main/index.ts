@@ -7,6 +7,7 @@ import type {
   OAuthExchangeTokenParams,
   PaneLayout,
   StatusActionParams,
+  MediaUploadParams,
   StatusCreateParams,
   StreamSubscribeParams,
   TabDefinition,
@@ -22,6 +23,7 @@ import { loadPaneLayout, savePaneLayout } from './panes.ts';
 import { subscribeStream, unsubscribeStream, unsubscribeAllStreams } from './streaming.ts';
 import {
   createStatus,
+  uploadMedia,
   favouriteStatus,
   unfavouriteStatus,
   reblogStatus,
@@ -30,6 +32,7 @@ import {
   unbookmarkStatus,
 } from './statuses.ts';
 import { createMainWindowOptions, restoreMaximizeState, saveWindowState } from './windowState.ts';
+import { rateLimitedCall } from './rateLimiter.ts';
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -94,13 +97,17 @@ function registerIpcHandlers(): void {
   );
 
   ipcMain.handle(IpcChannels.TimelineFetch, async (_event, params: TimelineFetchParams) => {
-    return fetchTimeline(params.serverUrl, params.accessToken, params.type, params.maxId);
+    return rateLimitedCall(() =>
+      fetchTimeline(params.serverUrl, params.accessToken, params.type, params.maxId),
+    );
   });
 
   ipcMain.handle(
     IpcChannels.NotificationsFetch,
     async (_event, params: NotificationFetchParams) => {
-      return fetchNotifications(params.serverUrl, params.accessToken, params.maxId);
+      return rateLimitedCall(() =>
+        fetchNotifications(params.serverUrl, params.accessToken, params.maxId),
+      );
     },
   );
 
@@ -113,37 +120,64 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IpcChannels.StatusesCreate, async (_event, params: StatusCreateParams) => {
-    await createStatus(
-      params.serverUrl,
-      params.accessToken,
-      params.status,
-      params.visibility,
-      params.inReplyToId,
+    await rateLimitedCall(() =>
+      createStatus(
+        params.serverUrl,
+        params.accessToken,
+        params.status,
+        params.visibility,
+        params.inReplyToId,
+        params.mediaIds,
+      ),
+    );
+  });
+
+  ipcMain.handle(IpcChannels.MediaUpload, async (_event, params: MediaUploadParams) => {
+    return rateLimitedCall(() =>
+      uploadMedia(
+        params.serverUrl,
+        params.accessToken,
+        params.fileName,
+        params.mimeType,
+        params.data,
+      ),
     );
   });
 
   ipcMain.handle(IpcChannels.StatusFavourite, async (_event, params: StatusActionParams) => {
-    await favouriteStatus(params.serverUrl, params.accessToken, params.statusId);
+    await rateLimitedCall(() =>
+      favouriteStatus(params.serverUrl, params.accessToken, params.statusId),
+    );
   });
 
   ipcMain.handle(IpcChannels.StatusUnfavourite, async (_event, params: StatusActionParams) => {
-    await unfavouriteStatus(params.serverUrl, params.accessToken, params.statusId);
+    await rateLimitedCall(() =>
+      unfavouriteStatus(params.serverUrl, params.accessToken, params.statusId),
+    );
   });
 
   ipcMain.handle(IpcChannels.StatusReblog, async (_event, params: StatusActionParams) => {
-    await reblogStatus(params.serverUrl, params.accessToken, params.statusId);
+    await rateLimitedCall(() =>
+      reblogStatus(params.serverUrl, params.accessToken, params.statusId),
+    );
   });
 
   ipcMain.handle(IpcChannels.StatusUnreblog, async (_event, params: StatusActionParams) => {
-    await unreblogStatus(params.serverUrl, params.accessToken, params.statusId);
+    await rateLimitedCall(() =>
+      unreblogStatus(params.serverUrl, params.accessToken, params.statusId),
+    );
   });
 
   ipcMain.handle(IpcChannels.StatusBookmark, async (_event, params: StatusActionParams) => {
-    await bookmarkStatus(params.serverUrl, params.accessToken, params.statusId);
+    await rateLimitedCall(() =>
+      bookmarkStatus(params.serverUrl, params.accessToken, params.statusId),
+    );
   });
 
   ipcMain.handle(IpcChannels.StatusUnbookmark, async (_event, params: StatusActionParams) => {
-    await unbookmarkStatus(params.serverUrl, params.accessToken, params.statusId);
+    await rateLimitedCall(() =>
+      unbookmarkStatus(params.serverUrl, params.accessToken, params.statusId),
+    );
   });
 
   ipcMain.handle(IpcChannels.StreamSubscribe, async (event, params: StreamSubscribeParams) => {

@@ -12,6 +12,7 @@ import styled from 'styled-components';
 import type { Post } from '../../shared/types.ts';
 import { useSettings } from '../hooks/useSettings.ts';
 import { MediaGallery } from './MediaGallery.tsx';
+import { replaceCustomEmojis } from './customEmojis.ts';
 
 interface PostItemProps {
   post: Post;
@@ -91,6 +92,13 @@ const Acct = styled.span<{ $fontSize: number }>`
 const DisplayName = styled.span<{ $fontSize: number }>`
   color: #8c8c8c;
   font-size: ${(props) => props.$fontSize}px;
+
+  .custom-emoji {
+    height: 1em;
+    width: auto;
+    vertical-align: middle;
+    margin: 0 1px;
+  }
 `;
 
 const PostBody = styled.div<{ $fontSize: number }>`
@@ -109,6 +117,12 @@ const PostBody = styled.div<{ $fontSize: number }>`
     &:hover {
       text-decoration: underline;
     }
+  }
+
+  img.custom-emoji {
+    height: 1em;
+    width: auto;
+    vertical-align: -0.1em;
   }
 `;
 
@@ -193,12 +207,22 @@ function sanitizeContent(html: string): string {
       'ul',
       'ol',
       'li',
+      'img',
     ],
     allowedAttributes: {
       a: ['href', 'rel', 'target', 'class'],
       span: ['class'],
+      img: ['src', 'alt', 'title', 'class'],
     },
   });
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 export function PostItem({
@@ -283,7 +307,14 @@ export function PostItem({
       <Content>
         <HeaderLine>
           <Acct $fontSize={settings.uiFontSize}>@{post.account.acct}</Acct>
-          <DisplayName $fontSize={settings.uiFontSize}>{post.account.displayName}</DisplayName>
+          <DisplayName
+            $fontSize={settings.uiFontSize}
+            dangerouslySetInnerHTML={{
+              __html: sanitizeContent(
+                replaceCustomEmojis(escapeHtml(post.account.displayName), post.account.emojis),
+              ),
+            }}
+          />
         </HeaderLine>
         {(hasContentWarning || post.sensitive) && (
           <ContentWarning $fontSize={settings.postFontSize} onClick={() => setExpanded(!expanded)}>
@@ -294,7 +325,9 @@ export function PostItem({
         {!shouldHideContent && (
           <PostBody
             $fontSize={settings.postFontSize}
-            dangerouslySetInnerHTML={{ __html: sanitizeContent(post.content) }}
+            dangerouslySetInnerHTML={{
+              __html: sanitizeContent(replaceCustomEmojis(post.content, post.emojis)),
+            }}
           />
         )}
         {post.mediaAttachments.length > 0 && !shouldHideMedia && (

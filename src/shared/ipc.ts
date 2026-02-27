@@ -14,6 +14,8 @@ export const IpcChannels = {
   NotificationsFetch: 'notifications:fetch',
   /** Post a new status */
   StatusesCreate: 'statuses:create',
+  /** Upload media for a status */
+  MediaUpload: 'media:upload',
   /** Get the list of saved tabs */
   TabsList: 'tabs:list',
   /** Save the current tabs */

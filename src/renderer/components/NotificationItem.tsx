@@ -8,6 +8,7 @@ import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type { MastoNotification, NotificationType } from '../../shared/types.ts';
 import { useSettings } from '../hooks/useSettings.ts';
+import { replaceCustomEmojis } from './customEmojis.ts';
 
 interface NotificationItemProps {
   notification: MastoNotification;
@@ -68,6 +69,12 @@ const StatusPreview = styled.div<{ $fontSize: number }>`
       text-decoration: underline;
     }
   }
+
+  img.custom-emoji {
+    height: 1em;
+    width: auto;
+    vertical-align: -0.1em;
+  }
 `;
 
 const Timestamp = styled.span<{ $fontSize: number }>`
@@ -99,10 +106,11 @@ function formatTimestamp(isoString: string): string {
 
 function sanitizeContent(html: string): string {
   return sanitizeHtml(html, {
-    allowedTags: ['a', 'br', 'p', 'span', 'em', 'strong', 'b', 'i', 'u'],
+    allowedTags: ['a', 'br', 'p', 'span', 'em', 'strong', 'b', 'i', 'u', 'img'],
     allowedAttributes: {
       a: ['href', 'rel', 'target', 'class'],
       span: ['class'],
+      img: ['src', 'alt', 'title', 'class'],
     },
   });
 }
@@ -128,7 +136,11 @@ export function NotificationItem({ notification }: NotificationItemProps): React
         {notification.status && (
           <StatusPreview
             $fontSize={settings.postFontSize - 1}
-            dangerouslySetInnerHTML={{ __html: sanitizeContent(notification.status.content) }}
+            dangerouslySetInnerHTML={{
+              __html: sanitizeContent(
+                replaceCustomEmojis(notification.status.content, notification.status.emojis),
+              ),
+            }}
           />
         )}
         <Timestamp $fontSize={settings.uiFontSize - 2}>

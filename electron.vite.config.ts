@@ -25,6 +25,12 @@ export default defineConfig({
     build: {
       outDir: 'out/renderer',
     },
-    plugins: [react()],
+    plugins: [
+      react({
+        babel: {
+          plugins: ['babel-plugin-react-compiler'],
+        },
+      }),
+    ],
   },
 });
