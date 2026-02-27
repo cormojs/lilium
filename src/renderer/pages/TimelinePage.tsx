@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Tabs, Modal, Select, Button, App, Flex, Typography, Spin, Dropdown } from 'antd';
 import { SettingOutlined, UserOutlined, SwapOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
@@ -116,7 +116,9 @@ function TimelineTabContent({
   const { message } = App.useApp();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const account = accounts.find(
     (a) => a.serverUrl === tab.accountServerUrl && a.username === tab.accountUsername,
@@ -141,9 +143,45 @@ function TimelineTabContent({
     }
   }, [account, tab.timelineType, message]);
 
+  const loadMore = useCallback(async () => {
+    if (!account || loadingMore || posts.length === 0) return;
+    const lastPost = posts[posts.length - 1];
+    if (!lastPost) return;
+    setLoadingMore(true);
+    try {
+      const result = await window.api.fetchTimeline({
+        serverUrl: account.serverUrl,
+        accessToken: account.accessToken,
+        type: tab.timelineType,
+        maxId: lastPost.id,
+      });
+      if (result.length > 0) {
+        setPosts((prev) => [...prev, ...result]);
+      }
+    } catch (e) {
+      message.error(
+        `タイムラインの取得に失敗しました: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [account, tab.timelineType, posts, loadingMore, message]);
+
   useEffect(() => {
     loadTimeline();
   }, [loadTimeline]);
+
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const handleScroll = (): void => {
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
+        void loadMore();
+      }
+    };
+    el.addEventListener('scroll', handleScroll);
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [loadMore]);
 
   // Subscribe to streaming for real-time updates
   useEffect(() => {
@@ -191,7 +229,7 @@ function TimelineTabContent({
   }
 
   return (
-    <TimelineList>
+    <TimelineList ref={listRef}>
       {posts.map((post) =>
         expandedPostId === post.id ? (
           <PostItem
@@ -204,6 +242,11 @@ function TimelineTabContent({
         ) : (
           <CompactPostItem key={post.id} post={post} onClick={() => setExpandedPostId(post.id)} />
         ),
+      )}
+      {loadingMore && (
+        <SpinContainer>
+          <Spin size="small" />
+        </SpinContainer>
       )}
     </TimelineList>
   );
@@ -219,6 +262,8 @@ function NotificationTabContent({
   const { message } = App.useApp();
   const [notifications, setNotifications] = useState<MastoNotification[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const account = accounts.find(
     (a) => a.serverUrl === tab.accountServerUrl && a.username === tab.accountUsername,
@@ -240,9 +285,42 @@ function NotificationTabContent({
     }
   }, [account, message]);
 
+  const loadMoreNotifications = useCallback(async () => {
+    if (!account || loadingMore || notifications.length === 0) return;
+    const lastNotification = notifications[notifications.length - 1];
+    if (!lastNotification) return;
+    setLoadingMore(true);
+    try {
+      const result = await window.api.fetchNotifications({
+        serverUrl: account.serverUrl,
+        accessToken: account.accessToken,
+        maxId: lastNotification.id,
+      });
+      if (result.length > 0) {
+        setNotifications((prev) => [...prev, ...result]);
+      }
+    } catch (e) {
+      message.error(`通知の取得に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [account, notifications, loadingMore, message]);
+
   useEffect(() => {
     loadNotifications();
   }, [loadNotifications]);
+
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const handleScroll = (): void => {
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
+        void loadMoreNotifications();
+      }
+    };
+    el.addEventListener('scroll', handleScroll);
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [loadMoreNotifications]);
 
   // Subscribe to user stream for real-time notification updates
   useEffect(() => {
@@ -286,10 +364,15 @@ function NotificationTabContent({
   }
 
   return (
-    <TimelineList>
+    <TimelineList ref={listRef}>
       {notifications.map((notification) => (
         <NotificationItem key={notification.id} notification={notification} />
       ))}
+      {loadingMore && (
+        <SpinContainer>
+          <Spin size="small" />
+        </SpinContainer>
+      )}
     </TimelineList>
   );
 }
