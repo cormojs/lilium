@@ -174,13 +174,14 @@ function TimelineTabContent({
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
-    const handleScroll = (): void => {
+    const checkAndLoad = (): void => {
       if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
         void loadMore();
       }
     };
-    el.addEventListener('scroll', handleScroll);
-    return () => el.removeEventListener('scroll', handleScroll);
+    checkAndLoad();
+    el.addEventListener('scroll', checkAndLoad);
+    return () => el.removeEventListener('scroll', checkAndLoad);
   }, [loadMore]);
 
   // Subscribe to streaming for real-time updates
@@ -313,13 +314,14 @@ function NotificationTabContent({
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
-    const handleScroll = (): void => {
+    const checkAndLoad = (): void => {
       if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
         void loadMoreNotifications();
       }
     };
-    el.addEventListener('scroll', handleScroll);
-    return () => el.removeEventListener('scroll', handleScroll);
+    checkAndLoad();
+    el.addEventListener('scroll', checkAndLoad);
+    return () => el.removeEventListener('scroll', checkAndLoad);
   }, [loadMoreNotifications]);
 
   // Subscribe to user stream for real-time notification updates
