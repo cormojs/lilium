@@ -11,6 +11,7 @@ import styled from 'styled-components';
 import type { Post } from '../../shared/types.ts';
 import { useSettings } from '../hooks/useSettings.ts';
 import { MediaGallery } from './MediaGallery.tsx';
+import { replaceCustomEmojis } from './customEmojis.ts';
 
 interface PostItemProps {
   post: Post;
@@ -108,6 +109,12 @@ const PostBody = styled.div<{ $fontSize: number }>`
       text-decoration: underline;
     }
   }
+
+  img.custom-emoji {
+    height: 1em;
+    width: auto;
+    vertical-align: -0.1em;
+  }
 `;
 
 const ContentWarning = styled.button<{ $fontSize: number }>`
@@ -191,10 +198,12 @@ function sanitizeContent(html: string): string {
       'ul',
       'ol',
       'li',
+      'img',
     ],
     allowedAttributes: {
       a: ['href', 'rel', 'target', 'class'],
       span: ['class'],
+      img: ['src', 'alt', 'title', 'class'],
     },
   });
 }
@@ -291,7 +300,9 @@ export function PostItem({
         {!shouldHideContent && (
           <PostBody
             $fontSize={settings.postFontSize}
-            dangerouslySetInnerHTML={{ __html: sanitizeContent(post.content) }}
+            dangerouslySetInnerHTML={{
+              __html: sanitizeContent(replaceCustomEmojis(post.content, post.emojis)),
+            }}
           />
         )}
         {post.mediaAttachments.length > 0 && !shouldHideMedia && (

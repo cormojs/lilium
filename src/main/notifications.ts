@@ -54,6 +54,11 @@ export async function fetchNotifications(
               previewUrl: m.previewUrl!,
               description: m.description ?? null,
             })),
+          emojis: original.emojis.map((emoji) => ({
+            shortcode: emoji.shortcode,
+            url: emoji.url,
+            staticUrl: emoji.staticUrl,
+          })),
           favourited: n.status.favourited ?? false,
           reblogged: n.status.reblogged ?? false,
           bookmarked: n.status.bookmarked ?? false,

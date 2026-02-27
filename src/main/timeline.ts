@@ -59,6 +59,11 @@ export async function fetchTimeline(
           previewUrl: m.previewUrl!,
           description: m.description ?? null,
         })),
+      emojis: original.emojis.map((emoji) => ({
+        shortcode: emoji.shortcode,
+        url: emoji.url,
+        staticUrl: emoji.staticUrl,
+      })),
       favourited: status.favourited ?? false,
       reblogged: status.reblogged ?? false,
       bookmarked: status.bookmarked ?? false,
