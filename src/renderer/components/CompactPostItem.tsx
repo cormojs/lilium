@@ -52,13 +52,6 @@ const AcctText = styled.span`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-
-  .custom-emoji {
-    height: 12px;
-    width: auto;
-    vertical-align: middle;
-    margin: 0 1px;
-  }
 `;
 
 const BodyCell = styled.div<{ $visibility: string }>`
@@ -135,10 +128,6 @@ function sanitizeContent(html: string): string {
   });
 }
 
-function escapeHtml(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
 function shortAcct(acct: string): string {
   const atIndex = acct.indexOf('@');
   if (atIndex === -1) return `@${acct}`;
@@ -149,12 +138,6 @@ export function CompactPostItem({ post, onClick }: CompactPostItemProps): React.
   const bodyHtml = sanitizeContent(
     stripHtmlPreservingEmojis(replaceCustomEmojis(post.content, post.emojis)),
   );
-  const nameHtml = sanitizeContent(
-    replaceCustomEmojis(
-      escapeHtml(post.account.displayName || shortAcct(post.account.acct)),
-      post.account.emojis,
-    ),
-  );
   const hasMedia = post.mediaAttachments.length > 0;
 
   return (
@@ -163,7 +146,7 @@ export function CompactPostItem({ post, onClick }: CompactPostItemProps): React.
         <CompactAvatar src={post.account.avatarUrl} alt={post.account.acct} />
       </IconCell>
       <AcctCell $boosted={!!post.rebloggedBy}>
-        <AcctText dangerouslySetInnerHTML={{ __html: nameHtml }} />
+        <AcctText>{shortAcct(post.account.acct)}</AcctText>
       </AcctCell>
       <BodyCell $visibility={post.visibility}>
         <BodyText dangerouslySetInnerHTML={{ __html: bodyHtml }} />
