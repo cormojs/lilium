@@ -651,21 +651,26 @@ export function TimelinePage({
 
   return (
     <PageContainer>
-      <Composer accounts={accounts} />
-      <Flex align="center" justify="flex-end" style={{ padding: '0 8px', flexShrink: 0 }}>
-        <Button
-          type="text"
-          icon={<SettingOutlined />}
-          onClick={onNavigateToSettings}
-          title="設定"
-          style={{ marginRight: 4 }}
-        />
-        <Button
-          type="text"
-          icon={<UserOutlined />}
-          onClick={onNavigateToLogin}
-          title="アカウント管理"
-        />
+      <Flex align="flex-start" style={{ flexShrink: 0 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Composer accounts={accounts} />
+        </div>
+        <Flex vertical align="center" style={{ padding: '8px 4px 0 0', flexShrink: 0 }}>
+          <Button
+            type="text"
+            icon={<SettingOutlined />}
+            onClick={onNavigateToSettings}
+            title="設定"
+            size="small"
+          />
+          <Button
+            type="text"
+            icon={<UserOutlined />}
+            onClick={onNavigateToLogin}
+            title="アカウント管理"
+            size="small"
+          />
+        </Flex>
       </Flex>
       <PaneContainer
         paneCount={panes.length}
