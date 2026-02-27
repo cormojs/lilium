@@ -109,6 +109,23 @@ const PostBody = styled.div<{ $fontSize: number }>`
   }
 `;
 
+const ContentWarning = styled.button<{ $fontSize: number }>`
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid #d9d9d9;
+  background: #fafafa;
+  color: #262626;
+  font-size: ${(props) => props.$fontSize}px;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    border-color: #1677ff;
+    color: #1677ff;
+  }
+`;
+
 const FooterLine = styled.div`
   display: flex;
   align-items: center;
@@ -186,6 +203,8 @@ export function PostItem({ post, serverUrl, accessToken }: PostItemProps): React
   const [favourited, setFavourited] = useState(post.favourited);
   const [reblogged, setReblogged] = useState(post.reblogged);
   const [bookmarked, setBookmarked] = useState(post.bookmarked);
+  const hasContentWarning = post.spoilerText.trim().length > 0;
+  const [expanded, setExpanded] = useState(!hasContentWarning && !post.sensitive);
 
   const actionParams = { serverUrl, accessToken, statusId: post.id };
   const reblogDisabled = post.visibility === 'private' || post.visibility === 'direct';
@@ -228,6 +247,9 @@ export function PostItem({ post, serverUrl, accessToken }: PostItemProps): React
   };
 
   const smallFontSize = settings.uiFontSize - 2;
+  const shouldHideContent = hasContentWarning && !expanded;
+  const shouldHideMedia = (hasContentWarning || post.sensitive) && !expanded;
+
 
   return (
     <PostContainer>
@@ -249,11 +271,21 @@ export function PostItem({ post, serverUrl, accessToken }: PostItemProps): React
           <Acct $fontSize={settings.uiFontSize}>@{post.account.acct}</Acct>
           <DisplayName $fontSize={settings.uiFontSize}>{post.account.displayName}</DisplayName>
         </HeaderLine>
-        <PostBody
-          $fontSize={settings.postFontSize}
-          dangerouslySetInnerHTML={{ __html: sanitizeContent(post.content) }}
-        />
-        {post.mediaAttachments.length > 0 && <MediaGallery attachments={post.mediaAttachments} />}
+        {(hasContentWarning || post.sensitive) && (
+          <ContentWarning $fontSize={settings.postFontSize} onClick={() => setExpanded(!expanded)}>
+            {hasContentWarning ? post.spoilerText : 'センシティブな内容が含まれます'}
+            {expanded ? '（クリックで隠す）' : '（クリックで表示）'}
+          </ContentWarning>
+        )}
+        {!shouldHideContent && (
+          <PostBody
+            $fontSize={settings.postFontSize}
+            dangerouslySetInnerHTML={{ __html: sanitizeContent(post.content) }}
+          />
+        )}
+        {post.mediaAttachments.length > 0 && !shouldHideMedia && (
+          <MediaGallery attachments={post.mediaAttachments} />
+        )}
         <FooterLine>
           {post.url ? (
             <Timestamp $fontSize={smallFontSize} href={post.url} onClick={handleTimestampClick}>

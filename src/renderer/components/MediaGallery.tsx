@@ -33,7 +33,9 @@ const PreviewImage = styled.img`
   object-fit: contain;
 `;
 
-export function MediaGallery({ attachments }: MediaGalleryProps): React.JSX.Element | null {
+export function MediaGallery({
+  attachments,
+}: MediaGalleryProps): React.JSX.Element | null {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   const images = attachments.filter((a) => a.type === 'image');

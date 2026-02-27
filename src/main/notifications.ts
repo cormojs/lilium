@@ -35,6 +35,8 @@ export async function fetchNotifications(
         const status: Post = {
           id: n.status.id,
           content: original.content,
+          spoilerText: original.spoilerText,
+          sensitive: original.sensitive,
           createdAt: original.createdAt,
           url: original.url ?? null,
           visibility: original.visibility as PostVisibility,
