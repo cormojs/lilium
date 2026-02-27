@@ -90,6 +90,13 @@ const Acct = styled.span<{ $fontSize: number }>`
 const DisplayName = styled.span<{ $fontSize: number }>`
   color: #8c8c8c;
   font-size: ${(props) => props.$fontSize}px;
+
+  .custom-emoji {
+    height: 1em;
+    width: auto;
+    vertical-align: middle;
+    margin: 0 1px;
+  }
 `;
 
 const PostBody = styled.div<{ $fontSize: number }>`
@@ -208,6 +215,14 @@ function sanitizeContent(html: string): string {
   });
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 export function PostItem({
   post,
   serverUrl,
@@ -289,7 +304,14 @@ export function PostItem({
       <Content>
         <HeaderLine>
           <Acct $fontSize={settings.uiFontSize}>@{post.account.acct}</Acct>
-          <DisplayName $fontSize={settings.uiFontSize}>{post.account.displayName}</DisplayName>
+          <DisplayName
+            $fontSize={settings.uiFontSize}
+            dangerouslySetInnerHTML={{
+              __html: sanitizeContent(
+                replaceCustomEmojis(escapeHtml(post.account.displayName), post.account.emojis),
+              ),
+            }}
+          />
         </HeaderLine>
         {(hasContentWarning || post.sensitive) && (
           <ContentWarning $fontSize={settings.postFontSize} onClick={() => setExpanded(!expanded)}>

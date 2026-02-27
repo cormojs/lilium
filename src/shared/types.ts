@@ -74,6 +74,7 @@ export interface Post {
     acct: string;
     displayName: string;
     avatarUrl: string;
+    emojis: PostCustomEmoji[];
   };
   /** Media attachments (images, videos, etc.) */
   mediaAttachments: PostMediaAttachment[];
@@ -92,6 +93,7 @@ export interface Post {
     acct: string;
     displayName: string;
     avatarUrl: string;
+    emojis: PostCustomEmoji[];
   };
 }
 
@@ -149,6 +151,7 @@ export interface MastoNotification {
     acct: string;
     displayName: string;
     avatarUrl: string;
+    emojis: PostCustomEmoji[];
   };
   /** The target post for favourite/reblog notifications */
   status?: Post;
