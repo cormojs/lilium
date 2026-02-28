@@ -328,6 +328,7 @@ function NotificationTabContent({
   const listRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef(notifications);
   notificationsRef.current = notifications;
+  const notificationPermissionRef = useRef<NotificationPermission | 'unsupported'>('default');
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(true);
 
@@ -384,6 +385,26 @@ function NotificationTabContent({
   }, [loadNotifications]);
 
   useEffect(() => {
+    if (typeof Notification === 'undefined') {
+      notificationPermissionRef.current = 'unsupported';
+      return;
+    }
+
+    notificationPermissionRef.current = Notification.permission;
+    if (Notification.permission !== 'default') {
+      return;
+    }
+
+    void Notification.requestPermission()
+      .then((permission) => {
+        notificationPermissionRef.current = permission;
+      })
+      .catch(() => {
+        notificationPermissionRef.current = 'denied';
+      });
+  }, []);
+
+  useEffect(() => {
     const el = listRef.current;
     if (!el) return;
     const checkAndLoad = (): void => {
@@ -412,9 +433,43 @@ function NotificationTabContent({
       if (event.subscriptionId !== subscriptionId) return;
       if (event.event === 'notification') {
         const notification = event.payload as MastoNotification;
-        setNotifications((prev) =>
-          prev.some((n) => n.id === notification.id) ? prev : [notification, ...prev],
-        );
+        setNotifications((prev) => {
+          if (prev.some((n) => n.id === notification.id)) {
+            return prev;
+          }
+
+          if (notificationPermissionRef.current === 'granted') {
+            const actor =
+              notification.account.displayName.trim().length > 0
+                ? notification.account.displayName
+                : `@${notification.account.acct}`;
+            const actionLabel: Record<MastoNotification['type'], string> = {
+              follow: 'があなたをフォローしました',
+              follow_request: 'からフォローリクエストが届きました',
+              favourite: 'があなたの投稿をお気に入りに追加しました',
+              reblog: 'があなたの投稿をブーストしました',
+            };
+            const statusPreview = notification.status
+              ? notification.status.content
+                  .replace(/<[^>]*>/g, ' ')
+                  .replace(/\s+/g, ' ')
+                  .trim()
+              : undefined;
+            const body = statusPreview
+              ? `${actor}${actionLabel[notification.type]}\n${statusPreview}`
+              : `${actor}${actionLabel[notification.type]}`;
+
+            const osNotification = new Notification('Lilium 通知', {
+              body,
+              icon: notification.account.avatarUrl,
+            });
+            osNotification.onclick = () => {
+              window.focus();
+            };
+          }
+
+          return [notification, ...prev];
+        });
       }
     });
 
