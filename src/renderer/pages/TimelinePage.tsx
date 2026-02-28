@@ -12,7 +12,7 @@ import {
   Tooltip,
   Input,
 } from 'antd';
-import { SettingOutlined, UserOutlined, SwapOutlined, EditOutlined } from '@ant-design/icons';
+import { SettingOutlined, UserOutlined, MoreOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
 import type {
   Account,
@@ -505,6 +505,9 @@ function Pane({
   const [connectionStatuses, setConnectionStatuses] = useState<
     Record<string, StreamConnectionStatus>
   >({});
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [renameTabId, setRenameTabId] = useState<string>('');
+  const [renameValue, setRenameValue] = useState<string>('');
 
   useEffect(() => {
     const removeListener = window.api.onStreamConnectionStatus((data) => {
@@ -521,53 +524,41 @@ function Pane({
     .filter((t): t is TabDefinition => t !== undefined);
 
   const tabItems = paneTabs.map((tab) => {
-    const moveMenuItems = [];
-    if (paneIndex > 0 || totalPanes > 1) {
-      moveMenuItems.push({
-        key: 'left',
-        label: '左のペインへ移動',
-        disabled: paneIndex === 0,
-      });
-    }
-    if (paneIndex < totalPanes - 1 || totalPanes > 1) {
-      moveMenuItems.push({
-        key: 'right',
-        label: '右のペインへ移動',
-        disabled: paneIndex === totalPanes - 1,
-      });
+    const menuItems: { key: string; label: string; disabled?: boolean }[] = [
+      { key: 'rename', label: '名前を変更' },
+    ];
+    if (totalPanes > 1) {
+      menuItems.push(
+        { key: 'left', label: '左のペインへ移動', disabled: paneIndex === 0 },
+        { key: 'right', label: '右のペインへ移動', disabled: paneIndex === totalPanes - 1 },
+      );
     }
 
     return {
       key: tab.id,
       label: (
         <TabLabelWrapper>
-          {totalPanes > 1 && (
-            <Dropdown
-              menu={{
-                items: moveMenuItems,
-                onClick: ({ key }) => {
-                  onMoveTab(tab.id, pane.id, key as 'left' | 'right');
-                },
-              }}
-              trigger={['click']}
-            >
-              <SwapOutlined
-                style={{ fontSize: 10, cursor: 'pointer' }}
-                onClick={(e) => e.stopPropagation()}
-              />
-            </Dropdown>
-          )}
           {buildTabLabel(tab, accounts)}
-          <EditOutlined
-            style={{ fontSize: 12, cursor: 'pointer', color: '#8c8c8c' }}
-            onClick={(e) => {
-              e.stopPropagation();
-              const currentLabel = buildTabLabel(tab, accounts);
-              const nextLabel = window.prompt('タブ名を入力してください', currentLabel);
-              if (nextLabel === null) return;
-              onRenameTab(tab.id, nextLabel.trim());
+          <Dropdown
+            menu={{
+              items: menuItems,
+              onClick: ({ key }) => {
+                if (key === 'rename') {
+                  setRenameTabId(tab.id);
+                  setRenameValue(buildTabLabel(tab, accounts));
+                  setRenameModalOpen(true);
+                } else {
+                  onMoveTab(tab.id, pane.id, key as 'left' | 'right');
+                }
+              },
             }}
-          />
+            trigger={['click']}
+          >
+            <MoreOutlined
+              style={{ fontSize: 12, cursor: 'pointer', color: '#8c8c8c' }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </Dropdown>
           {(() => {
             const subIds = getSubscriptionIds(tab);
             const subId = subIds[0];
@@ -588,31 +579,57 @@ function Pane({
   });
 
   return (
-    <StyledTabs
-      type="editable-card"
-      activeKey={pane.activeTabId}
-      onChange={(key) => onActiveTabChange(pane.id, key)}
-      onEdit={(targetKey, action) => {
-        if (action === 'add') {
-          onAddTab(pane.id);
-        } else if (action === 'remove' && typeof targetKey === 'string') {
-          onRemoveTab(pane.id, targetKey);
+    <>
+      <StyledTabs
+        type="editable-card"
+        activeKey={pane.activeTabId}
+        onChange={(key) => onActiveTabChange(pane.id, key)}
+        onEdit={(targetKey, action) => {
+          if (action === 'add') {
+            onAddTab(pane.id);
+          } else if (action === 'remove' && typeof targetKey === 'string') {
+            onRemoveTab(pane.id, targetKey);
+          }
+        }}
+        items={
+          tabItems.length > 0
+            ? tabItems
+            : [
+                {
+                  key: '__empty__',
+                  label: '',
+                  children: <EmptyMessage>「＋」ボタンからタブを追加してください</EmptyMessage>,
+                  closable: false,
+                  disabled: true,
+                },
+              ]
         }
-      }}
-      items={
-        tabItems.length > 0
-          ? tabItems
-          : [
-              {
-                key: '__empty__',
-                label: '',
-                children: <EmptyMessage>「＋」ボタンからタブを追加してください</EmptyMessage>,
-                closable: false,
-                disabled: true,
-              },
-            ]
-      }
-    />
+      />
+      <Modal
+        title="タブ名を変更"
+        open={renameModalOpen}
+        onOk={() => {
+          onRenameTab(renameTabId, renameValue.trim());
+          setRenameModalOpen(false);
+        }}
+        onCancel={() => setRenameModalOpen(false)}
+        okText="変更"
+        cancelText="キャンセル"
+        destroyOnClose
+      >
+        <Input
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          placeholder="タブ名を入力してください"
+          maxLength={60}
+          autoFocus
+          onPressEnter={() => {
+            onRenameTab(renameTabId, renameValue.trim());
+            setRenameModalOpen(false);
+          }}
+        />
+      </Modal>
+    </>
   );
 }
 
