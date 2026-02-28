@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Notification, shell } from 'electron';
 import path from 'node:path';
 import { IpcChannels } from '../shared/ipc.ts';
 import type {
@@ -8,6 +8,7 @@ import type {
   PaneLayout,
   StatusActionParams,
   MediaUploadParams,
+  ShowNotificationParams,
   StatusCreateParams,
   StreamSubscribeParams,
   TabDefinition,
@@ -204,11 +205,23 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IpcChannels.PaneLayoutSave, async (_event, layout: PaneLayout) => {
     savePaneLayout(layout);
   });
+
+  ipcMain.handle(
+    IpcChannels.NotificationShow,
+    async (_event, params: ShowNotificationParams) => {
+      if (Notification.isSupported()) {
+        new Notification({ title: params.title, body: params.body }).show();
+      } else {
+        console.log('Notifications are not supported on this platform');
+      }
+    },
+  );
 }
 
 app.commandLine.appendSwitch('disable-gpu-sandbox');
 
 app.whenReady().then(() => {
+  app.setAppUserModelId('com.lilium.app');
   registerIpcHandlers();
   console.log('Registered IPC handlers');
   createWindow();

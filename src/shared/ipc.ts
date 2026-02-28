@@ -48,4 +48,6 @@ export const IpcChannels = {
   PaneLayoutLoad: 'pane-layout:load',
   /** Save pane layout */
   PaneLayoutSave: 'pane-layout:save',
+  /** Show a system notification */
+  NotificationShow: 'notification:show',
 } as const;

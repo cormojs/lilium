@@ -328,7 +328,7 @@ function NotificationTabContent({
   const listRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef(notifications);
   notificationsRef.current = notifications;
-  const notificationPermissionRef = useRef<NotificationPermission | 'unsupported'>('default');
+  const notificationsEnabledRef = useRef(true);
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(true);
 
@@ -384,25 +384,7 @@ function NotificationTabContent({
     loadNotifications();
   }, [loadNotifications]);
 
-  useEffect(() => {
-    if (typeof Notification === 'undefined') {
-      notificationPermissionRef.current = 'unsupported';
-      return;
-    }
-
-    notificationPermissionRef.current = Notification.permission;
-    if (Notification.permission !== 'default') {
-      return;
-    }
-
-    void Notification.requestPermission()
-      .then((permission) => {
-        notificationPermissionRef.current = permission;
-      })
-      .catch(() => {
-        notificationPermissionRef.current = 'denied';
-      });
-  }, []);
+  // System notifications are handled via Electron's Notification module in the main process
 
   useEffect(() => {
     const el = listRef.current;
@@ -438,7 +420,7 @@ function NotificationTabContent({
             return prev;
           }
 
-          if (notificationPermissionRef.current === 'granted') {
+          if (notificationsEnabledRef.current) {
             const actor =
               notification.account.displayName.trim().length > 0
                 ? notification.account.displayName
@@ -455,17 +437,9 @@ function NotificationTabContent({
                   .replace(/\s+/g, ' ')
                   .trim()
               : undefined;
-            const body = statusPreview
-              ? `${actor}${actionLabel[notification.type]}\n${statusPreview}`
-              : `${actor}${actionLabel[notification.type]}`;
+            const body = statusPreview;
 
-            const osNotification = new Notification('Lilium 通知', {
-              body,
-              icon: notification.account.avatarUrl,
-            });
-            osNotification.onclick = () => {
-              window.focus();
-            };
+            window.api.showNotification({ title: `${actor}${actionLabel[notification.type]}`, body });
           }
 
           return [notification, ...prev];
