@@ -6,6 +6,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   boostAvatarSize: 25,
   postFontSize: 14,
   uiFontSize: 14,
+  compactFontSize: 12,
 };
 
 export interface SettingsContextValue {
