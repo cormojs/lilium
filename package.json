@@ -11,6 +11,7 @@
     "preview": "electron-vite preview",
     "package": "electron-vite build && electron-builder",
     "package:win": "electron-vite build && electron-builder --win",
+    "package:mac": "electron-vite build && electron-builder --mac",
     "format": "prettier --write \"src/**/*.{ts,tsx}\" --no-error-on-unmatched-pattern",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\" --no-error-on-unmatched-pattern",
     "lint": "eslint src/",
