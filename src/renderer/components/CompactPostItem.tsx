@@ -33,10 +33,9 @@ const IconCell = styled.div`
 `;
 
 const CompactAvatar = styled.img<{ $rowHeight: number }>`
-  width: 26px;
-  height: ${(props) => Math.max(props.$rowHeight - 6, 14)}px;
+  width: 35px;
+  height: ${(props) => Math.max(props.$rowHeight, 14)}px;
   object-fit: cover;
-  border-radius: 2px;
 `;
 
 const AcctCell = styled.div<{ $boosted: boolean }>`
@@ -44,7 +43,7 @@ const AcctCell = styled.div<{ $boosted: boolean }>`
   height: 100%;
   display: flex;
   align-items: center;
-  padding: 0 4px;
+  padding: 0 0;
   overflow: hidden;
 `;
 
