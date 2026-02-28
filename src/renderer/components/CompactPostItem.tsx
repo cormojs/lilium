@@ -55,8 +55,9 @@ const AcctText = styled.span<{ $fontSize: number }>`
   text-overflow: ellipsis;
 `;
 
-const BodyCell = styled.div<{ $visibility: string }>`
+const BodyCell = styled.div<{ $visibility: string; $hasSpoiler: boolean }>`
   background: ${(props) => {
+    if (props.$hasSpoiler) return '#f6ffed';
     if (props.$visibility === 'direct') return '#f9f0ff';
     if (props.$visibility === 'private') return '#f6ffed';
     return '#e6f7ff';
@@ -136,13 +137,20 @@ function shortAcct(acct: string): string {
   return `@${acct.substring(0, atIndex)}`;
 }
 
+function escapeHtml(text: string): string {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 export function CompactPostItem({ post, onClick }: CompactPostItemProps): React.JSX.Element {
   const { settings } = useSettings();
   const compactFontSize = Math.max(settings.compactFontSize, 8);
   const rowHeight = Math.max(compactFontSize + 10, 20);
-  const bodyHtml = sanitizeContent(
-    stripHtmlPreservingEmojis(replaceCustomEmojis(post.content, post.emojis)),
-  );
+  const hasSpoiler = post.spoilerText.trim().length > 0;
+  const bodyHtml = hasSpoiler
+    ? sanitizeContent(replaceCustomEmojis(escapeHtml(post.spoilerText), post.emojis))
+    : sanitizeContent(stripHtmlPreservingEmojis(replaceCustomEmojis(post.content, post.emojis)));
   const hasMedia = post.mediaAttachments.length > 0;
 
   return (
@@ -157,7 +165,7 @@ export function CompactPostItem({ post, onClick }: CompactPostItemProps): React.
       <AcctCell $boosted={!!post.rebloggedBy}>
         <AcctText $fontSize={compactFontSize}>{shortAcct(post.account.acct)}</AcctText>
       </AcctCell>
-      <BodyCell $visibility={post.visibility}>
+      <BodyCell $visibility={post.visibility} $hasSpoiler={hasSpoiler}>
         <BodyText $fontSize={compactFontSize} dangerouslySetInnerHTML={{ __html: bodyHtml }} />
         {hasMedia && <MediaIcon $fontSize={compactFontSize} />}
       </BodyCell>
