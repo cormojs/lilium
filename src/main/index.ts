@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Notification, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, nativeImage, Notification, shell } from 'electron';
 import path from 'node:path';
 import { IpcChannels } from '../shared/ipc.ts';
 import type {
@@ -209,11 +209,21 @@ function registerIpcHandlers(): void {
   ipcMain.handle(
     IpcChannels.NotificationShow,
     async (_event, params: ShowNotificationParams) => {
-      if (Notification.isSupported()) {
-        new Notification({ title: params.title, body: params.body }).show();
-      } else {
+      if (!Notification.isSupported()) {
         console.log('Notifications are not supported on this platform');
+        return;
       }
+      let icon: Electron.NativeImage | undefined;
+      if (params.iconUrl) {
+        try {
+          const res = await fetch(params.iconUrl);
+          const buffer = Buffer.from(await res.arrayBuffer());
+          icon = nativeImage.createFromBuffer(buffer);
+        } catch {
+          // ignore fetch errors; show notification without icon
+        }
+      }
+      new Notification({ title: params.title, body: params.body, icon }).show();
     },
   );
 }

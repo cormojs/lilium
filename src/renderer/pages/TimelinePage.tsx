@@ -439,7 +439,11 @@ function NotificationTabContent({
               : undefined;
             const body = statusPreview;
 
-            window.api.showNotification({ title: `${actor}${actionLabel[notification.type]}`, body });
+            window.api.showNotification({
+              title: `${actor}${actionLabel[notification.type]}`,
+              body,
+              iconUrl: notification.account.avatarUrl,
+            });
           }
 
           return [notification, ...prev];

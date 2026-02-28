@@ -296,7 +296,8 @@ export interface NotificationFetchParams {
 
 export interface ShowNotificationParams {
   title: string;
-  body: string;
+  body?: string;
+  iconUrl?: string;
 }
 
 /** Connection status of a stream subscription */
