@@ -119,6 +119,7 @@ const StatusDot = styled.span<{ $color: string }>`
 const TIMELINE_TYPE_LABELS: Record<TimelineType, string> = {
   home: 'Home',
   public: 'Public',
+  local: 'Local',
   favourites: 'Favourites',
   notifications: 'Notifications',
 };
@@ -133,6 +134,8 @@ function getStreamType(timelineType: TimelineType): StreamType | null {
       return 'user';
     case 'public':
       return 'public';
+    case 'local':
+      return 'publicLocal';
     default:
       return null;
   }
@@ -889,6 +892,7 @@ export function TimelinePage({
   const timelineTypeOptions: { value: TimelineType; label: string }[] = [
     { value: 'home', label: 'Home' },
     { value: 'public', label: 'Public' },
+    { value: 'local', label: 'Local' },
     { value: 'favourites', label: 'Favourites' },
     { value: 'notifications', label: 'Notifications' },
   ];
