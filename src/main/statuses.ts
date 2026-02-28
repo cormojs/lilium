@@ -5,15 +5,18 @@ export async function createStatus(
   serverUrl: string,
   accessToken: string,
   status: string,
+  spoilerText: string | undefined,
   visibility: PostVisibility,
   inReplyToId?: string,
   mediaIds?: string[],
 ): Promise<void> {
   const client = createRestAPIClient({ url: serverUrl, accessToken });
+  const normalizedSpoilerText = spoilerText?.trim() || undefined;
 
   if (mediaIds && mediaIds.length > 0) {
     await client.v1.statuses.create({
       status: status.trim().length > 0 ? status : null,
+      spoilerText: normalizedSpoilerText,
       visibility,
       inReplyToId,
       mediaIds,
@@ -21,7 +24,12 @@ export async function createStatus(
     return;
   }
 
-  await client.v1.statuses.create({ status, visibility, inReplyToId });
+  await client.v1.statuses.create({
+    status,
+    spoilerText: normalizedSpoilerText,
+    visibility,
+    inReplyToId,
+  });
 }
 
 export async function uploadMedia(

@@ -125,6 +125,7 @@ function registerIpcHandlers(): void {
         params.serverUrl,
         params.accessToken,
         params.status,
+        params.spoilerText,
         params.visibility,
         params.inReplyToId,
         params.mediaIds,
