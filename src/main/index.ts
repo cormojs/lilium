@@ -206,26 +206,23 @@ function registerIpcHandlers(): void {
     savePaneLayout(layout);
   });
 
-  ipcMain.handle(
-    IpcChannels.NotificationShow,
-    async (_event, params: ShowNotificationParams) => {
-      if (!Notification.isSupported()) {
-        console.log('Notifications are not supported on this platform');
-        return;
+  ipcMain.handle(IpcChannels.NotificationShow, async (_event, params: ShowNotificationParams) => {
+    if (!Notification.isSupported()) {
+      console.log('Notifications are not supported on this platform');
+      return;
+    }
+    let icon: Electron.NativeImage | undefined;
+    if (params.iconUrl) {
+      try {
+        const res = await fetch(params.iconUrl);
+        const buffer = Buffer.from(await res.arrayBuffer());
+        icon = nativeImage.createFromBuffer(buffer);
+      } catch {
+        // ignore fetch errors; show notification without icon
       }
-      let icon: Electron.NativeImage | undefined;
-      if (params.iconUrl) {
-        try {
-          const res = await fetch(params.iconUrl);
-          const buffer = Buffer.from(await res.arrayBuffer());
-          icon = nativeImage.createFromBuffer(buffer);
-        } catch {
-          // ignore fetch errors; show notification without icon
-        }
-      }
-      new Notification({ title: params.title, body: params.body, icon }).show();
-    },
-  );
+    }
+    new Notification({ title: params.title, body: params.body, icon }).show();
+  });
 }
 
 app.commandLine.appendSwitch('disable-gpu-sandbox');
