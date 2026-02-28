@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { App, Avatar, Button, Dropdown, Input, Select, Typography } from 'antd';
+import { App, Avatar, Button, Dropdown, Input, Select, Switch, Typography } from 'antd';
 import styled from 'styled-components';
 import type { Account, PostVisibility, UploadedMedia } from '../../shared/types.ts';
 
@@ -110,6 +110,8 @@ export function Composer({
   const { message } = App.useApp();
   const [selectedAccount, setSelectedAccount] = useState(accounts[0]);
   const [text, setText] = useState('');
+  const [useContentWarning, setUseContentWarning] = useState(false);
+  const [spoilerText, setSpoilerText] = useState('');
   const [visibility, setVisibility] = useState<PostVisibility>('public');
   const [submitting, setSubmitting] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -206,11 +208,14 @@ export function Composer({
         serverUrl: selectedAccount.serverUrl,
         accessToken: selectedAccount.accessToken,
         status: trimmedText,
+        spoilerText: useContentWarning ? spoilerText.trim() : undefined,
         visibility,
         inReplyToId: replyDraft?.inReplyToId,
         mediaIds: mediaAttachments.map((media) => media.id),
       });
       setText('');
+      setUseContentWarning(false);
+      setSpoilerText('');
       setMediaAttachments([]);
       onClearReplyDraft();
       message.success('投稿しました');
@@ -269,6 +274,13 @@ export function Composer({
 
         <ComposerRight>
           <InputColumn>
+            <Input
+              value={spoilerText}
+              onChange={(event) => setSpoilerText(event.target.value)}
+              placeholder="内容の警告 (CW)"
+              maxLength={100}
+              style={{ display: useContentWarning ? 'block' : 'none' }}
+            />
             <TextArea
               value={text}
               onChange={(event) => setText(event.target.value)}
@@ -328,6 +340,17 @@ export function Composer({
                 const files = Array.from(event.target.files ?? []);
                 void uploadFiles(files);
                 event.currentTarget.value = '';
+              }}
+            />
+            <Switch
+              checked={useContentWarning}
+              checkedChildren="CW ON"
+              unCheckedChildren="CW"
+              onChange={(checked) => {
+                setUseContentWarning(checked);
+                if (!checked) {
+                  setSpoilerText('');
+                }
               }}
             />
             <Select
