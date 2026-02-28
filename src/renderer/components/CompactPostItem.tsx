@@ -2,6 +2,7 @@ import { PictureOutlined } from '@ant-design/icons';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type { Post } from '../../shared/types.ts';
+import { useSettings } from '../hooks/useSettings.ts';
 import { replaceCustomEmojis } from './customEmojis.ts';
 
 interface CompactPostItemProps {
@@ -9,11 +10,11 @@ interface CompactPostItemProps {
   onClick: () => void;
 }
 
-const Row = styled.div`
+const Row = styled.div<{ $rowHeight: number }>`
   display: grid;
   grid-template-columns: 28px 100px 1fr;
   align-items: center;
-  height: 24px;
+  height: ${(props) => props.$rowHeight}px;
   cursor: pointer;
   border-bottom: 1px solid #f0f0f0;
 
@@ -31,11 +32,10 @@ const IconCell = styled.div`
   overflow: hidden;
 `;
 
-const CompactAvatar = styled.img`
-  width: 26px;
-  height: 18px;
+const CompactAvatar = styled.img<{ $rowHeight: number }>`
+  width: 35px;
+  height: ${(props) => Math.max(props.$rowHeight, 14)}px;
   object-fit: cover;
-  border-radius: 2px;
 `;
 
 const AcctCell = styled.div<{ $boosted: boolean }>`
@@ -43,12 +43,13 @@ const AcctCell = styled.div<{ $boosted: boolean }>`
   height: 100%;
   display: flex;
   align-items: center;
-  padding: 0 4px;
+  padding: 0 0;
   overflow: hidden;
 `;
 
-const AcctText = styled.span`
-  font-size: 12px;
+const AcctText = styled.span<{ $fontSize: number }>`
+  font-size: ${(props) => props.$fontSize}px;
+  line-height: 1.1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -68,22 +69,23 @@ const BodyCell = styled.div<{ $visibility: string; $hasSpoiler: boolean }>`
   overflow: hidden;
 `;
 
-const BodyText = styled.span`
-  font-size: 12px;
+const BodyText = styled.span<{ $fontSize: number }>`
+  font-size: ${(props) => props.$fontSize}px;
+  line-height: 1.1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 
   .custom-emoji {
-    height: 14px;
+    height: 1em;
     width: auto;
     vertical-align: middle;
     margin: 0 1px;
   }
 `;
 
-const MediaIcon = styled(PictureOutlined)`
-  font-size: 12px;
+const MediaIcon = styled(PictureOutlined)<{ $fontSize: number }>`
+  font-size: ${(props) => props.$fontSize}px;
   color: #8c8c8c;
   flex-shrink: 0;
   margin-left: 4px;
@@ -142,6 +144,9 @@ function escapeHtml(text: string): string {
 }
 
 export function CompactPostItem({ post, onClick }: CompactPostItemProps): React.JSX.Element {
+  const { settings } = useSettings();
+  const compactFontSize = Math.max(settings.compactFontSize, 8);
+  const rowHeight = Math.max(compactFontSize + 10, 20);
   const hasSpoiler = post.spoilerText.trim().length > 0;
   const bodyHtml = hasSpoiler
     ? sanitizeContent(replaceCustomEmojis(escapeHtml(post.spoilerText), post.emojis))
@@ -149,16 +154,20 @@ export function CompactPostItem({ post, onClick }: CompactPostItemProps): React.
   const hasMedia = post.mediaAttachments.length > 0;
 
   return (
-    <Row onClick={onClick}>
+    <Row $rowHeight={rowHeight} onClick={onClick}>
       <IconCell>
-        <CompactAvatar src={post.account.avatarUrl} alt={post.account.acct} />
+        <CompactAvatar
+          $rowHeight={rowHeight}
+          src={post.account.avatarUrl}
+          alt={post.account.acct}
+        />
       </IconCell>
       <AcctCell $boosted={!!post.rebloggedBy}>
-        <AcctText>{shortAcct(post.account.acct)}</AcctText>
+        <AcctText $fontSize={compactFontSize}>{shortAcct(post.account.acct)}</AcctText>
       </AcctCell>
       <BodyCell $visibility={post.visibility} $hasSpoiler={hasSpoiler}>
-        <BodyText dangerouslySetInnerHTML={{ __html: bodyHtml }} />
-        {hasMedia && <MediaIcon />}
+        <BodyText $fontSize={compactFontSize} dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+        {hasMedia && <MediaIcon $fontSize={compactFontSize} />}
       </BodyCell>
     </Row>
   );

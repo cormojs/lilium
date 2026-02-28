@@ -18,6 +18,7 @@ export interface TabDefinition {
   accountServerUrl: string;
   accountUsername: string;
   timelineType: TimelineType;
+  customName?: string;
 }
 
 /**
@@ -189,7 +190,7 @@ export interface OAuthExchangeTokenParams {
 }
 
 /** Timeline type */
-export type TimelineType = 'home' | 'public' | 'favourites' | 'notifications';
+export type TimelineType = 'home' | 'public' | 'local' | 'favourites' | 'notifications';
 
 /** Media attachment type */
 export type MediaAttachmentType = 'image' | 'video' | 'gifv' | 'audio' | 'unknown';
@@ -256,7 +257,7 @@ export interface PaneLayout {
   panes: PaneDefinition[];
 }
 
-export type StreamType = 'user' | 'public';
+export type StreamType = 'user' | 'public' | 'publicLocal';
 
 export interface StreamSubscribeParams {
   serverUrl: string;
@@ -306,4 +307,5 @@ export interface AppSettings {
   boostAvatarSize: number;
   postFontSize: number;
   uiFontSize: number;
+  compactFontSize: number;
 }
