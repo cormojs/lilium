@@ -19,6 +19,9 @@ export async function fetchTimeline(
     case 'public':
       statuses = await client.v1.timelines.public.list(params);
       break;
+    case 'local':
+      statuses = await client.v1.timelines.public.list({ ...params, local: true });
+      break;
     case 'favourites':
       statuses = await client.v1.favourites.list(params);
       break;

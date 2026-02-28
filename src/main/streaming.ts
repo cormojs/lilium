@@ -177,6 +177,8 @@ function subscribe(
       return streamingClient.user.subscribe();
     case 'public':
       return streamingClient.public.subscribe();
+    case 'publicLocal':
+      return streamingClient.public.local.subscribe();
   }
 }
 
@@ -261,7 +263,7 @@ async function pollUserStream(active: ActiveSubscription): Promise<void> {
   }
 }
 
-async function pollPublicStream(active: ActiveSubscription): Promise<void> {
+async function pollPublicStream(active: ActiveSubscription, local = false): Promise<void> {
   if (!active.pollingClient) {
     active.pollingClient = createRestAPIClient({
       url: active.params.serverUrl,
@@ -273,6 +275,7 @@ async function pollPublicStream(active: ActiveSubscription): Promise<void> {
     active.pollingClient!.v1.timelines.public.list({
       sinceId: active.cursor.statusSinceId,
       limit: 20,
+      local,
     }),
   );
 
@@ -298,6 +301,8 @@ async function pollOnce(active: ActiveSubscription): Promise<void> {
   try {
     if (active.params.streamType === 'user') {
       await pollUserStream(active);
+    } else if (active.params.streamType === 'publicLocal') {
+      await pollPublicStream(active, true);
     } else {
       await pollPublicStream(active);
     }
