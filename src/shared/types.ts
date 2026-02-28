@@ -148,6 +148,7 @@ export interface StatusCreateParams {
   serverUrl: string;
   accessToken: string;
   status: string;
+  spoilerText?: string;
   visibility: PostVisibility;
   inReplyToId?: string;
   mediaIds?: string[];
