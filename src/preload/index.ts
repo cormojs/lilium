@@ -10,6 +10,7 @@ import type {
   OAuthExchangeTokenParams,
   PaneLayout,
   StatusActionParams,
+  ShowNotificationParams,
   StatusCreateParams,
   UploadedMedia,
   StreamConnectionStatusData,
@@ -108,6 +109,10 @@ const api = {
   /** Save pane layout */
   savePaneLayout(layout: PaneLayout): Promise<void> {
     return ipcRenderer.invoke(IpcChannels.PaneLayoutSave, layout);
+  },
+  /** Show a system notification */
+  showNotification(params: ShowNotificationParams): Promise<void> {
+    return ipcRenderer.invoke(IpcChannels.NotificationShow, params);
   },
   /** Listen for streaming events */
   onStreamEvent(callback: (event: StreamEventData) => void): () => void {

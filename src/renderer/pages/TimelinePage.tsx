@@ -328,6 +328,7 @@ function NotificationTabContent({
   const listRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef(notifications);
   notificationsRef.current = notifications;
+  const notificationsEnabledRef = useRef(true);
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(true);
 
@@ -383,6 +384,8 @@ function NotificationTabContent({
     loadNotifications();
   }, [loadNotifications]);
 
+  // System notifications are handled via Electron's Notification module in the main process
+
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
@@ -412,9 +415,39 @@ function NotificationTabContent({
       if (event.subscriptionId !== subscriptionId) return;
       if (event.event === 'notification') {
         const notification = event.payload as MastoNotification;
-        setNotifications((prev) =>
-          prev.some((n) => n.id === notification.id) ? prev : [notification, ...prev],
-        );
+        setNotifications((prev) => {
+          if (prev.some((n) => n.id === notification.id)) {
+            return prev;
+          }
+
+          if (notificationsEnabledRef.current) {
+            const actor =
+              notification.account.displayName.trim().length > 0
+                ? notification.account.displayName
+                : `@${notification.account.acct}`;
+            const actionLabel: Record<MastoNotification['type'], string> = {
+              follow: 'があなたをフォローしました',
+              follow_request: 'からフォローリクエストが届きました',
+              favourite: 'があなたの投稿をお気に入りに追加しました',
+              reblog: 'があなたの投稿をブーストしました',
+            };
+            const statusPreview = notification.status
+              ? notification.status.content
+                  .replace(/<[^>]*>/g, ' ')
+                  .replace(/\s+/g, ' ')
+                  .trim()
+              : undefined;
+            const body = statusPreview;
+
+            window.api.showNotification({
+              title: `${actor}${actionLabel[notification.type]}`,
+              body,
+              iconUrl: notification.account.avatarUrl,
+            });
+          }
+
+          return [notification, ...prev];
+        });
       }
     });
 

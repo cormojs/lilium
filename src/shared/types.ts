@@ -294,6 +294,12 @@ export interface NotificationFetchParams {
   maxId?: string;
 }
 
+export interface ShowNotificationParams {
+  title: string;
+  body?: string;
+  iconUrl?: string;
+}
+
 /** Connection status of a stream subscription */
 export type StreamConnectionStatus = 'streaming' | 'polling' | 'disconnected';
 
