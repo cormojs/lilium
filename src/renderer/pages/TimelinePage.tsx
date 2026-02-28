@@ -1,6 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Tabs, Modal, Select, Button, App, Flex, Typography, Spin, Dropdown, Tooltip } from 'antd';
-import { SettingOutlined, UserOutlined, SwapOutlined } from '@ant-design/icons';
+import {
+  Tabs,
+  Modal,
+  Select,
+  Button,
+  App,
+  Flex,
+  Typography,
+  Spin,
+  Dropdown,
+  Tooltip,
+  Input,
+} from 'antd';
+import { SettingOutlined, UserOutlined, SwapOutlined, EditOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
 import type {
   Account,
@@ -127,6 +139,9 @@ function getStreamType(timelineType: TimelineType): StreamType | null {
 }
 
 function buildTabLabel(tab: TabDefinition, accounts: Account[]): string {
+  if (tab.customName && tab.customName.trim().length > 0) {
+    return tab.customName;
+  }
   const account = accounts.find(
     (a) => a.serverUrl === tab.accountServerUrl && a.username === tab.accountUsername,
   );
@@ -461,6 +476,7 @@ interface PaneProps {
   onAddTab: (paneId: string) => void;
   onRemoveTab: (paneId: string, tabId: string) => void;
   onMoveTab: (tabId: string, fromPaneId: string, direction: 'left' | 'right') => void;
+  onRenameTab: (tabId: string, name: string) => void;
   onReply: (tab: TabDefinition, post: Post) => void;
 }
 
@@ -483,6 +499,7 @@ function Pane({
   onAddTab,
   onRemoveTab,
   onMoveTab,
+  onRenameTab,
   onReply,
 }: PaneProps): React.JSX.Element {
   const [connectionStatuses, setConnectionStatuses] = useState<
@@ -541,6 +558,16 @@ function Pane({
             </Dropdown>
           )}
           {buildTabLabel(tab, accounts)}
+          <EditOutlined
+            style={{ fontSize: 12, cursor: 'pointer', color: '#8c8c8c' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              const currentLabel = buildTabLabel(tab, accounts);
+              const nextLabel = window.prompt('タブ名を入力してください', currentLabel);
+              if (nextLabel === null) return;
+              onRenameTab(tab.id, nextLabel.trim());
+            }}
+          />
           {(() => {
             const subIds = getSubscriptionIds(tab);
             const subId = subIds[0];
@@ -604,6 +631,7 @@ export function TimelinePage({
   const [modalPaneId, setModalPaneId] = useState<string>('');
   const [newTabAccount, setNewTabAccount] = useState<string>('');
   const [newTabType, setNewTabType] = useState<TimelineType>('home');
+  const [newTabCustomName, setNewTabCustomName] = useState<string>('');
 
   // Load saved data on mount
   useEffect(() => {
@@ -687,6 +715,7 @@ export function TimelinePage({
       accountServerUrl: serverUrl,
       accountUsername: username,
       timelineType: newTabType,
+      customName: newTabCustomName.trim() || undefined,
     };
 
     setTabs((prevTabs) => {
@@ -704,7 +733,8 @@ export function TimelinePage({
     setModalOpen(false);
     setNewTabAccount('');
     setNewTabType('home');
-  }, [newTabAccount, newTabType, modalPaneId, persistLayout]);
+    setNewTabCustomName('');
+  }, [newTabAccount, newTabType, newTabCustomName, modalPaneId, persistLayout]);
 
   const handleRemoveTab = useCallback(
     (paneId: string, tabId: string): void => {
@@ -824,6 +854,16 @@ export function TimelinePage({
     });
   }, []);
 
+  const handleRenameTab = useCallback((tabId: string, name: string): void => {
+    setTabs((prevTabs) => {
+      const nextTabs = prevTabs.map((tab) =>
+        tab.id === tabId ? { ...tab, customName: name || undefined } : tab,
+      );
+      window.api.saveTabs(nextTabs);
+      return nextTabs;
+    });
+  }, []);
+
   const accountOptions = accounts.map((a) => ({
     value: `${a.serverUrl}|${a.username}`,
     label: `@${a.username}@${new URL(a.serverUrl).host}`,
@@ -896,6 +936,7 @@ export function TimelinePage({
             onAddTab={handleAddTab}
             onRemoveTab={handleRemoveTab}
             onMoveTab={handleMoveTab}
+            onRenameTab={handleRenameTab}
             onReply={handleReply}
           />
         ))}
@@ -928,6 +969,16 @@ export function TimelinePage({
               value={newTabType}
               onChange={setNewTabType}
               options={timelineTypeOptions}
+            />
+          </div>
+          <div>
+            <Text strong>タブ名 (任意)</Text>
+            <Input
+              style={{ marginTop: 8 }}
+              value={newTabCustomName}
+              onChange={(event) => setNewTabCustomName(event.target.value)}
+              placeholder="未設定時は自動生成"
+              maxLength={60}
             />
           </div>
         </Flex>
