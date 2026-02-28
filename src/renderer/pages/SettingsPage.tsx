@@ -141,6 +141,18 @@ export function SettingsPage({ onBack }: SettingsPageProps): React.JSX.Element {
           />
         </SettingRow>
 
+        <SettingRow>
+          <Text strong>縮小表示の文字の大きさ (px)</Text>
+          <br />
+          <InputNumber
+            min={8}
+            max={24}
+            value={draft.compactFontSize}
+            onChange={(v) => update('compactFontSize', v)}
+            style={{ marginTop: 8 }}
+          />
+        </SettingRow>
+
         <Flex gap={12}>
           <Button type="primary" onClick={handleSave}>
             保存
@@ -170,6 +182,61 @@ export function SettingsPage({ onBack }: SettingsPageProps): React.JSX.Element {
               </div>
             </div>
           </PreviewPost>
+          <div
+            style={{
+              marginTop: 12,
+              border: '1px solid #f0f0f0',
+              borderRadius: 4,
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '28px 100px 1fr',
+                alignItems: 'center',
+                height: Math.max(draft.compactFontSize + 10, 20),
+              }}
+            >
+              <div
+                style={{
+                  background: '#d9f7be',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <PreviewAvatar $size={20} style={{ height: 14 }} />
+              </div>
+              <div
+                style={{
+                  background: '#fffbe6',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '0 4px',
+                  fontSize: draft.compactFontSize,
+                  lineHeight: 1.1,
+                }}
+              >
+                @user
+              </div>
+              <div
+                style={{
+                  background: '#e6f7ff',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '0 6px',
+                  fontSize: draft.compactFontSize,
+                  lineHeight: 1.1,
+                }}
+              >
+                縮小表示プレビュー
+              </div>
+            </div>
+          </div>
         </PreviewArea>
       </SettingsBody>
     </PageContainer>

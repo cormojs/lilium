@@ -306,4 +306,5 @@ export interface AppSettings {
   boostAvatarSize: number;
   postFontSize: number;
   uiFontSize: number;
+  compactFontSize: number;
 }
