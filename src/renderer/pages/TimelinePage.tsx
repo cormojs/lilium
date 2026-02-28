@@ -1,6 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Tabs, Modal, Select, Button, App, Flex, Typography, Spin, Dropdown, Tooltip } from 'antd';
-import { SettingOutlined, UserOutlined, SwapOutlined } from '@ant-design/icons';
+import {
+  Tabs,
+  Modal,
+  Select,
+  Button,
+  App,
+  Flex,
+  Typography,
+  Spin,
+  Dropdown,
+  Tooltip,
+  Input,
+} from 'antd';
+import { SettingOutlined, UserOutlined, MoreOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
 import type {
   Account,
@@ -127,6 +139,9 @@ function getStreamType(timelineType: TimelineType): StreamType | null {
 }
 
 function buildTabLabel(tab: TabDefinition, accounts: Account[]): string {
+  if (tab.customName && tab.customName.trim().length > 0) {
+    return tab.customName;
+  }
   const account = accounts.find(
     (a) => a.serverUrl === tab.accountServerUrl && a.username === tab.accountUsername,
   );
@@ -461,6 +476,7 @@ interface PaneProps {
   onAddTab: (paneId: string) => void;
   onRemoveTab: (paneId: string, tabId: string) => void;
   onMoveTab: (tabId: string, fromPaneId: string, direction: 'left' | 'right') => void;
+  onRenameTab: (tabId: string, name: string) => void;
   onReply: (tab: TabDefinition, post: Post) => void;
 }
 
@@ -483,11 +499,15 @@ function Pane({
   onAddTab,
   onRemoveTab,
   onMoveTab,
+  onRenameTab,
   onReply,
 }: PaneProps): React.JSX.Element {
   const [connectionStatuses, setConnectionStatuses] = useState<
     Record<string, StreamConnectionStatus>
   >({});
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [renameTabId, setRenameTabId] = useState<string>('');
+  const [renameValue, setRenameValue] = useState<string>('');
 
   useEffect(() => {
     const removeListener = window.api.onStreamConnectionStatus((data) => {
@@ -504,43 +524,41 @@ function Pane({
     .filter((t): t is TabDefinition => t !== undefined);
 
   const tabItems = paneTabs.map((tab) => {
-    const moveMenuItems = [];
-    if (paneIndex > 0 || totalPanes > 1) {
-      moveMenuItems.push({
-        key: 'left',
-        label: '左のペインへ移動',
-        disabled: paneIndex === 0,
-      });
-    }
-    if (paneIndex < totalPanes - 1 || totalPanes > 1) {
-      moveMenuItems.push({
-        key: 'right',
-        label: '右のペインへ移動',
-        disabled: paneIndex === totalPanes - 1,
-      });
+    const menuItems: { key: string; label: string; disabled?: boolean }[] = [
+      { key: 'rename', label: '名前を変更' },
+    ];
+    if (totalPanes > 1) {
+      menuItems.push(
+        { key: 'left', label: '左のペインへ移動', disabled: paneIndex === 0 },
+        { key: 'right', label: '右のペインへ移動', disabled: paneIndex === totalPanes - 1 },
+      );
     }
 
     return {
       key: tab.id,
       label: (
         <TabLabelWrapper>
-          {totalPanes > 1 && (
-            <Dropdown
-              menu={{
-                items: moveMenuItems,
-                onClick: ({ key }) => {
-                  onMoveTab(tab.id, pane.id, key as 'left' | 'right');
-                },
-              }}
-              trigger={['click']}
-            >
-              <SwapOutlined
-                style={{ fontSize: 10, cursor: 'pointer' }}
-                onClick={(e) => e.stopPropagation()}
-              />
-            </Dropdown>
-          )}
           {buildTabLabel(tab, accounts)}
+          <Dropdown
+            menu={{
+              items: menuItems,
+              onClick: ({ key }) => {
+                if (key === 'rename') {
+                  setRenameTabId(tab.id);
+                  setRenameValue(buildTabLabel(tab, accounts));
+                  setRenameModalOpen(true);
+                } else {
+                  onMoveTab(tab.id, pane.id, key as 'left' | 'right');
+                }
+              },
+            }}
+            trigger={['click']}
+          >
+            <MoreOutlined
+              style={{ fontSize: 12, cursor: 'pointer', color: '#8c8c8c' }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </Dropdown>
           {(() => {
             const subIds = getSubscriptionIds(tab);
             const subId = subIds[0];
@@ -561,31 +579,57 @@ function Pane({
   });
 
   return (
-    <StyledTabs
-      type="editable-card"
-      activeKey={pane.activeTabId}
-      onChange={(key) => onActiveTabChange(pane.id, key)}
-      onEdit={(targetKey, action) => {
-        if (action === 'add') {
-          onAddTab(pane.id);
-        } else if (action === 'remove' && typeof targetKey === 'string') {
-          onRemoveTab(pane.id, targetKey);
+    <>
+      <StyledTabs
+        type="editable-card"
+        activeKey={pane.activeTabId}
+        onChange={(key) => onActiveTabChange(pane.id, key)}
+        onEdit={(targetKey, action) => {
+          if (action === 'add') {
+            onAddTab(pane.id);
+          } else if (action === 'remove' && typeof targetKey === 'string') {
+            onRemoveTab(pane.id, targetKey);
+          }
+        }}
+        items={
+          tabItems.length > 0
+            ? tabItems
+            : [
+                {
+                  key: '__empty__',
+                  label: '',
+                  children: <EmptyMessage>「＋」ボタンからタブを追加してください</EmptyMessage>,
+                  closable: false,
+                  disabled: true,
+                },
+              ]
         }
-      }}
-      items={
-        tabItems.length > 0
-          ? tabItems
-          : [
-              {
-                key: '__empty__',
-                label: '',
-                children: <EmptyMessage>「＋」ボタンからタブを追加してください</EmptyMessage>,
-                closable: false,
-                disabled: true,
-              },
-            ]
-      }
-    />
+      />
+      <Modal
+        title="タブ名を変更"
+        open={renameModalOpen}
+        onOk={() => {
+          onRenameTab(renameTabId, renameValue.trim());
+          setRenameModalOpen(false);
+        }}
+        onCancel={() => setRenameModalOpen(false)}
+        okText="変更"
+        cancelText="キャンセル"
+        destroyOnClose
+      >
+        <Input
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          placeholder="タブ名を入力してください"
+          maxLength={60}
+          autoFocus
+          onPressEnter={() => {
+            onRenameTab(renameTabId, renameValue.trim());
+            setRenameModalOpen(false);
+          }}
+        />
+      </Modal>
+    </>
   );
 }
 
@@ -604,6 +648,7 @@ export function TimelinePage({
   const [modalPaneId, setModalPaneId] = useState<string>('');
   const [newTabAccount, setNewTabAccount] = useState<string>('');
   const [newTabType, setNewTabType] = useState<TimelineType>('home');
+  const [newTabCustomName, setNewTabCustomName] = useState<string>('');
 
   // Load saved data on mount
   useEffect(() => {
@@ -687,6 +732,7 @@ export function TimelinePage({
       accountServerUrl: serverUrl,
       accountUsername: username,
       timelineType: newTabType,
+      customName: newTabCustomName.trim() || undefined,
     };
 
     setTabs((prevTabs) => {
@@ -704,7 +750,8 @@ export function TimelinePage({
     setModalOpen(false);
     setNewTabAccount('');
     setNewTabType('home');
-  }, [newTabAccount, newTabType, modalPaneId, persistLayout]);
+    setNewTabCustomName('');
+  }, [newTabAccount, newTabType, newTabCustomName, modalPaneId, persistLayout]);
 
   const handleRemoveTab = useCallback(
     (paneId: string, tabId: string): void => {
@@ -824,6 +871,16 @@ export function TimelinePage({
     });
   }, []);
 
+  const handleRenameTab = useCallback((tabId: string, name: string): void => {
+    setTabs((prevTabs) => {
+      const nextTabs = prevTabs.map((tab) =>
+        tab.id === tabId ? { ...tab, customName: name || undefined } : tab,
+      );
+      window.api.saveTabs(nextTabs);
+      return nextTabs;
+    });
+  }, []);
+
   const accountOptions = accounts.map((a) => ({
     value: `${a.serverUrl}|${a.username}`,
     label: `@${a.username}@${new URL(a.serverUrl).host}`,
@@ -896,6 +953,7 @@ export function TimelinePage({
             onAddTab={handleAddTab}
             onRemoveTab={handleRemoveTab}
             onMoveTab={handleMoveTab}
+            onRenameTab={handleRenameTab}
             onReply={handleReply}
           />
         ))}
@@ -928,6 +986,16 @@ export function TimelinePage({
               value={newTabType}
               onChange={setNewTabType}
               options={timelineTypeOptions}
+            />
+          </div>
+          <div>
+            <Text strong>タブ名 (任意)</Text>
+            <Input
+              style={{ marginTop: 8 }}
+              value={newTabCustomName}
+              onChange={(event) => setNewTabCustomName(event.target.value)}
+              placeholder="未設定時は自動生成"
+              maxLength={60}
             />
           </div>
         </Flex>
