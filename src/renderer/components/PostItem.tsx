@@ -280,6 +280,8 @@ export function PostItem({
   };
 
   const smallFontSize = settings.uiFontSize - 2;
+  const hasMediaAttachments = post.mediaAttachments.length > 0;
+  const isSensitiveWithoutContentWarning = post.sensitive && !hasContentWarning;
   const shouldHideContent = hasContentWarning && !expanded;
   const shouldHideMedia = (hasContentWarning || post.sensitive) && !expanded;
 
@@ -316,9 +318,9 @@ export function PostItem({
             }}
           />
         </HeaderLine>
-        {(hasContentWarning || post.sensitive) && (
+        {hasContentWarning && (
           <ContentWarning $fontSize={settings.postFontSize} onClick={() => setExpanded(!expanded)}>
-            {hasContentWarning ? post.spoilerText : 'センシティブな内容が含まれます'}
+            {post.spoilerText}
             {expanded ? '（クリックで隠す）' : '（クリックで表示）'}
           </ContentWarning>
         )}
@@ -330,7 +332,13 @@ export function PostItem({
             }}
           />
         )}
-        {post.mediaAttachments.length > 0 && !shouldHideMedia && (
+        {isSensitiveWithoutContentWarning && hasMediaAttachments && (
+          <ContentWarning $fontSize={settings.postFontSize} onClick={() => setExpanded(!expanded)}>
+            センシティブなメディアが含まれます
+            {expanded ? '（クリックで隠す）' : '（クリックで表示）'}
+          </ContentWarning>
+        )}
+        {hasMediaAttachments && !shouldHideMedia && (
           <MediaGallery attachments={post.mediaAttachments} />
         )}
         <FooterLine>
