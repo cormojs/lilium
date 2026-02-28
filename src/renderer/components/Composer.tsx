@@ -95,6 +95,12 @@ const ActionColumn = styled.div`
   flex-shrink: 0;
 `;
 
+const ActionRow = styled.div`
+  display: flex;
+  gap: 4px;
+  align-items: center;
+`;
+
 const visibilityOptions: { value: PostVisibility; label: string }[] = [
   { value: 'public', label: '公開' },
   { value: 'unlisted', label: '未収載' },
@@ -327,32 +333,34 @@ export function Composer({
           </InputColumn>
 
           <ActionColumn>
-            <Button onClick={() => fileInputRef.current?.click()} disabled={uploadingCount > 0}>
-              画像
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              style={{ display: 'none' }}
-              onChange={(event) => {
-                const files = Array.from(event.target.files ?? []);
-                void uploadFiles(files);
-                event.currentTarget.value = '';
-              }}
-            />
-            <Switch
-              checked={useContentWarning}
-              checkedChildren="CW ON"
-              unCheckedChildren="CW"
-              onChange={(checked) => {
-                setUseContentWarning(checked);
-                if (!checked) {
-                  setSpoilerText('');
-                }
-              }}
-            />
+            <ActionRow>
+              <Button onClick={() => fileInputRef.current?.click()} disabled={uploadingCount > 0}>
+                画像
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                style={{ display: 'none' }}
+                onChange={(event) => {
+                  const files = Array.from(event.target.files ?? []);
+                  void uploadFiles(files);
+                  event.currentTarget.value = '';
+                }}
+              />
+              <Switch
+                checked={useContentWarning}
+                checkedChildren="CW ON"
+                unCheckedChildren="CW"
+                onChange={(checked) => {
+                  setUseContentWarning(checked);
+                  if (!checked) {
+                    setSpoilerText('');
+                  }
+                }}
+              />
+            </ActionRow>
             <Select
               value={visibility}
               options={visibilityOptions}
