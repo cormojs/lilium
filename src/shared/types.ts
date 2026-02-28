@@ -18,6 +18,7 @@ export interface TabDefinition {
   accountServerUrl: string;
   accountUsername: string;
   timelineType: TimelineType;
+  customName?: string;
 }
 
 /**
