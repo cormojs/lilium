@@ -29,6 +29,7 @@ import { NotificationItem } from '../components/NotificationItem.tsx';
 import { Composer } from '../components/Composer.tsx';
 import { CompactPostItem } from '../components/CompactPostItem.tsx';
 import { PaneContainer } from '../components/PaneContainer.tsx';
+import { useSettings } from '../hooks/useSettings.ts';
 
 const { Text } = Typography;
 
@@ -166,6 +167,7 @@ function TimelineTabContent({
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
+  const { settings } = useSettings();
   const listRef = useRef<HTMLDivElement>(null);
   const postsRef = useRef(posts);
   postsRef.current = posts;
@@ -292,14 +294,14 @@ function TimelineTabContent({
   return (
     <TimelineList ref={listRef}>
       {posts.map((post) =>
-        expandedPostId === post.id ? (
+        settings.disableCompactDisplay || expandedPostId === post.id ? (
           <PostItem
             key={post.id}
             post={post}
             serverUrl={account.serverUrl}
             accessToken={account.accessToken}
             onReply={(targetPost) => onReply(tab, targetPost)}
-            onCollapse={() => setExpandedPostId(null)}
+            onCollapse={settings.disableCompactDisplay ? undefined : () => setExpandedPostId(null)}
           />
         ) : (
           <CompactPostItem key={post.id} post={post} onClick={() => setExpandedPostId(post.id)} />

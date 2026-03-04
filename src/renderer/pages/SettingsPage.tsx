@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Flex, InputNumber, Typography, App } from 'antd';
+import { Button, Flex, InputNumber, Switch, Typography, App } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import styled from 'styled-components';
 import type { AppSettings } from '../../shared/types.ts';
@@ -10,6 +10,9 @@ const { Title, Text } = Typography;
 interface SettingsPageProps {
   onBack: () => void;
 }
+
+type NumericSettingKey = Exclude<keyof AppSettings, 'disableCompactDisplay'>;
+type BooleanSettingKey = Extract<keyof AppSettings, 'disableCompactDisplay'>;
 
 const PageContainer = styled.div`
   height: 100vh;
@@ -78,10 +81,14 @@ export function SettingsPage({ onBack }: SettingsPageProps): React.JSX.Element {
     setDraft({ ...DEFAULT_SETTINGS });
   };
 
-  const update = (key: keyof AppSettings, value: number | null): void => {
+  const updateNumber = (key: NumericSettingKey, value: number | null): void => {
     if (value !== null) {
       setDraft((prev) => ({ ...prev, [key]: value }));
     }
+  };
+
+  const updateBoolean = (key: BooleanSettingKey, value: boolean): void => {
+    setDraft((prev) => ({ ...prev, [key]: value }));
   };
 
   return (
@@ -100,7 +107,7 @@ export function SettingsPage({ onBack }: SettingsPageProps): React.JSX.Element {
             min={16}
             max={128}
             value={draft.avatarSize}
-            onChange={(v) => update('avatarSize', v)}
+            onChange={(v) => updateNumber('avatarSize', v)}
             style={{ marginTop: 8 }}
           />
         </SettingRow>
@@ -112,7 +119,7 @@ export function SettingsPage({ onBack }: SettingsPageProps): React.JSX.Element {
             min={12}
             max={64}
             value={draft.boostAvatarSize}
-            onChange={(v) => update('boostAvatarSize', v)}
+            onChange={(v) => updateNumber('boostAvatarSize', v)}
             style={{ marginTop: 8 }}
           />
         </SettingRow>
@@ -124,7 +131,7 @@ export function SettingsPage({ onBack }: SettingsPageProps): React.JSX.Element {
             min={8}
             max={32}
             value={draft.postFontSize}
-            onChange={(v) => update('postFontSize', v)}
+            onChange={(v) => updateNumber('postFontSize', v)}
             style={{ marginTop: 8 }}
           />
         </SettingRow>
@@ -136,7 +143,7 @@ export function SettingsPage({ onBack }: SettingsPageProps): React.JSX.Element {
             min={8}
             max={32}
             value={draft.uiFontSize}
-            onChange={(v) => update('uiFontSize', v)}
+            onChange={(v) => updateNumber('uiFontSize', v)}
             style={{ marginTop: 8 }}
           />
         </SettingRow>
@@ -148,7 +155,17 @@ export function SettingsPage({ onBack }: SettingsPageProps): React.JSX.Element {
             min={8}
             max={24}
             value={draft.compactFontSize}
-            onChange={(v) => update('compactFontSize', v)}
+            onChange={(v) => updateNumber('compactFontSize', v)}
+            style={{ marginTop: 8 }}
+          />
+        </SettingRow>
+
+        <SettingRow>
+          <Text strong>常時拡大表示（縮小表示を使用しない）</Text>
+          <br />
+          <Switch
+            checked={draft.disableCompactDisplay}
+            onChange={(checked) => updateBoolean('disableCompactDisplay', checked)}
             style={{ marginTop: 8 }}
           />
         </SettingRow>
