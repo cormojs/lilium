@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   postFontSize: 14,
   uiFontSize: 14,
   compactFontSize: 12,
+  disableCompactDisplay: false,
 };
 
 function getSettingsFilePath(): string {
