@@ -8,6 +8,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   uiFontSize: 14,
   compactFontSize: 12,
   disableCompactDisplay: false,
+  mastodonLikeExpandedDisplay: false,
 };
 
 export interface SettingsContextValue {

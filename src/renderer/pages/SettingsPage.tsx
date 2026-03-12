@@ -11,8 +11,14 @@ interface SettingsPageProps {
   onBack: () => void;
 }
 
-type NumericSettingKey = Exclude<keyof AppSettings, 'disableCompactDisplay'>;
-type BooleanSettingKey = Extract<keyof AppSettings, 'disableCompactDisplay'>;
+type NumericSettingKey = Exclude<
+  keyof AppSettings,
+  'disableCompactDisplay' | 'mastodonLikeExpandedDisplay'
+>;
+type BooleanSettingKey = Extract<
+  keyof AppSettings,
+  'disableCompactDisplay' | 'mastodonLikeExpandedDisplay'
+>;
 
 const PageContainer = styled.div`
   height: 100vh;
@@ -170,6 +176,16 @@ export function SettingsPage({ onBack }: SettingsPageProps): React.JSX.Element {
           />
         </SettingRow>
 
+        <SettingRow>
+          <Text strong>拡大表示をMastodon公式ライクにする</Text>
+          <br />
+          <Switch
+            checked={draft.mastodonLikeExpandedDisplay}
+            onChange={(checked) => updateBoolean('mastodonLikeExpandedDisplay', checked)}
+            style={{ marginTop: 8 }}
+          />
+        </SettingRow>
+
         <Flex gap={12}>
           <Button type="primary" onClick={handleSave}>
             保存
@@ -189,8 +205,17 @@ export function SettingsPage({ onBack }: SettingsPageProps): React.JSX.Element {
               </div>
             </div>
             <div>
-              <div style={{ fontSize: draft.uiFontSize, fontWeight: 600 }}>@user</div>
-              <div style={{ fontSize: draft.uiFontSize, color: '#8c8c8c' }}>Display Name</div>
+              {draft.mastodonLikeExpandedDisplay ? (
+                <>
+                  <div style={{ fontSize: draft.uiFontSize, color: '#8c8c8c' }}>Display Name</div>
+                  <div style={{ fontSize: draft.uiFontSize, fontWeight: 600 }}>@user</div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: draft.uiFontSize, fontWeight: 600 }}>@user</div>
+                  <div style={{ fontSize: draft.uiFontSize, color: '#8c8c8c' }}>Display Name</div>
+                </>
+              )}
               <div style={{ fontSize: draft.postFontSize, lineHeight: 1.6, marginTop: 4 }}>
                 これはプレビュー用のサンプル投稿です。文字サイズやアイコンの大きさを確認できます。
               </div>
