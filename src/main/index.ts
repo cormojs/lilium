@@ -1,4 +1,13 @@
-import { app, BrowserWindow, ipcMain, nativeImage, Notification, shell } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  nativeImage,
+  Notification,
+  shell,
+  powerMonitor,
+  net,
+} from 'electron';
 import path from 'node:path';
 import { IpcChannels } from '../shared/ipc.ts';
 import type {
@@ -21,7 +30,12 @@ import { fetchNotifications } from './notifications.ts';
 import { listTabs, saveTabs } from './tabs.ts';
 import { loadSettings, saveSettings } from './settings.ts';
 import { loadPaneLayout, savePaneLayout } from './panes.ts';
-import { subscribeStream, unsubscribeStream, unsubscribeAllStreams } from './streaming.ts';
+import {
+  subscribeStream,
+  unsubscribeStream,
+  unsubscribeAllStreams,
+  restartAllStreams,
+} from './streaming.ts';
 import {
   createStatus,
   uploadMedia,
@@ -233,6 +247,14 @@ app.whenReady().then(() => {
   console.log('Registered IPC handlers');
   createWindow();
   console.log('App is ready');
+
+  powerMonitor.on('resume', () => {
+    restartAllStreams('restarting after system resume');
+  });
+
+  net.on('online', () => {
+    restartAllStreams('restarting after network online');
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
