@@ -315,4 +315,5 @@ export interface AppSettings {
   postFontSize: number;
   uiFontSize: number;
   compactFontSize: number;
+  disableCompactDisplay: boolean;
 }
