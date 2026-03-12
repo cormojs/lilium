@@ -76,10 +76,11 @@ const Content = styled.div`
   min-width: 0;
 `;
 
-const HeaderLine = styled.div`
+const HeaderLine = styled.div<{ $mastodonLike: boolean }>`
   display: flex;
-  gap: 8px;
-  align-items: baseline;
+  flex-direction: ${(props) => (props.$mastodonLike ? 'column' : 'row')};
+  gap: ${(props) => (props.$mastodonLike ? '0' : '8px')};
+  align-items: ${(props) => (props.$mastodonLike ? 'flex-start' : 'baseline')};
   margin-bottom: 4px;
 `;
 
@@ -307,16 +308,28 @@ export function PostItem({
         )}
       </AvatarColumn>
       <Content>
-        <HeaderLine>
+        <HeaderLine $mastodonLike={settings.mastodonLikeExpandedDisplay}>
+          {settings.mastodonLikeExpandedDisplay && (
+            <DisplayName
+              $fontSize={settings.uiFontSize}
+              dangerouslySetInnerHTML={{
+                __html: sanitizeContent(
+                  replaceCustomEmojis(escapeHtml(post.account.displayName), post.account.emojis),
+                ),
+              }}
+            />
+          )}
           <Acct $fontSize={settings.uiFontSize}>@{post.account.acct}</Acct>
-          <DisplayName
-            $fontSize={settings.uiFontSize}
-            dangerouslySetInnerHTML={{
-              __html: sanitizeContent(
-                replaceCustomEmojis(escapeHtml(post.account.displayName), post.account.emojis),
-              ),
-            }}
-          />
+          {!settings.mastodonLikeExpandedDisplay && (
+            <DisplayName
+              $fontSize={settings.uiFontSize}
+              dangerouslySetInnerHTML={{
+                __html: sanitizeContent(
+                  replaceCustomEmojis(escapeHtml(post.account.displayName), post.account.emojis),
+                ),
+              }}
+            />
+          )}
         </HeaderLine>
         {hasContentWarning && (
           <ContentWarning $fontSize={settings.postFontSize} onClick={() => setExpanded(!expanded)}>

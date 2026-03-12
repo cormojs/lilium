@@ -316,4 +316,5 @@ export interface AppSettings {
   uiFontSize: number;
   compactFontSize: number;
   disableCompactDisplay: boolean;
+  mastodonLikeExpandedDisplay: boolean;
 }
