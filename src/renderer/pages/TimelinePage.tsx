@@ -198,6 +198,22 @@ function TimelineTabContent({
     }
   }, [account, tab.timelineType, message]);
 
+  const handleRefresh = useCallback(() => {
+    setPosts([]);
+    void loadTimeline();
+  }, [loadTimeline]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if (e.ctrlKey && e.key === 'r') {
+        e.preventDefault();
+        handleRefresh();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleRefresh]);
+
   const loadMore = useCallback(async () => {
     if (!account || loadingMoreRef.current || !hasMoreRef.current) return;
     const currentPosts = postsRef.current;
