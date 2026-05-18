@@ -15,6 +15,8 @@ import { rateLimitedCall } from './rateLimiter.ts';
 
 const POLLING_INTERVAL_MS = 60_000;
 const STREAM_RETRY_INTERVAL_MS = 30_000;
+const STREAM_HEALTHCHECK_INTERVAL_MS = 15_000;
+const STREAM_STALE_THRESHOLD_MS = 45_000;
 const NOTIFICATION_TYPES = ['follow', 'follow_request', 'favourite', 'reblog'] as const;
 
 interface StreamingHandles {
@@ -32,6 +34,8 @@ interface ActiveSubscription {
   webContents: WebContents;
   abortController: AbortController;
   streaming?: StreamingHandles;
+  lastStreamActivityAt?: number;
+  streamHealthcheckTimer?: ReturnType<typeof setInterval>;
   retryTimer?: ReturnType<typeof setTimeout>;
   pollingTimer?: ReturnType<typeof setInterval>;
   pollingClient?: mastodon.rest.Client;
@@ -183,11 +187,35 @@ function subscribe(
 }
 
 function cleanupStreaming(active: ActiveSubscription): void {
+  if (active.streamHealthcheckTimer) {
+    clearInterval(active.streamHealthcheckTimer);
+    active.streamHealthcheckTimer = undefined;
+  }
+  active.lastStreamActivityAt = undefined;
+
   if (!active.streaming) return;
 
   active.streaming.subscription.unsubscribe();
   active.streaming.client.close();
   active.streaming = undefined;
+}
+
+function startStreamingHealthcheck(active: ActiveSubscription): void {
+  if (!isActive(active) || !active.streaming || active.streamHealthcheckTimer) {
+    return;
+  }
+
+  active.streamHealthcheckTimer = setInterval(() => {
+    if (!isActive(active) || !active.streaming) {
+      return;
+    }
+
+    const now = Date.now();
+    const lastActivityAt = active.lastStreamActivityAt ?? now;
+    if (now - lastActivityAt > STREAM_STALE_THRESHOLD_MS) {
+      handleStreamingFailure(active, 'timed out waiting for stream events');
+    }
+  }, STREAM_HEALTHCHECK_INTERVAL_MS);
 }
 
 function scheduleStreamingRetry(active: ActiveSubscription): void {
@@ -368,12 +396,14 @@ async function startStreaming(active: ActiveSubscription): Promise<void> {
       subscription,
       client: streamingClient,
     };
+    active.lastStreamActivityAt = Date.now();
 
     if (active.retryTimer) {
       clearTimeout(active.retryTimer);
       active.retryTimer = undefined;
     }
     stopPolling(active);
+    startStreamingHealthcheck(active);
     sendConnectionStatus(active, 'streaming');
 
     for await (const event of subscription) {
@@ -382,6 +412,7 @@ async function startStreaming(active: ActiveSubscription): Promise<void> {
       }
 
       let eventData: StreamEventData | null = null;
+      active.lastStreamActivityAt = Date.now();
 
       switch (event.event) {
         case 'update':
@@ -460,5 +491,15 @@ export function unsubscribeStream(subscriptionId: string): void {
 export function unsubscribeAllStreams(): void {
   for (const subscriptionId of activeSubscriptions.keys()) {
     unsubscribeStream(subscriptionId);
+  }
+}
+
+export function restartAllStreams(reason: string): void {
+  for (const active of activeSubscriptions.values()) {
+    if (!isActive(active)) {
+      continue;
+    }
+
+    handleStreamingFailure(active, reason);
   }
 }
