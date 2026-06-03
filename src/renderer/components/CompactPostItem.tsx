@@ -8,6 +8,7 @@ import { replaceCustomEmojis } from './customEmojis.ts';
 interface CompactPostItemProps {
   post: Post;
   onClick: () => void;
+  onOpenAccountTimeline?: (account: Post['account']) => void;
 }
 
 const Row = styled.div<{ $rowHeight: number }>`
@@ -32,19 +33,27 @@ const IconCell = styled.div`
   overflow: hidden;
 `;
 
-const CompactAvatar = styled.img<{ $rowHeight: number }>`
+const CompactAvatar = styled.img<{ $rowHeight: number; $clickable: boolean }>`
   width: 35px;
   height: ${(props) => Math.max(props.$rowHeight, 14)}px;
   object-fit: cover;
+  cursor: ${(props) => (props.$clickable ? 'pointer' : 'inherit')};
 `;
 
-const AcctCell = styled.div<{ $boosted: boolean }>`
+const AcctCellButton = styled.button<{ $boosted: boolean }>`
   background: ${(props) => (props.$boosted ? '#fff1f0' : '#fffbe6')};
   height: 100%;
   display: flex;
   align-items: center;
-  padding: 0 0;
+  padding: 0;
+  border: 0;
+  width: 100%;
   overflow: hidden;
+  appearance: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 `;
 
 const AcctText = styled.span<{ $fontSize: number }>`
@@ -143,7 +152,11 @@ function escapeHtml(text: string): string {
   return div.innerHTML;
 }
 
-export function CompactPostItem({ post, onClick }: CompactPostItemProps): React.JSX.Element {
+export function CompactPostItem({
+  post,
+  onClick,
+  onOpenAccountTimeline,
+}: CompactPostItemProps): React.JSX.Element {
   const { settings } = useSettings();
   const compactFontSize = Math.max(settings.compactFontSize, 8);
   const rowHeight = Math.max(compactFontSize + 10, 20);
@@ -158,13 +171,24 @@ export function CompactPostItem({ post, onClick }: CompactPostItemProps): React.
       <IconCell>
         <CompactAvatar
           $rowHeight={rowHeight}
+          $clickable={false}
           src={post.account.avatarUrl}
           alt={post.account.acct}
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
         />
       </IconCell>
-      <AcctCell $boosted={!!post.rebloggedBy}>
+      <AcctCellButton
+        type="button"
+        $boosted={!!post.rebloggedBy}
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpenAccountTimeline?.(post.account);
+        }}
+      >
         <AcctText $fontSize={compactFontSize}>{shortAcct(post.account.acct)}</AcctText>
-      </AcctCell>
+      </AcctCellButton>
       <BodyCell $visibility={post.visibility} $hasSpoiler={hasSpoiler}>
         <BodyText $fontSize={compactFontSize} dangerouslySetInnerHTML={{ __html: bodyHtml }} />
         {hasMedia && <MediaIcon $fontSize={compactFontSize} />}

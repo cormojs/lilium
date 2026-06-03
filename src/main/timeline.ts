@@ -1,10 +1,17 @@
 import { createRestAPIClient } from 'masto';
-import type { TimelineType, Post, PostVisibility } from '../shared/types.ts';
+import type {
+  AccountProfile,
+  AccountRelationshipSummary,
+  TimelineType,
+  Post,
+} from '../shared/types.ts';
+import { convertAccount, convertStatus } from './mastodonConverters.ts';
 
 export async function fetchTimeline(
   serverUrl: string,
   accessToken: string,
   type: TimelineType,
+  accountId?: string,
   maxId?: string,
 ): Promise<Post[]> {
   const client = createRestAPIClient({ url: serverUrl, accessToken });
@@ -25,62 +32,76 @@ export async function fetchTimeline(
     case 'favourites':
       statuses = await client.v1.favourites.list(params);
       break;
+    case 'account':
+      if (!accountId) {
+        throw new Error('アカウントTLの取得にはアカウントIDが必要です');
+      }
+      statuses = await client.v1.accounts.$select(accountId).statuses.list(params);
+      break;
     case 'notifications':
       return [];
   }
 
-  return statuses.map((status) => {
-    // If this is a reblog, use the original post's content
-    const original = status.reblog ?? status;
-    const rebloggedBy = status.reblog
-      ? {
-          acct: status.account.acct,
-          displayName: status.account.displayName,
-          avatarUrl: status.account.avatar,
-          emojis: status.account.emojis.map((e) => ({
-            shortcode: e.shortcode,
-            url: e.url,
-            staticUrl: e.staticUrl,
-          })),
-        }
-      : undefined;
+  return statuses.map(convertStatus);
+}
 
-    return {
-      id: status.id,
-      content: original.content,
-      createdAt: original.createdAt,
-      spoilerText: original.spoilerText,
-      sensitive: original.sensitive,
-      url: original.url ?? null,
-      visibility: original.visibility as PostVisibility,
-      account: {
-        acct: original.account.acct,
-        displayName: original.account.displayName,
-        avatarUrl: original.account.avatar,
-        emojis: original.account.emojis.map((e) => ({
-          shortcode: e.shortcode,
-          url: e.url,
-          staticUrl: e.staticUrl,
-        })),
-      },
-      mediaAttachments: original.mediaAttachments
-        .filter((m) => m.url != null && m.previewUrl != null)
-        .map((m) => ({
-          id: m.id,
-          type: m.type,
-          url: m.url!,
-          previewUrl: m.previewUrl!,
-          description: m.description ?? null,
-        })),
-      emojis: original.emojis.map((emoji) => ({
-        shortcode: emoji.shortcode,
-        url: emoji.url,
-        staticUrl: emoji.staticUrl,
-      })),
-      favourited: status.favourited ?? false,
-      reblogged: status.reblogged ?? false,
-      bookmarked: status.bookmarked ?? false,
-      rebloggedBy,
-    };
-  });
+export async function fetchAccountProfile(
+  serverUrl: string,
+  accessToken: string,
+  accountId: string,
+): Promise<AccountProfile> {
+  const client = createRestAPIClient({ url: serverUrl, accessToken });
+  const account = await client.v1.accounts.$select(accountId).fetch();
+  const profile = convertAccount(account);
+  const relationships = await client.v1.accounts.relationships.fetch({ id: [accountId] });
+  const relationshipSummary = relationships[0];
+  if (relationshipSummary) {
+    profile.following = relationshipSummary.following;
+    profile.requested = relationshipSummary.requested;
+  }
+
+  return profile;
+}
+
+export async function fetchAccountRelationship(
+  serverUrl: string,
+  accessToken: string,
+  accountId: string,
+): Promise<AccountRelationshipSummary> {
+  const client = createRestAPIClient({ url: serverUrl, accessToken });
+  const relationships = await client.v1.accounts.relationships.fetch({ id: [accountId] });
+  const relationship = relationships[0];
+  if (!relationship) {
+    return { following: false, requested: false };
+  }
+  return {
+    following: relationship.following,
+    requested: relationship.requested,
+  };
+}
+
+export async function followAccount(
+  serverUrl: string,
+  accessToken: string,
+  accountId: string,
+): Promise<AccountRelationshipSummary> {
+  const client = createRestAPIClient({ url: serverUrl, accessToken });
+  const relationship = await client.v1.accounts.$select(accountId).follow({});
+  return {
+    following: relationship.following,
+    requested: relationship.requested,
+  };
+}
+
+export async function unfollowAccount(
+  serverUrl: string,
+  accessToken: string,
+  accountId: string,
+): Promise<AccountRelationshipSummary> {
+  const client = createRestAPIClient({ url: serverUrl, accessToken });
+  const relationship = await client.v1.accounts.$select(accountId).unfollow({});
+  return {
+    following: relationship.following,
+    requested: relationship.requested,
+  };
 }

@@ -12,6 +12,7 @@ import { replaceCustomEmojis } from './customEmojis.ts';
 
 interface NotificationItemProps {
   notification: MastoNotification;
+  onOpenAccountTimeline?: (account: MastoNotification['account']) => void;
 }
 
 const NotificationContainer = styled.div`
@@ -47,6 +48,21 @@ const Acct = styled.span`
 
 const NotificationMessage = styled.span`
   color: #8c8c8c;
+`;
+
+const IdentityButton = styled.button`
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+
+  &:hover .notification-acct {
+    color: #1677ff;
+  }
 `;
 
 const StatusPreview = styled.div<{ $fontSize: number }>`
@@ -115,7 +131,10 @@ function sanitizeContent(html: string): string {
   });
 }
 
-export function NotificationItem({ notification }: NotificationItemProps): React.JSX.Element {
+export function NotificationItem({
+  notification,
+  onOpenAccountTimeline,
+}: NotificationItemProps): React.JSX.Element {
   const { settings } = useSettings();
 
   return (
@@ -124,14 +143,18 @@ export function NotificationItem({ notification }: NotificationItemProps): React
         $size={settings.avatarSize}
         src={notification.account.avatarUrl}
         alt={notification.account.acct}
+        style={undefined}
       />
       <Content>
         <NotificationHeader $fontSize={settings.uiFontSize}>
           {NOTIFICATION_ICON[notification.type]}
-          <span>
-            <Acct>@{notification.account.acct}</Acct>
+          <IdentityButton
+            type="button"
+            onClick={() => onOpenAccountTimeline?.(notification.account)}
+          >
+            <Acct className="notification-acct">@{notification.account.acct}</Acct>
             <NotificationMessage>{NOTIFICATION_LABEL[notification.type]}</NotificationMessage>
-          </span>
+          </IdentityButton>
         </NotificationHeader>
         {notification.status && (
           <StatusPreview

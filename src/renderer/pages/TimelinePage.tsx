@@ -12,10 +12,19 @@ import {
   Tooltip,
   Input,
 } from 'antd';
-import { SettingOutlined, UserOutlined, MoreOutlined } from '@ant-design/icons';
+import {
+  SettingOutlined,
+  UserOutlined,
+  MoreOutlined,
+  UserAddOutlined,
+  UserDeleteOutlined,
+} from '@ant-design/icons';
+import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type {
   Account,
+  AccountProfile,
+  AccountProfileField,
   MastoNotification,
   PaneDefinition,
   Post,
@@ -30,6 +39,7 @@ import { Composer } from '../components/Composer.tsx';
 import { CompactPostItem } from '../components/CompactPostItem.tsx';
 import { PaneContainer } from '../components/PaneContainer.tsx';
 import { useSettings } from '../hooks/useSettings.ts';
+import { replaceCustomEmojis } from '../components/customEmojis.ts';
 
 const { Text } = Typography;
 
@@ -38,6 +48,11 @@ interface ComposerReplyDraft {
   username: string;
   inReplyToId: string;
   mentionAcct: string;
+}
+
+interface AccountTimelineTarget {
+  id: string;
+  acct: string;
 }
 
 interface TimelinePageProps {
@@ -55,6 +70,169 @@ const PageContainer = styled.div`
 const TimelineList = styled.div`
   flex: 1;
   overflow-y: auto;
+`;
+
+const AccountHeader = styled.div`
+  border-bottom: 1px solid #f0f0f0;
+  background: #fff;
+`;
+
+const AccountHeaderImage = styled.img`
+  display: block;
+  width: 100%;
+  height: 140px;
+  background-color: #f5f5f5;
+  object-fit: cover;
+`;
+
+const AccountHeaderBody = styled.div`
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 16px;
+  padding: 0 16px 16px;
+`;
+
+const AccountHeaderAvatar = styled.img`
+  width: 96px;
+  height: 96px;
+  border-radius: 8px;
+  border: 4px solid #fff;
+  margin-top: -32px;
+  background: #fff;
+`;
+
+const AccountHeaderContent = styled.div`
+  min-width: 0;
+  padding-top: 12px;
+`;
+
+const AccountHeaderTop = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+`;
+
+const AccountIdentityButton = styled.button`
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+`;
+
+const AccountDisplayName = styled.div`
+  font-weight: 700;
+  font-size: 18px;
+  color: #262626;
+  word-break: break-word;
+
+  .custom-emoji {
+    height: 1em;
+    width: auto;
+    vertical-align: middle;
+    margin: 0 1px;
+  }
+`;
+
+const AccountAcct = styled.div`
+  display: inline-block;
+  color: #8c8c8c;
+  margin-top: 2px;
+`;
+
+const AccountNote = styled.div`
+  margin-top: 8px;
+  color: #262626;
+  line-height: 1.5;
+  word-break: break-word;
+
+  p {
+    margin: 0 0 4px;
+  }
+
+  a {
+    color: #1677ff;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  .custom-emoji {
+    height: 1em;
+    width: auto;
+    vertical-align: middle;
+  }
+`;
+
+const AccountFields = styled.div`
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+`;
+
+const AccountFieldItem = styled.div`
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 12px;
+  align-items: start;
+`;
+
+const AccountFieldName = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: #595959;
+  word-break: break-word;
+`;
+
+const AccountFieldValue = styled.div`
+  color: #262626;
+  line-height: 1.5;
+  word-break: break-word;
+
+  p {
+    margin: 0 0 4px;
+  }
+
+  a {
+    color: #1677ff;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  .custom-emoji {
+    height: 1em;
+    width: auto;
+    vertical-align: middle;
+  }
+`;
+
+const AccountFieldVerified = styled.span`
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #389e0d;
+`;
+
+const AccountHeaderActions = styled.div`
+  display: flex;
+  flex-shrink: 0;
+`;
+
+const AccountStats = styled.div`
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+  color: #8c8c8c;
 `;
 
 const EmptyMessage = styled.div`
@@ -123,7 +301,16 @@ const TIMELINE_TYPE_LABELS: Record<TimelineType, string> = {
   local: 'Local',
   favourites: 'Favourites',
   notifications: 'Notifications',
+  account: 'Account',
 };
+
+const TIMELINE_TYPE_OPTIONS: { value: TimelineType; label: string }[] = [
+  { value: 'home', label: 'Home' },
+  { value: 'public', label: 'Public' },
+  { value: 'local', label: 'Local' },
+  { value: 'favourites', label: 'Favourites' },
+  { value: 'notifications', label: 'Notifications' },
+];
 
 function generateId(): string {
   return crypto.randomUUID();
@@ -146,6 +333,9 @@ function buildTabLabel(tab: TabDefinition, accounts: Account[]): string {
   if (tab.customName && tab.customName.trim().length > 0) {
     return tab.customName;
   }
+  if (tab.timelineType === 'account' && tab.targetAccountAcct) {
+    return `@${tab.targetAccountAcct}`;
+  }
   const account = accounts.find(
     (a) => a.serverUrl === tab.accountServerUrl && a.username === tab.accountUsername,
   );
@@ -153,26 +343,168 @@ function buildTabLabel(tab: TabDefinition, accounts: Account[]): string {
   return `${TIMELINE_TYPE_LABELS[tab.timelineType]} ${acct}`;
 }
 
+function sanitizeProfileHtml(html: string): string {
+  return sanitizeHtml(html, {
+    allowedTags: ['a', 'br', 'p', 'span', 'em', 'strong', 'b', 'i', 'u', 'code', 'img'],
+    allowedAttributes: {
+      a: ['href', 'rel', 'target', 'class'],
+      span: ['class'],
+      img: ['src', 'alt', 'title', 'class'],
+    },
+  });
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+const countFormatter = new Intl.NumberFormat();
+
+function formatCount(count: number): string {
+  return countFormatter.format(count);
+}
+
+function handleAccountProfileLinkClick(event: React.MouseEvent): void {
+  const anchor = event.target instanceof Element ? event.target.closest('a') : null;
+  if (!anchor) return;
+
+  event.preventDefault();
+  const url = anchor.getAttribute('href');
+  if (url && (url.startsWith('https://') || url.startsWith('http://'))) {
+    window.open(url, '_blank');
+  }
+}
+
+function renderAccountField(
+  field: AccountProfileField,
+  emojis: AccountProfile['emojis'],
+): React.JSX.Element {
+  return (
+    <AccountFieldItem key={`${field.name}-${field.value}`}>
+      <AccountFieldName>{field.name}</AccountFieldName>
+      <div>
+        <AccountFieldValue
+          onClick={handleAccountProfileLinkClick}
+          dangerouslySetInnerHTML={{
+            __html: sanitizeProfileHtml(replaceCustomEmojis(field.value, emojis)),
+          }}
+        />
+        {field.verifiedAt && <AccountFieldVerified>認証済み</AccountFieldVerified>}
+      </div>
+    </AccountFieldItem>
+  );
+}
+
+function AccountProfileHeader({
+  profile,
+  onToggleFollow,
+  followBusy,
+}: {
+  profile: AccountProfile;
+  onToggleFollow: () => void;
+  followBusy: boolean;
+}): React.JSX.Element {
+  const displayName = profile.displayName.trim().length > 0 ? profile.displayName : profile.acct;
+  const followLabel = profile.requested
+    ? 'リクエスト中'
+    : profile.following
+      ? 'フォロー中'
+      : 'フォロー';
+  const followIcon =
+    profile.requested || profile.following ? <UserDeleteOutlined /> : <UserAddOutlined />;
+
+  return (
+    <AccountHeader>
+      <AccountHeaderImage src={profile.headerUrl} alt="" />
+      <AccountHeaderBody>
+        <AccountHeaderAvatar src={profile.avatarUrl} alt={profile.acct} />
+        <AccountHeaderContent>
+          <AccountHeaderTop>
+            <div>
+              <AccountDisplayName
+                dangerouslySetInnerHTML={{
+                  __html: sanitizeProfileHtml(
+                    replaceCustomEmojis(escapeHtml(displayName), profile.emojis),
+                  ),
+                }}
+              />
+              <AccountIdentityButton
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  window.open(profile.url, '_blank');
+                }}
+              >
+                <AccountAcct>@{profile.acct}</AccountAcct>
+              </AccountIdentityButton>
+            </div>
+            <AccountHeaderActions>
+              <Button
+                type={profile.following || profile.requested ? 'default' : 'primary'}
+                icon={followIcon}
+                loading={followBusy}
+                onClick={onToggleFollow}
+                disabled={followBusy}
+              >
+                {followLabel}
+              </Button>
+            </AccountHeaderActions>
+          </AccountHeaderTop>
+          {profile.note.trim().length > 0 && (
+            <AccountNote
+              onClick={handleAccountProfileLinkClick}
+              dangerouslySetInnerHTML={{
+                __html: sanitizeProfileHtml(replaceCustomEmojis(profile.note, profile.emojis)),
+              }}
+            />
+          )}
+          {profile.fields.length > 0 && (
+            <AccountFields>
+              {profile.fields.map((field) => renderAccountField(field, profile.emojis))}
+            </AccountFields>
+          )}
+          <AccountStats>
+            <span>{formatCount(profile.statusesCount)} 投稿</span>
+            <span>{formatCount(profile.followingCount)} フォロー</span>
+            <span>{formatCount(profile.followersCount)} フォロワー</span>
+          </AccountStats>
+        </AccountHeaderContent>
+      </AccountHeaderBody>
+    </AccountHeader>
+  );
+}
+
 function TimelineTabContent({
   tab,
   accounts,
   onReply,
+  onOpenAccountTimeline,
 }: {
   tab: TabDefinition;
   accounts: Account[];
   onReply: (tab: TabDefinition, post: Post) => void;
+  onOpenAccountTimeline: (tab: TabDefinition, target: AccountTimelineTarget) => void;
 }): React.JSX.Element {
   const { message } = App.useApp();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [accountProfile, setAccountProfile] = useState<AccountProfile | null>(null);
+  const [followBusy, setFollowBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
   const { settings } = useSettings();
   const listRef = useRef<HTMLDivElement>(null);
   const postsRef = useRef(posts);
-  postsRef.current = posts;
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(true);
+
+  useEffect(() => {
+    postsRef.current = posts;
+  }, [posts]);
 
   const account = accounts.find(
     (a) => a.serverUrl === tab.accountServerUrl && a.username === tab.accountUsername,
@@ -183,10 +515,24 @@ function TimelineTabContent({
     setLoading(true);
     hasMoreRef.current = true;
     try {
+      if (tab.timelineType === 'account') {
+        if (!tab.targetAccountId) {
+          throw new Error('アカウントIDが設定されていません');
+        }
+        const profile = await window.api.fetchAccountProfile({
+          serverUrl: account.serverUrl,
+          accessToken: account.accessToken,
+          accountId: tab.targetAccountId,
+        });
+        setAccountProfile(profile);
+      } else {
+        setAccountProfile(null);
+      }
       const result = await window.api.fetchTimeline({
         serverUrl: account.serverUrl,
         accessToken: account.accessToken,
         type: tab.timelineType,
+        accountId: tab.targetAccountId,
       });
       setPosts(result);
     } catch (e) {
@@ -196,12 +542,47 @@ function TimelineTabContent({
     } finally {
       setLoading(false);
     }
-  }, [account, tab.timelineType, message]);
+  }, [account, tab.timelineType, tab.targetAccountId, message]);
 
   const handleRefresh = useCallback(() => {
     setPosts([]);
     void loadTimeline();
   }, [loadTimeline]);
+
+  const handleToggleFollow = useCallback(async (): Promise<void> => {
+    if (!account || !accountProfile) return;
+    if (!tab.targetAccountId) return;
+
+    setFollowBusy(true);
+    try {
+      const result =
+        accountProfile.following || accountProfile.requested
+          ? await window.api.unfollowAccount({
+              serverUrl: account.serverUrl,
+              accessToken: account.accessToken,
+              accountId: tab.targetAccountId,
+            })
+          : await window.api.followAccount({
+              serverUrl: account.serverUrl,
+              accessToken: account.accessToken,
+              accountId: tab.targetAccountId,
+            });
+
+      setAccountProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              following: result.following,
+              requested: result.requested,
+            }
+          : prev,
+      );
+    } catch (e) {
+      message.error(`フォロー操作に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setFollowBusy(false);
+    }
+  }, [account, accountProfile, message, tab.targetAccountId]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
@@ -227,6 +608,7 @@ function TimelineTabContent({
         serverUrl: account.serverUrl,
         accessToken: account.accessToken,
         type: tab.timelineType,
+        accountId: tab.targetAccountId,
         maxId: lastPost.id,
       });
       if (result.length > 0) {
@@ -242,7 +624,7 @@ function TimelineTabContent({
       loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [account, tab.timelineType, message]);
+  }, [account, tab.timelineType, tab.targetAccountId, message]);
 
   useEffect(() => {
     loadTimeline();
@@ -257,7 +639,7 @@ function TimelineTabContent({
       }
     };
     checkAndLoad();
-    el.addEventListener('scroll', checkAndLoad);
+    el.addEventListener('scroll', checkAndLoad, { passive: true });
     return () => el.removeEventListener('scroll', checkAndLoad);
   }, [loadMore, posts.length]);
 
@@ -303,12 +685,20 @@ function TimelineTabContent({
     );
   }
 
-  if (posts.length === 0) {
+  if (posts.length === 0 && tab.timelineType !== 'account') {
     return <EmptyMessage>投稿がありません</EmptyMessage>;
   }
 
   return (
     <TimelineList ref={listRef}>
+      {accountProfile && (
+        <AccountProfileHeader
+          profile={accountProfile}
+          onToggleFollow={handleToggleFollow}
+          followBusy={followBusy}
+        />
+      )}
+      {posts.length === 0 && <EmptyMessage>投稿がありません</EmptyMessage>}
       {posts.map((post) =>
         settings.disableCompactDisplay || expandedPostId === post.id ? (
           <PostItem
@@ -317,10 +707,16 @@ function TimelineTabContent({
             serverUrl={account.serverUrl}
             accessToken={account.accessToken}
             onReply={(targetPost) => onReply(tab, targetPost)}
+            onOpenAccountTimeline={(targetAccount) => onOpenAccountTimeline(tab, targetAccount)}
             onCollapse={settings.disableCompactDisplay ? undefined : () => setExpandedPostId(null)}
           />
         ) : (
-          <CompactPostItem key={post.id} post={post} onClick={() => setExpandedPostId(post.id)} />
+          <CompactPostItem
+            key={post.id}
+            post={post}
+            onClick={() => setExpandedPostId(post.id)}
+            onOpenAccountTimeline={(targetAccount) => onOpenAccountTimeline(tab, targetAccount)}
+          />
         ),
       )}
       {loadingMore && (
@@ -335,9 +731,11 @@ function TimelineTabContent({
 function NotificationTabContent({
   tab,
   accounts,
+  onOpenAccountTimeline,
 }: {
   tab: TabDefinition;
   accounts: Account[];
+  onOpenAccountTimeline: (tab: TabDefinition, target: AccountTimelineTarget) => void;
 }): React.JSX.Element {
   const { message } = App.useApp();
   const [notifications, setNotifications] = useState<MastoNotification[]>([]);
@@ -345,10 +743,13 @@ function NotificationTabContent({
   const [loadingMore, setLoadingMore] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef(notifications);
-  notificationsRef.current = notifications;
   const notificationsEnabledRef = useRef(true);
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(true);
+
+  useEffect(() => {
+    notificationsRef.current = notifications;
+  }, [notifications]);
 
   const account = accounts.find(
     (a) => a.serverUrl === tab.accountServerUrl && a.username === tab.accountUsername,
@@ -413,7 +814,7 @@ function NotificationTabContent({
       }
     };
     checkAndLoad();
-    el.addEventListener('scroll', checkAndLoad);
+    el.addEventListener('scroll', checkAndLoad, { passive: true });
     return () => el.removeEventListener('scroll', checkAndLoad);
   }, [loadMoreNotifications, notifications.length]);
 
@@ -494,7 +895,11 @@ function NotificationTabContent({
   return (
     <TimelineList ref={listRef}>
       {notifications.map((notification) => (
-        <NotificationItem key={notification.id} notification={notification} />
+        <NotificationItem
+          key={notification.id}
+          notification={notification}
+          onOpenAccountTimeline={(target) => onOpenAccountTimeline(tab, target)}
+        />
       ))}
       {loadingMore && (
         <SpinContainer>
@@ -509,15 +914,30 @@ function TabContent({
   tab,
   accounts,
   onReply,
+  onOpenAccountTimeline,
 }: {
   tab: TabDefinition;
   accounts: Account[];
   onReply: (tab: TabDefinition, post: Post) => void;
+  onOpenAccountTimeline: (tab: TabDefinition, target: AccountTimelineTarget) => void;
 }): React.JSX.Element {
   if (tab.timelineType === 'notifications') {
-    return <NotificationTabContent tab={tab} accounts={accounts} />;
+    return (
+      <NotificationTabContent
+        tab={tab}
+        accounts={accounts}
+        onOpenAccountTimeline={onOpenAccountTimeline}
+      />
+    );
   }
-  return <TimelineTabContent tab={tab} accounts={accounts} onReply={onReply} />;
+  return (
+    <TimelineTabContent
+      tab={tab}
+      accounts={accounts}
+      onReply={onReply}
+      onOpenAccountTimeline={onOpenAccountTimeline}
+    />
+  );
 }
 
 interface PaneProps {
@@ -532,6 +952,7 @@ interface PaneProps {
   onMoveTab: (tabId: string, fromPaneId: string, direction: 'left' | 'right') => void;
   onRenameTab: (tabId: string, name: string) => void;
   onReply: (tab: TabDefinition, post: Post) => void;
+  onOpenAccountTimeline: (tab: TabDefinition, target: AccountTimelineTarget) => void;
 }
 
 function getSubscriptionIds(tab: TabDefinition): string[] {
@@ -555,6 +976,7 @@ function Pane({
   onMoveTab,
   onRenameTab,
   onReply,
+  onOpenAccountTimeline,
 }: PaneProps): React.JSX.Element {
   const [connectionStatuses, setConnectionStatuses] = useState<
     Record<string, StreamConnectionStatus>
@@ -627,7 +1049,14 @@ function Pane({
           })()}
         </TabLabelWrapper>
       ),
-      children: <TabContent tab={tab} accounts={accounts} onReply={onReply} />,
+      children: (
+        <TabContent
+          tab={tab}
+          accounts={accounts}
+          onReply={onReply}
+          onOpenAccountTimeline={onOpenAccountTimeline}
+        />
+      ),
       closable: paneTabs.length > 1 || totalPanes > 1,
     };
   });
@@ -940,14 +1369,6 @@ export function TimelinePage({
     label: `@${a.username}@${new URL(a.serverUrl).host}`,
   }));
 
-  const timelineTypeOptions: { value: TimelineType; label: string }[] = [
-    { value: 'home', label: 'Home' },
-    { value: 'public', label: 'Public' },
-    { value: 'local', label: 'Local' },
-    { value: 'favourites', label: 'Favourites' },
-    { value: 'notifications', label: 'Notifications' },
-  ];
-
   const handleReply = useCallback((tab: TabDefinition, post: Post): void => {
     setReplyDraft({
       serverUrl: tab.accountServerUrl,
@@ -956,6 +1377,41 @@ export function TimelinePage({
       mentionAcct: post.account.acct,
     });
   }, []);
+
+  const handleOpenAccountTimeline = useCallback(
+    (sourceTab: TabDefinition, target: AccountTimelineTarget): void => {
+      const targetPane = panes.find((pane) => pane.tabIds.includes(sourceTab.id)) ?? panes[0];
+      if (!targetPane) return;
+
+      const accountTab: TabDefinition = {
+        id: generateId(),
+        accountServerUrl: sourceTab.accountServerUrl,
+        accountUsername: sourceTab.accountUsername,
+        timelineType: 'account',
+        targetAccountId: target.id,
+        targetAccountAcct: target.acct,
+      };
+
+      setTabs((prevTabs) => {
+        const nextTabs = [...prevTabs, accountTab];
+        setPanes((prevPanes) => {
+          const nextPanes = prevPanes.map((pane) =>
+            pane.id === targetPane.id
+              ? {
+                  ...pane,
+                  tabIds: [...pane.tabIds, accountTab.id],
+                  activeTabId: accountTab.id,
+                }
+              : pane,
+          );
+          persistLayout(nextTabs, nextPanes);
+          return nextPanes;
+        });
+        return nextTabs;
+      });
+    },
+    [panes, persistLayout],
+  );
 
   const handleClearReplyDraft = useCallback((): void => {
     setReplyDraft(null);
@@ -1010,6 +1466,7 @@ export function TimelinePage({
             onMoveTab={handleMoveTab}
             onRenameTab={handleRenameTab}
             onReply={handleReply}
+            onOpenAccountTimeline={handleOpenAccountTimeline}
           />
         ))}
       </PaneContainer>
@@ -1040,7 +1497,7 @@ export function TimelinePage({
               style={{ width: '100%', marginTop: 8 }}
               value={newTabType}
               onChange={setNewTabType}
-              options={timelineTypeOptions}
+              options={TIMELINE_TYPE_OPTIONS}
             />
           </div>
           <div>

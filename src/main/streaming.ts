@@ -2,9 +2,6 @@ import { createRestAPIClient, createStreamingAPIClient } from 'masto';
 import type { mastodon } from 'masto';
 import type { WebContents } from 'electron';
 import type {
-  MastoNotification,
-  Post,
-  PostVisibility,
   StreamConnectionStatus,
   StreamEventData,
   StreamSubscribeParams,
@@ -12,10 +9,14 @@ import type {
 } from '../shared/types.ts';
 import { IpcChannels } from '../shared/ipc.ts';
 import { rateLimitedCall } from './rateLimiter.ts';
+import {
+  convertNotification,
+  convertStatus,
+  isSupportedNotificationType,
+} from './mastodonConverters.ts';
 
 const POLLING_INTERVAL_MS = 60_000;
 const STREAM_RETRY_INTERVAL_MS = 30_000;
-const NOTIFICATION_TYPES = ['follow', 'follow_request', 'favourite', 'reblog'] as const;
 
 interface StreamingHandles {
   subscription: mastodon.streaming.Subscription;
@@ -39,84 +40,6 @@ interface ActiveSubscription {
 }
 
 const activeSubscriptions = new Map<string, ActiveSubscription>();
-
-function convertStatus(status: mastodon.v1.Status): Post {
-  const original = status.reblog ?? status;
-  const rebloggedBy = status.reblog
-    ? {
-        acct: status.account.acct,
-        displayName: status.account.displayName,
-        avatarUrl: status.account.avatar,
-        emojis: status.account.emojis.map((e) => ({
-          shortcode: e.shortcode,
-          url: e.url,
-          staticUrl: e.staticUrl,
-        })),
-      }
-    : undefined;
-
-  return {
-    id: status.id,
-    content: original.content,
-    createdAt: original.createdAt,
-    spoilerText: original.spoilerText,
-    sensitive: original.sensitive,
-    url: original.url ?? null,
-    visibility: original.visibility as PostVisibility,
-    account: {
-      acct: original.account.acct,
-      displayName: original.account.displayName,
-      avatarUrl: original.account.avatar,
-      emojis: original.account.emojis.map((e) => ({
-        shortcode: e.shortcode,
-        url: e.url,
-        staticUrl: e.staticUrl,
-      })),
-    },
-    mediaAttachments: original.mediaAttachments
-      .filter((m) => m.url != null && m.previewUrl != null)
-      .map((m) => ({
-        id: m.id,
-        type: m.type,
-        url: m.url!,
-        previewUrl: m.previewUrl!,
-        description: m.description ?? null,
-      })),
-    emojis: original.emojis.map((emoji) => ({
-      shortcode: emoji.shortcode,
-      url: emoji.url,
-      staticUrl: emoji.staticUrl,
-    })),
-    favourited: status.favourited ?? false,
-    reblogged: status.reblogged ?? false,
-    bookmarked: status.bookmarked ?? false,
-    rebloggedBy,
-  };
-}
-
-function convertNotification(n: mastodon.v1.Notification): MastoNotification {
-  const result: MastoNotification = {
-    id: n.id,
-    type: n.type as MastoNotification['type'],
-    createdAt: n.createdAt,
-    account: {
-      acct: n.account.acct,
-      displayName: n.account.displayName,
-      avatarUrl: n.account.avatar,
-      emojis: n.account.emojis.map((e) => ({
-        shortcode: e.shortcode,
-        url: e.url,
-        staticUrl: e.staticUrl,
-      })),
-    },
-  };
-
-  if (n.status) {
-    result.status = convertStatus(n.status);
-  }
-
-  return result;
-}
 
 function isActive(active: ActiveSubscription): boolean {
   return (
@@ -227,7 +150,7 @@ async function pollUserStream(active: ActiveSubscription): Promise<void> {
       active.pollingClient!.v1.notifications.list({
         sinceId: active.cursor.notificationSinceId,
         limit: 20,
-        types: [...NOTIFICATION_TYPES],
+        types: ['follow', 'follow_request', 'favourite', 'reblog'],
       }),
     ),
   ]);
@@ -251,7 +174,7 @@ async function pollUserStream(active: ActiveSubscription): Promise<void> {
   }
 
   const filteredNotifications = notifications.filter((notification) =>
-    NOTIFICATION_TYPES.includes(notification.type as (typeof NOTIFICATION_TYPES)[number]),
+    isSupportedNotificationType(notification.type),
   );
 
   for (const notification of [...filteredNotifications].reverse()) {

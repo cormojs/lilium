@@ -3,6 +3,8 @@ import path from 'node:path';
 import { IpcChannels } from '../shared/ipc.ts';
 import type {
   AppSettings,
+  AccountProfileFetchParams,
+  AccountRelationshipParams,
   NotificationFetchParams,
   OAuthExchangeTokenParams,
   PaneLayout,
@@ -16,7 +18,13 @@ import type {
 } from '../shared/types.ts';
 import { startLogin, exchangeToken } from './oauth.ts';
 import { listAccounts, addAccount, removeAccount } from './accounts.ts';
-import { fetchTimeline } from './timeline.ts';
+import {
+  fetchAccountProfile,
+  fetchAccountRelationship,
+  fetchTimeline,
+  followAccount,
+  unfollowAccount,
+} from './timeline.ts';
 import { fetchNotifications } from './notifications.ts';
 import { listTabs, saveTabs } from './tabs.ts';
 import { loadSettings, saveSettings } from './settings.ts';
@@ -34,6 +42,15 @@ import {
 } from './statuses.ts';
 import { createMainWindowOptions, restoreMaximizeState, saveWindowState } from './windowState.ts';
 import { rateLimitedCall } from './rateLimiter.ts';
+
+function isHttpUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -56,8 +73,20 @@ function createWindow(): void {
 
   // Open external links in the default browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (isHttpUrl(url)) {
+      shell.openExternal(url);
+    }
     return { action: 'deny' };
+  });
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const currentUrl = mainWindow.webContents.getURL();
+    if (url === currentUrl) {
+      return;
+    }
+    event.preventDefault();
+    if (isHttpUrl(url)) {
+      shell.openExternal(url);
+    }
   });
 
   if (process.env['ELECTRON_RENDERER_URL']) {
@@ -99,7 +128,43 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(IpcChannels.TimelineFetch, async (_event, params: TimelineFetchParams) => {
     return rateLimitedCall(() =>
-      fetchTimeline(params.serverUrl, params.accessToken, params.type, params.maxId),
+      fetchTimeline(
+        params.serverUrl,
+        params.accessToken,
+        params.type,
+        params.accountId,
+        params.maxId,
+      ),
+    );
+  });
+
+  ipcMain.handle(
+    IpcChannels.AccountProfileFetch,
+    async (_event, params: AccountProfileFetchParams) => {
+      return rateLimitedCall(() =>
+        fetchAccountProfile(params.serverUrl, params.accessToken, params.accountId),
+      );
+    },
+  );
+
+  ipcMain.handle(
+    IpcChannels.AccountRelationshipFetch,
+    async (_event, params: AccountRelationshipParams) => {
+      return rateLimitedCall(() =>
+        fetchAccountRelationship(params.serverUrl, params.accessToken, params.accountId),
+      );
+    },
+  );
+
+  ipcMain.handle(IpcChannels.AccountFollow, async (_event, params: AccountRelationshipParams) => {
+    return rateLimitedCall(() =>
+      followAccount(params.serverUrl, params.accessToken, params.accountId),
+    );
+  });
+
+  ipcMain.handle(IpcChannels.AccountUnfollow, async (_event, params: AccountRelationshipParams) => {
+    return rateLimitedCall(() =>
+      unfollowAccount(params.serverUrl, params.accessToken, params.accountId),
     );
   });
 

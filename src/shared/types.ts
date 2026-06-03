@@ -18,6 +18,8 @@ export interface TabDefinition {
   accountServerUrl: string;
   accountUsername: string;
   timelineType: TimelineType;
+  targetAccountId?: string;
+  targetAccountAcct?: string;
   customName?: string;
 }
 
@@ -191,7 +193,7 @@ export interface OAuthExchangeTokenParams {
 }
 
 /** Timeline type */
-export type TimelineType = 'home' | 'public' | 'local' | 'favourites' | 'notifications';
+export type TimelineType = 'home' | 'public' | 'local' | 'favourites' | 'notifications' | 'account';
 
 /** Media attachment type */
 export type MediaAttachmentType = 'image' | 'video' | 'gifv' | 'audio' | 'unknown';
@@ -221,6 +223,7 @@ export interface Post {
   createdAt: string;
   url: string | null;
   account: {
+    id: string;
     acct: string;
     displayName: string;
     avatarUrl: string;
@@ -233,6 +236,7 @@ export interface Post {
   bookmarked: boolean;
   emojis: PostCustomEmoji[];
   rebloggedBy?: {
+    id: string;
     acct: string;
     displayName: string;
     avatarUrl: string;
@@ -244,7 +248,49 @@ export interface TimelineFetchParams {
   serverUrl: string;
   accessToken: string;
   type: TimelineType;
+  accountId?: string;
   maxId?: string;
+}
+
+export interface AccountProfile {
+  id: string;
+  acct: string;
+  username: string;
+  displayName: string;
+  note: string;
+  avatarUrl: string;
+  headerUrl: string;
+  url: string;
+  followersCount: number;
+  followingCount: number;
+  statusesCount: number;
+  following: boolean;
+  requested: boolean;
+  emojis: PostCustomEmoji[];
+  fields: AccountProfileField[];
+}
+
+export interface AccountProfileField {
+  name: string;
+  value: string;
+  verifiedAt?: string | null;
+}
+
+export interface AccountRelationshipSummary {
+  following: boolean;
+  requested: boolean;
+}
+
+export interface AccountProfileFetchParams {
+  serverUrl: string;
+  accessToken: string;
+  accountId: string;
+}
+
+export interface AccountRelationshipParams {
+  serverUrl: string;
+  accessToken: string;
+  accountId: string;
 }
 
 export interface PaneDefinition {
@@ -280,6 +326,7 @@ export interface MastoNotification {
   type: NotificationType;
   createdAt: string;
   account: {
+    id: string;
     acct: string;
     displayName: string;
     avatarUrl: string;

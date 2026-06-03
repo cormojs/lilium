@@ -19,6 +19,7 @@ interface PostItemProps {
   serverUrl: string;
   accessToken: string;
   onReply?: (post: Post) => void;
+  onOpenAccountTimeline?: (account: Post['account']) => void;
   onCollapse?: () => void;
 }
 
@@ -82,6 +83,27 @@ const HeaderLine = styled.div<{ $mastodonLike: boolean }>`
   gap: ${(props) => (props.$mastodonLike ? '0' : '8px')};
   align-items: ${(props) => (props.$mastodonLike ? 'flex-start' : 'baseline')};
   margin-bottom: 4px;
+`;
+
+const ProfileIdentityButton = styled.button<{ $mastodonLike: boolean }>`
+  display: inline-flex;
+  flex-direction: ${(props) => (props.$mastodonLike ? 'column' : 'row')};
+  gap: ${(props) => (props.$mastodonLike ? '0' : '8px')};
+  align-items: ${(props) => (props.$mastodonLike ? 'flex-start' : 'baseline')};
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+
+  &:hover .profile-name,
+  &:hover .profile-acct {
+    color: #1677ff;
+  }
 `;
 
 const Acct = styled.span<{ $fontSize: number }>`
@@ -231,6 +253,7 @@ export function PostItem({
   serverUrl,
   accessToken,
   onReply,
+  onOpenAccountTimeline,
   onCollapse,
 }: PostItemProps): React.JSX.Element {
   const { settings } = useSettings();
@@ -280,6 +303,10 @@ export function PostItem({
     }
   };
 
+  const handleAvatarClick = (): void => {
+    onCollapse?.();
+  };
+
   const smallFontSize = settings.uiFontSize - 2;
   const hasMediaAttachments = post.mediaAttachments.length > 0;
   const isSensitiveWithoutContentWarning = post.sensitive && !hasContentWarning;
@@ -293,7 +320,7 @@ export function PostItem({
           $size={settings.avatarSize}
           src={post.account.avatarUrl}
           alt={post.account.acct}
-          onClick={onCollapse}
+          onClick={handleAvatarClick}
           style={onCollapse ? { cursor: 'pointer' } : undefined}
         />
         {post.rebloggedBy && (
@@ -309,27 +336,37 @@ export function PostItem({
       </AvatarColumn>
       <Content>
         <HeaderLine $mastodonLike={settings.mastodonLikeExpandedDisplay}>
-          {settings.mastodonLikeExpandedDisplay && (
-            <DisplayName
-              $fontSize={settings.uiFontSize}
-              dangerouslySetInnerHTML={{
-                __html: sanitizeContent(
-                  replaceCustomEmojis(escapeHtml(post.account.displayName), post.account.emojis),
-                ),
-              }}
-            />
-          )}
-          <Acct $fontSize={settings.uiFontSize}>@{post.account.acct}</Acct>
-          {!settings.mastodonLikeExpandedDisplay && (
-            <DisplayName
-              $fontSize={settings.uiFontSize}
-              dangerouslySetInnerHTML={{
-                __html: sanitizeContent(
-                  replaceCustomEmojis(escapeHtml(post.account.displayName), post.account.emojis),
-                ),
-              }}
-            />
-          )}
+          <ProfileIdentityButton
+            type="button"
+            $mastodonLike={settings.mastodonLikeExpandedDisplay}
+            onClick={() => onOpenAccountTimeline?.(post.account)}
+          >
+            {settings.mastodonLikeExpandedDisplay && (
+              <DisplayName
+                className="profile-name"
+                $fontSize={settings.uiFontSize}
+                dangerouslySetInnerHTML={{
+                  __html: sanitizeContent(
+                    replaceCustomEmojis(escapeHtml(post.account.displayName), post.account.emojis),
+                  ),
+                }}
+              />
+            )}
+            <Acct className="profile-acct" $fontSize={settings.uiFontSize}>
+              @{post.account.acct}
+            </Acct>
+            {!settings.mastodonLikeExpandedDisplay && (
+              <DisplayName
+                className="profile-name"
+                $fontSize={settings.uiFontSize}
+                dangerouslySetInnerHTML={{
+                  __html: sanitizeContent(
+                    replaceCustomEmojis(escapeHtml(post.account.displayName), post.account.emojis),
+                  ),
+                }}
+              />
+            )}
+          </ProfileIdentityButton>
         </HeaderLine>
         {hasContentWarning && (
           <ContentWarning $fontSize={settings.postFontSize} onClick={() => setExpanded(!expanded)}>

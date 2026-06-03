@@ -10,6 +10,14 @@ export const IpcChannels = {
   AccountsRemove: 'accounts:remove',
   /** Fetch timeline posts */
   TimelineFetch: 'timeline:fetch',
+  /** Fetch a Mastodon account profile */
+  AccountProfileFetch: 'account-profile:fetch',
+  /** Fetch an account relationship */
+  AccountRelationshipFetch: 'account-relationship:fetch',
+  /** Follow an account */
+  AccountFollow: 'account:follow',
+  /** Unfollow an account */
+  AccountUnfollow: 'account:unfollow',
   /** Fetch notifications */
   NotificationsFetch: 'notifications:fetch',
   /** Post a new status */
