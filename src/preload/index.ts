@@ -2,6 +2,10 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { IpcChannels } from '../shared/ipc.ts';
 import type {
   Account,
+  AccountProfile,
+  AccountProfileFetchParams,
+  AccountRelationshipParams,
+  AccountRelationshipSummary,
   AppSettings,
   MastoNotification,
   MediaUploadParams,
@@ -41,6 +45,22 @@ const api = {
   /** Fetch timeline posts */
   fetchTimeline(params: TimelineFetchParams): Promise<Post[]> {
     return ipcRenderer.invoke(IpcChannels.TimelineFetch, params);
+  },
+  /** Fetch an account profile */
+  fetchAccountProfile(params: AccountProfileFetchParams): Promise<AccountProfile> {
+    return ipcRenderer.invoke(IpcChannels.AccountProfileFetch, params);
+  },
+  /** Fetch an account relationship */
+  fetchAccountRelationship(params: AccountRelationshipParams): Promise<AccountRelationshipSummary> {
+    return ipcRenderer.invoke(IpcChannels.AccountRelationshipFetch, params);
+  },
+  /** Follow an account */
+  followAccount(params: AccountRelationshipParams): Promise<AccountRelationshipSummary> {
+    return ipcRenderer.invoke(IpcChannels.AccountFollow, params);
+  },
+  /** Unfollow an account */
+  unfollowAccount(params: AccountRelationshipParams): Promise<AccountRelationshipSummary> {
+    return ipcRenderer.invoke(IpcChannels.AccountUnfollow, params);
   },
   /** Fetch notifications */
   fetchNotifications(params: NotificationFetchParams): Promise<MastoNotification[]> {
