@@ -7,6 +7,7 @@ import {
   BookFilled,
   MessageOutlined,
   LinkOutlined,
+  DownOutlined,
 } from '@ant-design/icons';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
@@ -292,6 +293,9 @@ const QuotePlaceholder = styled.div`
 `;
 
 const ContentWarning = styled.button<{ $fontSize: number }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   margin-bottom: 8px;
   padding: 6px 10px;
   border-radius: 4px;
@@ -306,6 +310,10 @@ const ContentWarning = styled.button<{ $fontSize: number }>`
     border-color: #1677ff;
     color: #1677ff;
   }
+`;
+
+const ContentWarningIcon = styled(DownOutlined)`
+  font-size: 0.8em;
 `;
 
 const FooterLine = styled.div`
@@ -583,7 +591,7 @@ export function PostItem({
         {hasContentWarning && (
           <ContentWarning $fontSize={settings.postFontSize} onClick={() => setExpanded(!expanded)}>
             {post.spoilerText}
-            {expanded ? '（クリックで隠す）' : '（クリックで表示）'}
+            {expanded ? '（クリックで隠す）' : <ContentWarningIcon aria-hidden="true" />}
           </ContentWarning>
         )}
         {!shouldHideContent && (
@@ -596,8 +604,8 @@ export function PostItem({
         )}
         {isSensitiveWithoutContentWarning && hasMediaAttachments && (
           <ContentWarning $fontSize={settings.postFontSize} onClick={() => setExpanded(!expanded)}>
-            センシティブなメディアが含まれます
-            {expanded ? '（クリックで隠す）' : '（クリックで表示）'}
+            NSFW
+            {expanded ? '（クリックで隠す）' : <ContentWarningIcon aria-hidden="true" />}
           </ContentWarning>
         )}
         {hasMediaAttachments && !shouldHideMedia && (
