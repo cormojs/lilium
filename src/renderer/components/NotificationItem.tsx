@@ -91,6 +91,29 @@ const StatusPreview = styled.div<{ $fontSize: number }>`
     width: auto;
     vertical-align: -0.1em;
   }
+
+  blockquote {
+    margin: 8px 0;
+    padding: 8px 12px;
+    border-left: 4px solid #91caff;
+    background: #f0f7ff;
+    color: #434343;
+  }
+
+  blockquote p:last-child {
+    margin-bottom: 0;
+  }
+
+  q {
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: #f0f7ff;
+    color: #434343;
+  }
+
+  .quote-inline {
+    display: none;
+  }
 `;
 
 const Timestamp = styled.span<{ $fontSize: number }>`
@@ -122,9 +145,10 @@ function formatTimestamp(isoString: string): string {
 
 function sanitizeContent(html: string): string {
   return sanitizeHtml(html, {
-    allowedTags: ['a', 'br', 'p', 'span', 'em', 'strong', 'b', 'i', 'u', 'img'],
+    allowedTags: ['a', 'br', 'p', 'span', 'em', 'strong', 'b', 'i', 'u', 'blockquote', 'q', 'img'],
     allowedAttributes: {
       a: ['href', 'rel', 'target', 'class'],
+      p: ['class'],
       span: ['class'],
       img: ['src', 'alt', 'title', 'class'],
     },
