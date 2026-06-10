@@ -35,20 +35,13 @@ import type {
 } from '../../shared/types.ts';
 import { PostItem } from '../components/PostItem.tsx';
 import { NotificationItem } from '../components/NotificationItem.tsx';
-import { Composer } from '../components/Composer.tsx';
+import { Composer, type ComposerStatusDraft } from '../components/Composer.tsx';
 import { CompactPostItem } from '../components/CompactPostItem.tsx';
 import { PaneContainer } from '../components/PaneContainer.tsx';
 import { useSettings } from '../hooks/useSettings.ts';
 import { replaceCustomEmojis } from '../components/customEmojis.ts';
 
 const { Text } = Typography;
-
-interface ComposerReplyDraft {
-  serverUrl: string;
-  username: string;
-  inReplyToId: string;
-  mentionAcct: string;
-}
 
 interface AccountTimelineTarget {
   id: string;
@@ -482,11 +475,13 @@ function TimelineTabContent({
   tab,
   accounts,
   onReply,
+  onQuote,
   onOpenAccountTimeline,
 }: {
   tab: TabDefinition;
   accounts: Account[];
   onReply: (tab: TabDefinition, post: Post) => void;
+  onQuote: (tab: TabDefinition, post: Post) => void;
   onOpenAccountTimeline: (tab: TabDefinition, target: AccountTimelineTarget) => void;
 }): React.JSX.Element {
   const { message } = App.useApp();
@@ -707,6 +702,7 @@ function TimelineTabContent({
             serverUrl={account.serverUrl}
             accessToken={account.accessToken}
             onReply={(targetPost) => onReply(tab, targetPost)}
+            onQuote={(targetPost) => onQuote(tab, targetPost)}
             onOpenAccountTimeline={(targetAccount) => onOpenAccountTimeline(tab, targetAccount)}
             onCollapse={settings.disableCompactDisplay ? undefined : () => setExpandedPostId(null)}
           />
@@ -914,11 +910,13 @@ function TabContent({
   tab,
   accounts,
   onReply,
+  onQuote,
   onOpenAccountTimeline,
 }: {
   tab: TabDefinition;
   accounts: Account[];
   onReply: (tab: TabDefinition, post: Post) => void;
+  onQuote: (tab: TabDefinition, post: Post) => void;
   onOpenAccountTimeline: (tab: TabDefinition, target: AccountTimelineTarget) => void;
 }): React.JSX.Element {
   if (tab.timelineType === 'notifications') {
@@ -935,6 +933,7 @@ function TabContent({
       tab={tab}
       accounts={accounts}
       onReply={onReply}
+      onQuote={onQuote}
       onOpenAccountTimeline={onOpenAccountTimeline}
     />
   );
@@ -952,6 +951,7 @@ interface PaneProps {
   onMoveTab: (tabId: string, fromPaneId: string, direction: 'left' | 'right') => void;
   onRenameTab: (tabId: string, name: string) => void;
   onReply: (tab: TabDefinition, post: Post) => void;
+  onQuote: (tab: TabDefinition, post: Post) => void;
   onOpenAccountTimeline: (tab: TabDefinition, target: AccountTimelineTarget) => void;
 }
 
@@ -976,6 +976,7 @@ function Pane({
   onMoveTab,
   onRenameTab,
   onReply,
+  onQuote,
   onOpenAccountTimeline,
 }: PaneProps): React.JSX.Element {
   const [connectionStatuses, setConnectionStatuses] = useState<
@@ -1054,6 +1055,7 @@ function Pane({
           tab={tab}
           accounts={accounts}
           onReply={onReply}
+          onQuote={onQuote}
           onOpenAccountTimeline={onOpenAccountTimeline}
         />
       ),
@@ -1124,7 +1126,7 @@ export function TimelinePage({
   const [tabs, setTabs] = useState<TabDefinition[]>([]);
   const [panes, setPanes] = useState<PaneDefinition[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [replyDraft, setReplyDraft] = useState<ComposerReplyDraft | null>(null);
+  const [statusDraft, setStatusDraft] = useState<ComposerStatusDraft | null>(null);
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -1370,13 +1372,24 @@ export function TimelinePage({
   }));
 
   const handleReply = useCallback((tab: TabDefinition, post: Post): void => {
-    setReplyDraft({
+    setStatusDraft({
+      type: 'reply',
       serverUrl: tab.accountServerUrl,
       username: tab.accountUsername,
-      inReplyToId: post.id,
-      mentionAcct: post.account.acct,
+      postId: post.id,
+      acct: post.account.acct,
     });
   }, []);
+
+  const handleQuote = (tab: TabDefinition, post: Post): void => {
+    setStatusDraft({
+      type: 'quote',
+      serverUrl: tab.accountServerUrl,
+      username: tab.accountUsername,
+      postId: post.id,
+      acct: post.account.acct,
+    });
+  };
 
   const handleOpenAccountTimeline = useCallback(
     (sourceTab: TabDefinition, target: AccountTimelineTarget): void => {
@@ -1413,9 +1426,9 @@ export function TimelinePage({
     [panes, persistLayout],
   );
 
-  const handleClearReplyDraft = useCallback((): void => {
-    setReplyDraft(null);
-  }, []);
+  const handleClearStatusDraft = (): void => {
+    setStatusDraft(null);
+  };
 
   const widthRatios = panes.map((p) => p.widthRatio);
 
@@ -1425,8 +1438,8 @@ export function TimelinePage({
         <div style={{ flex: 1, minWidth: 0 }}>
           <Composer
             accounts={accounts}
-            replyDraft={replyDraft}
-            onClearReplyDraft={handleClearReplyDraft}
+            statusDraft={statusDraft}
+            onClearStatusDraft={handleClearStatusDraft}
           />
         </div>
         <Flex vertical align="center" style={{ padding: '8px 4px 0 0', flexShrink: 0 }}>
@@ -1466,6 +1479,7 @@ export function TimelinePage({
             onMoveTab={handleMoveTab}
             onRenameTab={handleRenameTab}
             onReply={handleReply}
+            onQuote={handleQuote}
             onOpenAccountTimeline={handleOpenAccountTimeline}
           />
         ))}

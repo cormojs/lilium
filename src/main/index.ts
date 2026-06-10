@@ -194,6 +194,7 @@ function registerIpcHandlers(): void {
         params.spoilerText,
         params.visibility,
         params.inReplyToId,
+        params.quotedStatusId,
         params.mediaIds,
       ),
     );

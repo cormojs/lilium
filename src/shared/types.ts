@@ -153,6 +153,7 @@ export interface StatusCreateParams {
   spoilerText?: string;
   visibility: PostVisibility;
   inReplyToId?: string;
+  quotedStatusId?: string;
   mediaIds?: string[];
 }
 
@@ -214,6 +215,42 @@ export interface PostCustomEmoji {
   staticUrl: string;
 }
 
+export type PostQuoteState =
+  | 'pending'
+  | 'accepted'
+  | 'rejected'
+  | 'revoked'
+  | 'deleted'
+  | 'unauthorized'
+  | 'blocked_account'
+  | 'blocked_domain'
+  | 'muted_account';
+
+export interface QuotedPost {
+  id: string;
+  content: string;
+  spoilerText: string;
+  sensitive: boolean;
+  createdAt: string;
+  url: string | null;
+  account: {
+    id: string;
+    acct: string;
+    displayName: string;
+    avatarUrl: string;
+    emojis: PostCustomEmoji[];
+  };
+  mediaAttachments: PostMediaAttachment[];
+  visibility: PostVisibility;
+  emojis: PostCustomEmoji[];
+}
+
+export interface PostQuote {
+  state: PostQuoteState;
+  quotedStatusId?: string;
+  quotedPost?: QuotedPost;
+}
+
 /** A post (status) to render in the timeline */
 export interface Post {
   id: string;
@@ -241,6 +278,7 @@ export interface Post {
     displayName: string;
     avatarUrl: string;
   };
+  quote?: PostQuote;
 }
 
 /** Parameters for fetching a timeline */

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { App, Avatar, Button, Dropdown, Input, Select, Switch, Typography } from 'antd';
 import styled from 'styled-components';
 import type { Account, PostVisibility, UploadedMedia } from '../../shared/types.ts';
@@ -7,17 +7,18 @@ const { TextArea } = Input;
 const { Text } = Typography;
 const MAX_MEDIA_ATTACHMENTS = 4;
 
-interface ComposerReplyDraft {
+export interface ComposerStatusDraft {
+  type: 'reply' | 'quote';
   serverUrl: string;
   username: string;
-  inReplyToId: string;
-  mentionAcct: string;
+  postId: string;
+  acct: string;
 }
 
 interface ComposerProps {
   accounts: Account[];
-  replyDraft: ComposerReplyDraft | null;
-  onClearReplyDraft: () => void;
+  statusDraft: ComposerStatusDraft | null;
+  onClearStatusDraft: () => void;
 }
 
 const Container = styled.div<{ $dragOver: boolean }>`
@@ -108,13 +109,17 @@ const visibilityOptions: { value: PostVisibility; label: string }[] = [
   { value: 'direct', label: 'ダイレクト' },
 ];
 
+function accountKey(account: Account): string {
+  return `${account.serverUrl}|${account.username}`;
+}
+
 export function Composer({
   accounts,
-  replyDraft,
-  onClearReplyDraft,
+  statusDraft,
+  onClearStatusDraft,
 }: ComposerProps): React.JSX.Element {
   const { message } = App.useApp();
-  const [selectedAccount, setSelectedAccount] = useState(accounts[0]);
+  const [selectedAccountKey, setSelectedAccountKey] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [useContentWarning, setUseContentWarning] = useState(false);
   const [spoilerText, setSpoilerText] = useState('');
@@ -125,28 +130,21 @@ export function Composer({
   const [mediaAttachments, setMediaAttachments] = useState<UploadedMedia[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (!replyDraft) {
-      return;
-    }
-
-    const replyAccount = accounts.find(
-      (account) =>
-        account.serverUrl === replyDraft.serverUrl && account.username === replyDraft.username,
-    );
-
-    if (replyAccount) {
-      setSelectedAccount(replyAccount);
-    }
-
-    const mentionPrefix = `@${replyDraft.mentionAcct} `;
-    setText((prev) => (prev.startsWith(mentionPrefix) ? prev : `${mentionPrefix}${prev}`));
-  }, [accounts, replyDraft]);
+  const draftAccount = statusDraft
+    ? accounts.find(
+        (account) =>
+          account.serverUrl === statusDraft.serverUrl && account.username === statusDraft.username,
+      )
+    : undefined;
+  const manuallySelectedAccount = selectedAccountKey
+    ? accounts.find((account) => accountKey(account) === selectedAccountKey)
+    : undefined;
+  const selectedAccount = draftAccount ?? manuallySelectedAccount ?? accounts[0];
 
   const accountMenuItems = useMemo(
     () =>
       accounts.map((account) => ({
-        key: `${account.serverUrl}|${account.username}`,
+        key: accountKey(account),
         icon: <Avatar src={account.avatarUrl} size={24} shape="square" />,
         label: `@${account.username}@${new URL(account.serverUrl).host}`,
       })),
@@ -210,20 +208,27 @@ export function Composer({
 
     setSubmitting(true);
     try {
+      const mentionPrefix = statusDraft?.type === 'reply' ? `@${statusDraft.acct} ` : undefined;
+      const statusText =
+        mentionPrefix && !trimmedText.startsWith(mentionPrefix)
+          ? `${mentionPrefix}${trimmedText}`
+          : trimmedText;
+
       await window.api.createStatus({
         serverUrl: selectedAccount.serverUrl,
         accessToken: selectedAccount.accessToken,
-        status: trimmedText,
+        status: statusText,
         spoilerText: useContentWarning ? spoilerText.trim() : undefined,
         visibility,
-        inReplyToId: replyDraft?.inReplyToId,
+        inReplyToId: statusDraft?.type === 'reply' ? statusDraft.postId : undefined,
+        quotedStatusId: statusDraft?.type === 'quote' ? statusDraft.postId : undefined,
         mediaIds: mediaAttachments.map((media) => media.id),
       });
       setText('');
       setUseContentWarning(false);
       setSpoilerText('');
       setMediaAttachments([]);
-      onClearReplyDraft();
+      onClearStatusDraft();
       message.success('投稿しました');
     } catch (e) {
       message.error(`投稿に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
@@ -246,11 +251,14 @@ export function Composer({
         void uploadFiles(Array.from(event.dataTransfer.files));
       }}
     >
-      {replyDraft && (
+      {statusDraft && (
         <ReplyBanner>
-          <Text>@{replyDraft.mentionAcct} への返信</Text>
-          <Button size="small" type="text" onClick={onClearReplyDraft}>
-            返信を解除
+          <Text>
+            @{statusDraft.acct}
+            {statusDraft.type === 'reply' ? ' への返信' : ' を引用'}
+          </Text>
+          <Button size="small" type="text" onClick={onClearStatusDraft}>
+            {statusDraft.type === 'reply' ? '返信を解除' : '引用を解除'}
           </Button>
         </ReplyBanner>
       )}
@@ -259,11 +267,9 @@ export function Composer({
           menu={{
             items: accountMenuItems,
             onClick: ({ key }) => {
-              const nextAccount = accounts.find(
-                (account) => `${account.serverUrl}|${account.username}` === key,
-              );
+              const nextAccount = accounts.find((account) => accountKey(account) === key);
               if (nextAccount) {
-                setSelectedAccount(nextAccount);
+                setSelectedAccountKey(accountKey(nextAccount));
                 setMediaAttachments([]);
               }
             },

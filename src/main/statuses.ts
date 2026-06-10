@@ -8,6 +8,7 @@ export async function createStatus(
   spoilerText: string | undefined,
   visibility: PostVisibility,
   inReplyToId?: string,
+  quotedStatusId?: string,
   mediaIds?: string[],
 ): Promise<void> {
   const client = createRestAPIClient({ url: serverUrl, accessToken });
@@ -19,6 +20,7 @@ export async function createStatus(
       spoilerText: normalizedSpoilerText,
       visibility,
       inReplyToId,
+      quotedStatusId,
       mediaIds,
     });
     return;
@@ -29,6 +31,7 @@ export async function createStatus(
     spoilerText: normalizedSpoilerText,
     visibility,
     inReplyToId,
+    quotedStatusId,
   });
 }
 

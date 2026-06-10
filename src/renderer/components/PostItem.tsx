@@ -6,6 +6,7 @@ import {
   BookOutlined,
   BookFilled,
   MessageOutlined,
+  LinkOutlined,
 } from '@ant-design/icons';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
@@ -19,6 +20,7 @@ interface PostItemProps {
   serverUrl: string;
   accessToken: string;
   onReply?: (post: Post) => void;
+  onQuote?: (post: Post) => void;
   onOpenAccountTimeline?: (account: Post['account']) => void;
   onCollapse?: () => void;
 }
@@ -147,6 +149,146 @@ const PostBody = styled.div<{ $fontSize: number }>`
     width: auto;
     vertical-align: -0.1em;
   }
+
+  blockquote {
+    margin: 8px 0;
+    padding: 8px 12px;
+    border-left: 4px solid #91caff;
+    background: #f0f7ff;
+    color: #434343;
+  }
+
+  blockquote p:last-child {
+    margin-bottom: 0;
+  }
+
+  q {
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: #f0f7ff;
+    color: #434343;
+  }
+
+  .quote-inline {
+    display: none;
+  }
+`;
+
+const QuotePreview = styled.div<{ $fontSize: number }>`
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid #d9d9d9;
+  border-left: 4px solid #1677ff;
+  border-radius: 6px;
+  background: #fafafa;
+  font-size: ${(props) => props.$fontSize}px;
+`;
+
+const QuoteHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-bottom: 6px;
+`;
+
+const QuoteAvatar = styled.img`
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
+  flex-shrink: 0;
+`;
+
+const QuoteIdentity = styled.button`
+  display: inline-flex;
+  gap: 6px;
+  align-items: baseline;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover .quote-acct,
+  &:hover .quote-name {
+    color: #1677ff;
+  }
+`;
+
+const QuoteName = styled.span`
+  color: #262626;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  .custom-emoji {
+    height: 1em;
+    width: auto;
+    vertical-align: middle;
+    margin: 0 1px;
+  }
+`;
+
+const QuoteAcct = styled.span`
+  color: #8c8c8c;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const QuoteBody = styled.div`
+  color: #434343;
+  line-height: 1.5;
+  word-break: break-word;
+
+  p {
+    margin: 0 0 4px;
+  }
+
+  p:last-child {
+    margin-bottom: 0;
+  }
+
+  a {
+    color: #1677ff;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  img.custom-emoji {
+    height: 1em;
+    width: auto;
+    vertical-align: -0.1em;
+  }
+
+  blockquote {
+    margin: 6px 0;
+    padding: 6px 10px;
+    border-left: 3px solid #91caff;
+    background: #f0f7ff;
+  }
+
+  q {
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: #f0f7ff;
+  }
+
+  .quote-inline {
+    display: none;
+  }
+`;
+
+const QuotePlaceholder = styled.div`
+  color: #8c8c8c;
 `;
 
 const ContentWarning = styled.button<{ $fontSize: number }>`
@@ -227,6 +369,7 @@ function sanitizeContent(html: string): string {
       'code',
       'pre',
       'blockquote',
+      'q',
       'ul',
       'ol',
       'li',
@@ -234,6 +377,7 @@ function sanitizeContent(html: string): string {
     ],
     allowedAttributes: {
       a: ['href', 'rel', 'target', 'class'],
+      p: ['class'],
       span: ['class'],
       img: ['src', 'alt', 'title', 'class'],
     },
@@ -248,11 +392,79 @@ function escapeHtml(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
+function quoteStateLabel(state: NonNullable<Post['quote']>['state']): string {
+  switch (state) {
+    case 'pending':
+      return '引用は承認待ちです';
+    case 'rejected':
+    case 'revoked':
+      return '引用は表示できません';
+    case 'deleted':
+      return '引用元の投稿は削除されています';
+    case 'unauthorized':
+      return '引用元の投稿を表示する権限がありません';
+    case 'blocked_account':
+    case 'blocked_domain':
+    case 'muted_account':
+      return '引用元の投稿は表示されません';
+    case 'accepted':
+      return '引用元の投稿を読み込めません';
+  }
+}
+
+function QuoteCard({
+  quote,
+  fontSize,
+  onOpenAccountTimeline,
+}: {
+  quote: NonNullable<Post['quote']>;
+  fontSize: number;
+  onOpenAccountTimeline?: (account: Post['account']) => void;
+}): React.JSX.Element {
+  const quotedPost = quote.quotedPost;
+
+  if (!quotedPost) {
+    return (
+      <QuotePreview $fontSize={fontSize}>
+        <QuotePlaceholder>{quoteStateLabel(quote.state)}</QuotePlaceholder>
+      </QuotePreview>
+    );
+  }
+
+  return (
+    <QuotePreview $fontSize={fontSize}>
+      <QuoteHeader>
+        <QuoteAvatar src={quotedPost.account.avatarUrl} alt={quotedPost.account.acct} />
+        <QuoteIdentity type="button" onClick={() => onOpenAccountTimeline?.(quotedPost.account)}>
+          <QuoteName
+            className="quote-name"
+            dangerouslySetInnerHTML={{
+              __html: sanitizeContent(
+                replaceCustomEmojis(
+                  escapeHtml(quotedPost.account.displayName),
+                  quotedPost.account.emojis,
+                ),
+              ),
+            }}
+          />
+          <QuoteAcct className="quote-acct">@{quotedPost.account.acct}</QuoteAcct>
+        </QuoteIdentity>
+      </QuoteHeader>
+      <QuoteBody
+        dangerouslySetInnerHTML={{
+          __html: sanitizeContent(replaceCustomEmojis(quotedPost.content, quotedPost.emojis)),
+        }}
+      />
+    </QuotePreview>
+  );
+}
+
 export function PostItem({
   post,
   serverUrl,
   accessToken,
   onReply,
+  onQuote,
   onOpenAccountTimeline,
   onCollapse,
 }: PostItemProps): React.JSX.Element {
@@ -391,6 +603,13 @@ export function PostItem({
         {hasMediaAttachments && !shouldHideMedia && (
           <MediaGallery attachments={post.mediaAttachments} />
         )}
+        {post.quote && !shouldHideContent && (
+          <QuoteCard
+            quote={post.quote}
+            fontSize={smallFontSize}
+            onOpenAccountTimeline={onOpenAccountTimeline}
+          />
+        )}
         <FooterLine>
           {post.url ? (
             <Timestamp $fontSize={smallFontSize} href={post.url} onClick={handleTimestampClick}>
@@ -428,6 +647,15 @@ export function PostItem({
             title="メンションで返信"
           >
             <MessageOutlined />
+          </ActionButton>
+          <ActionButton
+            $active={false}
+            $activeColor="#1677ff"
+            $fontSize={smallFontSize}
+            onClick={() => onQuote?.(post)}
+            title="引用"
+          >
+            <LinkOutlined />
           </ActionButton>
           <ActionButton
             $active={bookmarked}
