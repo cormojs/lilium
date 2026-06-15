@@ -248,6 +248,7 @@ export interface QuotedPost {
 export interface PostQuote {
   state: PostQuoteState;
   quotedStatusId?: string;
+  quotedUrl?: string;
   quotedPost?: QuotedPost;
 }
 
