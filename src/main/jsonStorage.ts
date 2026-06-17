@@ -1,24 +1,40 @@
 import fs from 'node:fs';
+import { z } from 'zod';
 
-export function readJsonFile<T>(
-  filePath: string,
-  fallback: T,
-  isValid?: (value: unknown) => value is T,
-): T {
+const { parse: parseJsonText } = JSON;
+
+const jsonTextSchema = z.string().transform((content, context): unknown => {
+  try {
+    const parsed: unknown = parseJsonText(content);
+    return parsed;
+  } catch {
+    context.addIssue({
+      code: 'custom',
+      message: 'Invalid JSON',
+    });
+    return z.NEVER;
+  }
+});
+
+export function readJsonFile<T>(filePath: string, schema: z.ZodType<T>, fallback: T): T {
   if (!fs.existsSync(filePath)) {
     return fallback;
   }
 
+  let content: string;
   try {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const parsed = JSON.parse(content) as unknown;
-    if (isValid && !isValid(parsed)) {
-      return fallback;
-    }
-    return parsed as T;
+    content = fs.readFileSync(filePath, 'utf-8');
   } catch {
     return fallback;
   }
+
+  const parsed = jsonTextSchema.safeParse(content);
+  if (!parsed.success) {
+    return fallback;
+  }
+
+  const result = schema.safeParse(parsed.data);
+  return result.success ? result.data : fallback;
 }
 
 export function writeJsonFile(filePath: string, value: unknown): void {

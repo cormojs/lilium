@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { z } from 'zod';
 import { readJsonFile, writeJsonFile } from './jsonStorage.ts';
 
 function withTempDir(run: (dir: string) => void): void {
@@ -14,13 +15,21 @@ function withTempDir(run: (dir: string) => void): void {
 }
 
 describe('jsonStorage', () => {
+  const settingsSchema = z.object({
+    enabled: z.boolean(),
+  });
+
   test('returns fallback when a file is missing or malformed', () => {
     withTempDir((dir) => {
       const filePath = path.join(dir, 'settings.json');
-      expect(readJsonFile(filePath, { enabled: false })).toEqual({ enabled: false });
+      expect(readJsonFile(filePath, settingsSchema, { enabled: false })).toEqual({
+        enabled: false,
+      });
 
       fs.writeFileSync(filePath, '{broken json', 'utf-8');
-      expect(readJsonFile(filePath, { enabled: false })).toEqual({ enabled: false });
+      expect(readJsonFile(filePath, settingsSchema, { enabled: false })).toEqual({
+        enabled: false,
+      });
     });
   });
 
@@ -29,12 +38,7 @@ describe('jsonStorage', () => {
       const filePath = path.join(dir, 'tabs.json');
       fs.writeFileSync(filePath, '{"items":null}', 'utf-8');
 
-      const result = readJsonFile<string[]>(
-        filePath,
-        [],
-        (value): value is string[] =>
-          Array.isArray(value) && value.every((item) => typeof item === 'string'),
-      );
+      const result = readJsonFile(filePath, z.array(z.string()), []);
 
       expect(result).toEqual([]);
     });
@@ -45,7 +49,9 @@ describe('jsonStorage', () => {
       const filePath = path.join(dir, 'accounts.json');
       writeJsonFile(filePath, [{ username: 'alice' }]);
 
-      expect(readJsonFile(filePath, [])).toEqual([{ username: 'alice' }]);
+      expect(readJsonFile(filePath, z.array(z.object({ username: z.string() })), [])).toEqual([
+        { username: 'alice' },
+      ]);
       expect(fs.existsSync(`${filePath}.tmp`)).toBe(false);
     });
   });

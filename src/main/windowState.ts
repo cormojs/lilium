@@ -1,5 +1,6 @@
 import { app, type BrowserWindow, type BrowserWindowConstructorOptions } from 'electron';
 import path from 'node:path';
+import { z } from 'zod';
 import { readJsonFile, writeJsonFile } from './jsonStorage.ts';
 
 const DEFAULT_WINDOW_SIZE = {
@@ -19,41 +20,16 @@ function getWindowStateFilePath(): string {
   return path.join(app.getPath('userData'), 'window-state.json');
 }
 
-function isNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
-
-function isValidWindowState(value: unknown): value is WindowState {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-
-  const candidate = value as Partial<WindowState>;
-  if (!isNumber(candidate.width) || !isNumber(candidate.height)) {
-    return false;
-  }
-
-  if (candidate.width <= 0 || candidate.height <= 0) {
-    return false;
-  }
-
-  if (candidate.x !== undefined && !isNumber(candidate.x)) {
-    return false;
-  }
-
-  if (candidate.y !== undefined && !isNumber(candidate.y)) {
-    return false;
-  }
-
-  return typeof candidate.isMaximized === 'boolean';
-}
+const windowStateSchema: z.ZodType<WindowState> = z.object({
+  width: z.number().finite().positive(),
+  height: z.number().finite().positive(),
+  x: z.number().finite().optional(),
+  y: z.number().finite().optional(),
+  isMaximized: z.boolean(),
+});
 
 function readWindowState(): WindowState | null {
-  return readJsonFile<WindowState | null>(
-    getWindowStateFilePath(),
-    null,
-    (value): value is WindowState | null => isValidWindowState(value),
-  );
+  return readJsonFile(getWindowStateFilePath(), windowStateSchema.nullable(), null);
 }
 
 export function createMainWindowOptions(): BrowserWindowConstructorOptions {

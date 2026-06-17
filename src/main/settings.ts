@@ -1,5 +1,6 @@
 import { app } from 'electron';
 import path from 'node:path';
+import { z } from 'zod';
 import type { AppSettings } from '../shared/types.ts';
 import { readJsonFile, writeJsonFile } from './jsonStorage.ts';
 
@@ -17,28 +18,20 @@ function getSettingsFilePath(): string {
   return path.join(app.getPath('userData'), 'settings.json');
 }
 
-function isPartialAppSettings(value: unknown): value is Partial<AppSettings> {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-  const candidate = value as Partial<Record<keyof AppSettings, unknown>>;
-  const isOptionalNumber = (setting: unknown): boolean =>
-    setting === undefined || (typeof setting === 'number' && Number.isFinite(setting));
-  return (
-    isOptionalNumber(candidate.avatarSize) &&
-    isOptionalNumber(candidate.boostAvatarSize) &&
-    isOptionalNumber(candidate.postFontSize) &&
-    isOptionalNumber(candidate.uiFontSize) &&
-    isOptionalNumber(candidate.compactFontSize) &&
-    (candidate.disableCompactDisplay === undefined ||
-      typeof candidate.disableCompactDisplay === 'boolean') &&
-    (candidate.mastodonLikeExpandedDisplay === undefined ||
-      typeof candidate.mastodonLikeExpandedDisplay === 'boolean')
-  );
-}
+const partialAppSettingsSchema: z.ZodType<Partial<AppSettings>> = z
+  .object({
+    avatarSize: z.number().finite(),
+    boostAvatarSize: z.number().finite(),
+    postFontSize: z.number().finite(),
+    uiFontSize: z.number().finite(),
+    compactFontSize: z.number().finite(),
+    disableCompactDisplay: z.boolean(),
+    mastodonLikeExpandedDisplay: z.boolean(),
+  })
+  .partial();
 
 export function loadSettings(): AppSettings {
-  const saved = readJsonFile<Partial<AppSettings>>(getSettingsFilePath(), {}, isPartialAppSettings);
+  const saved = readJsonFile(getSettingsFilePath(), partialAppSettingsSchema, {});
   return { ...DEFAULT_SETTINGS, ...saved };
 }
 

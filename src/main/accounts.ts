@@ -1,5 +1,6 @@
 import { app, safeStorage } from 'electron';
 import path from 'node:path';
+import { z } from 'zod';
 import type { Account } from '../shared/types.ts';
 import { readJsonFile, writeJsonFile } from './jsonStorage.ts';
 
@@ -22,23 +23,15 @@ export interface AccountCredentials extends Account {
   accessToken: string;
 }
 
-function isStoredAccount(value: unknown): value is StoredAccount {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-  const candidate = value as Partial<StoredAccount>;
-  return (
-    typeof candidate.serverUrl === 'string' &&
-    typeof candidate.encryptedToken === 'string' &&
-    typeof candidate.username === 'string' &&
-    typeof candidate.displayName === 'string' &&
-    typeof candidate.avatarUrl === 'string'
-  );
-}
+const storedAccountSchema: z.ZodType<StoredAccount> = z.object({
+  serverUrl: z.string(),
+  encryptedToken: z.string(),
+  username: z.string(),
+  displayName: z.string(),
+  avatarUrl: z.string(),
+});
 
-function isStoredAccountList(value: unknown): value is StoredAccount[] {
-  return Array.isArray(value) && value.every(isStoredAccount);
-}
+const storedAccountListSchema = z.array(storedAccountSchema);
 
 function encryptToken(token: string): string {
   if (safeStorage.isEncryptionAvailable()) {
@@ -57,7 +50,7 @@ function decryptToken(encrypted: string): string {
 }
 
 function readStoredAccounts(): StoredAccount[] {
-  return readJsonFile(getAccountsFilePath(), [], isStoredAccountList);
+  return readJsonFile(getAccountsFilePath(), storedAccountListSchema, []);
 }
 
 function writeStoredAccounts(accounts: StoredAccount[]): void {
