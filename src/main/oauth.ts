@@ -1,5 +1,6 @@
 import { createRestAPIClient, createOAuthAPIClient } from 'masto';
-import type { OAuthStartLoginResult, Account } from '../shared/types.ts';
+import type { OAuthStartLoginResult } from '../shared/types.ts';
+import type { AccountCredentials } from './accounts.ts';
 
 const REDIRECT_URI = 'urn:ietf:wg:oauth:2.0:oob';
 const SCOPES = 'read write push';
@@ -42,7 +43,7 @@ export async function exchangeToken(
   clientId: string,
   clientSecret: string,
   code: string,
-): Promise<Account> {
+): Promise<AccountCredentials> {
   const url = normalizeServerUrl(serverUrl);
   const oauth = createOAuthAPIClient({ url });
 

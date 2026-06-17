@@ -1,6 +1,6 @@
 import { app, type BrowserWindow, type BrowserWindowConstructorOptions } from 'electron';
-import fs from 'node:fs';
 import path from 'node:path';
+import { readJsonFile, writeJsonFile } from './jsonStorage.ts';
 
 const DEFAULT_WINDOW_SIZE = {
   width: 900,
@@ -49,21 +49,11 @@ function isValidWindowState(value: unknown): value is WindowState {
 }
 
 function readWindowState(): WindowState | null {
-  const filePath = getWindowStateFilePath();
-  if (!fs.existsSync(filePath)) {
-    return null;
-  }
-
-  try {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const parsed = JSON.parse(content) as unknown;
-    if (!isValidWindowState(parsed)) {
-      return null;
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
+  return readJsonFile<WindowState | null>(
+    getWindowStateFilePath(),
+    null,
+    (value): value is WindowState | null => isValidWindowState(value),
+  );
 }
 
 export function createMainWindowOptions(): BrowserWindowConstructorOptions {
@@ -86,7 +76,6 @@ export function restoreMaximizeState(mainWindow: BrowserWindow): void {
 }
 
 export function saveWindowState(mainWindow: BrowserWindow): void {
-  const filePath = getWindowStateFilePath();
   const isMaximized = mainWindow.isMaximized();
   const bounds = isMaximized ? mainWindow.getNormalBounds() : mainWindow.getBounds();
 
@@ -98,5 +87,5 @@ export function saveWindowState(mainWindow: BrowserWindow): void {
     isMaximized,
   };
 
-  fs.writeFileSync(filePath, JSON.stringify(state, null, 2), 'utf-8');
+  writeJsonFile(getWindowStateFilePath(), state);
 }

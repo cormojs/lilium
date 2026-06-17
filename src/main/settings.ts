@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import path from 'node:path';
-import fs from 'node:fs';
 import type { AppSettings } from '../shared/types.ts';
+import { readJsonFile, writeJsonFile } from './jsonStorage.ts';
 
 export const DEFAULT_SETTINGS: AppSettings = {
   avatarSize: 48,
@@ -17,17 +17,31 @@ function getSettingsFilePath(): string {
   return path.join(app.getPath('userData'), 'settings.json');
 }
 
-export function loadSettings(): AppSettings {
-  const filePath = getSettingsFilePath();
-  if (!fs.existsSync(filePath)) {
-    return { ...DEFAULT_SETTINGS };
+function isPartialAppSettings(value: unknown): value is Partial<AppSettings> {
+  if (typeof value !== 'object' || value === null) {
+    return false;
   }
-  const data = fs.readFileSync(filePath, 'utf-8');
-  const saved = JSON.parse(data) as Partial<AppSettings>;
+  const candidate = value as Partial<Record<keyof AppSettings, unknown>>;
+  const isOptionalNumber = (setting: unknown): boolean =>
+    setting === undefined || (typeof setting === 'number' && Number.isFinite(setting));
+  return (
+    isOptionalNumber(candidate.avatarSize) &&
+    isOptionalNumber(candidate.boostAvatarSize) &&
+    isOptionalNumber(candidate.postFontSize) &&
+    isOptionalNumber(candidate.uiFontSize) &&
+    isOptionalNumber(candidate.compactFontSize) &&
+    (candidate.disableCompactDisplay === undefined ||
+      typeof candidate.disableCompactDisplay === 'boolean') &&
+    (candidate.mastodonLikeExpandedDisplay === undefined ||
+      typeof candidate.mastodonLikeExpandedDisplay === 'boolean')
+  );
+}
+
+export function loadSettings(): AppSettings {
+  const saved = readJsonFile<Partial<AppSettings>>(getSettingsFilePath(), {}, isPartialAppSettings);
   return { ...DEFAULT_SETTINGS, ...saved };
 }
 
 export function saveSettings(settings: AppSettings): void {
-  const filePath = getSettingsFilePath();
-  fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), 'utf-8');
+  writeJsonFile(getSettingsFilePath(), settings);
 }

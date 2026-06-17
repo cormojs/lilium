@@ -179,7 +179,7 @@ export function Composer({
         const data = new Uint8Array(await file.arrayBuffer());
         const uploaded = await window.api.uploadMedia({
           serverUrl: selectedAccount.serverUrl,
-          accessToken: selectedAccount.accessToken,
+          username: selectedAccount.username,
           fileName: file.name,
           mimeType: file.type,
           data,
@@ -216,7 +216,7 @@ export function Composer({
 
       await window.api.createStatus({
         serverUrl: selectedAccount.serverUrl,
-        accessToken: selectedAccount.accessToken,
+        username: selectedAccount.username,
         status: statusText,
         spoilerText: useContentWarning ? spoilerText.trim() : undefined,
         visibility,

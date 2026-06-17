@@ -20,5 +20,6 @@
     "noPropertyAccessFromIndexSignature": false,
     "types": ["node"]
   },
-  "include": ["src/main", "src/preload", "src/shared"]
+  "include": ["src/main", "src/preload", "src/shared"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }
