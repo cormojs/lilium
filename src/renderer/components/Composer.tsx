@@ -1,7 +1,12 @@
 import { useMemo, useRef, useState } from 'react';
 import { App, Avatar, Button, Dropdown, Input, Select, Switch, Typography } from 'antd';
 import styled from 'styled-components';
-import type { Account, PostVisibility, UploadedMedia } from '../../shared/types.ts';
+import type {
+  Account,
+  MediaAttachmentType,
+  PostVisibility,
+  UploadedMedia,
+} from '../../shared/types.ts';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -83,6 +88,27 @@ const MediaThumb = styled.div`
   }
 `;
 
+const MediaPreviewVideo = styled.video`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: #000;
+`;
+
+const MediaPreviewLabel = styled.div`
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  color: #4b5563;
+  font-size: 12px;
+  text-align: center;
+  overflow-wrap: anywhere;
+`;
+
 const RemoveMediaButton = styled(Button)`
   position: absolute;
   top: 4px;
@@ -111,6 +137,38 @@ const visibilityOptions: { value: PostVisibility; label: string }[] = [
 
 function accountKey(account: Account): string {
   return `${account.serverUrl}|${account.username}`;
+}
+
+function getMediaTypeFromMimeType(mimeType: string): MediaAttachmentType | null {
+  if (mimeType.startsWith('image/')) {
+    return 'image';
+  }
+  if (mimeType.startsWith('video/')) {
+    return 'video';
+  }
+  if (mimeType.startsWith('audio/')) {
+    return 'audio';
+  }
+
+  return null;
+}
+
+function getMediaLabel(type: MediaAttachmentType): string {
+  switch (type) {
+    case 'image':
+      return '画像';
+    case 'video':
+    case 'gifv':
+      return '動画';
+    case 'audio':
+      return '音声';
+    case 'unknown':
+      return 'メディア';
+  }
+}
+
+function getPosterUrl(media: UploadedMedia): string | undefined {
+  return media.previewUrl !== media.url ? media.previewUrl : undefined;
 }
 
 export function Composer({
@@ -156,26 +214,50 @@ export function Composer({
       return;
     }
 
-    const imageFiles = files.filter((file) => file.type.startsWith('image/'));
-    if (imageFiles.length === 0) {
-      message.warning('画像ファイルのみ添付できます');
+    const supportedFiles = files
+      .map((file) => ({ file, type: getMediaTypeFromMimeType(file.type) }))
+      .filter((item): item is { file: File; type: MediaAttachmentType } => item.type !== null);
+    if (supportedFiles.length === 0) {
+      message.warning('画像・動画・音声ファイルを添付できます');
+      return;
+    }
+
+    if (supportedFiles.length < files.length) {
+      message.warning('未対応のファイルは添付しませんでした');
+    }
+
+    const hasExistingNonImage = mediaAttachments.some((media) => media.type !== 'image');
+    const includesNonImage = supportedFiles.some((item) => item.type !== 'image');
+    if (
+      (hasExistingNonImage || includesNonImage) &&
+      mediaAttachments.length + supportedFiles.length > 1
+    ) {
+      message.warning('動画・音声は1件だけ添付できます');
+      return;
+    }
+
+    if (
+      mediaAttachments.some((media) => media.type !== 'image') &&
+      supportedFiles.some((item) => item.type === 'image')
+    ) {
+      message.warning('動画・音声と画像は同時に添付できません');
       return;
     }
 
     const remainingSlots = MAX_MEDIA_ATTACHMENTS - mediaAttachments.length;
     if (remainingSlots <= 0) {
-      message.warning(`画像は最大${MAX_MEDIA_ATTACHMENTS}枚まで添付できます`);
+      message.warning(`メディアは最大${MAX_MEDIA_ATTACHMENTS}件まで添付できます`);
       return;
     }
 
-    const targetFiles = imageFiles.slice(0, remainingSlots);
-    if (imageFiles.length > targetFiles.length) {
+    const targetFiles = supportedFiles.slice(0, remainingSlots);
+    if (supportedFiles.length > targetFiles.length) {
       message.warning(`画像は最大${MAX_MEDIA_ATTACHMENTS}枚まで添付できます`);
     }
 
     setUploadingCount((count) => count + targetFiles.length);
     try {
-      for (const file of targetFiles) {
+      for (const { file } of targetFiles) {
         const data = new Uint8Array(await file.arrayBuffer());
         const uploaded = await window.api.uploadMedia({
           serverUrl: selectedAccount.serverUrl,
@@ -188,7 +270,7 @@ export function Composer({
       }
     } catch (e) {
       message.error(
-        `画像アップロードに失敗しました: ${e instanceof Error ? e.message : String(e)}`,
+        `メディアアップロードに失敗しました: ${e instanceof Error ? e.message : String(e)}`,
       );
     } finally {
       setUploadingCount((count) => count - targetFiles.length);
@@ -320,7 +402,21 @@ export function Composer({
               <MediaGrid>
                 {mediaAttachments.map((media) => (
                   <MediaThumb key={media.id}>
-                    <img src={media.previewUrl || media.url} alt="添付画像プレビュー" />
+                    {media.type === 'image' ? (
+                      <img
+                        src={media.previewUrl || media.url}
+                        alt={media.description ?? '添付画像'}
+                      />
+                    ) : media.type === 'video' || media.type === 'gifv' ? (
+                      <MediaPreviewVideo
+                        src={media.url}
+                        poster={getPosterUrl(media)}
+                        muted
+                        aria-label={media.description ?? '添付動画'}
+                      />
+                    ) : (
+                      <MediaPreviewLabel>{getMediaLabel(media.type)}</MediaPreviewLabel>
+                    )}
                     <RemoveMediaButton
                       danger
                       size="small"
@@ -341,12 +437,12 @@ export function Composer({
           <ActionColumn>
             <ActionRow>
               <Button onClick={() => fileInputRef.current?.click()} disabled={uploadingCount > 0}>
-                画像
+                メディア
               </Button>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,video/*,audio/*"
                 multiple
                 style={{ display: 'none' }}
                 onChange={(event) => {
