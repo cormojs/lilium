@@ -51,8 +51,10 @@ export async function uploadMedia(
 
   return {
     id: uploaded.id,
+    type: uploaded.type,
     previewUrl: uploaded.previewUrl ?? uploaded.url ?? '',
     url: uploaded.url ?? uploaded.previewUrl ?? '',
+    description: uploaded.description ?? null,
   };
 }
 

@@ -59,12 +59,12 @@ function convertMediaAttachments(
   mediaAttachments: mastodon.v1.MediaAttachment[],
 ): Post['mediaAttachments'] {
   return mediaAttachments
-    .filter((media) => media.url != null && media.previewUrl != null)
+    .filter((media) => media.url != null)
     .map((media) => ({
       id: media.id,
       type: media.type,
       url: media.url!,
-      previewUrl: media.previewUrl!,
+      previewUrl: media.previewUrl ?? media.url!,
       description: media.description ?? null,
     }));
 }

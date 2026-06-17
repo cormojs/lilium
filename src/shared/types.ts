@@ -165,8 +165,10 @@ export interface MediaUploadParams {
 
 export interface UploadedMedia {
   id: string;
+  type: MediaAttachmentType;
   previewUrl: string;
   url: string;
+  description: string | null;
 }
 
 /** Parameters for status actions (favourite, reblog, bookmark) */
