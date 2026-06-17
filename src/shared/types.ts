@@ -249,6 +249,7 @@ export interface PostQuote {
   state: PostQuoteState;
   quotedStatusId?: string;
   quotedUrl?: string;
+  quotedInlineContent?: string;
   quotedPost?: QuotedPost;
 }
 
