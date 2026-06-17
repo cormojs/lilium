@@ -108,7 +108,7 @@ function normalizeHttpUrl(value: string | undefined): string | undefined {
   }
 }
 
-function extractFallbackQuote(
+function extractQuoteInline(
   content: string,
 ): Pick<PostQuote, 'quotedInlineContent' | 'quotedUrl'> | undefined {
   const quoteInlineMatch = content.match(QUOTE_INLINE_HREF_REGEX);
@@ -122,6 +122,12 @@ function extractFallbackQuote(
     };
   }
 
+  return undefined;
+}
+
+function extractMisskeyFallbackQuote(
+  content: string,
+): Pick<PostQuote, 'quotedInlineContent' | 'quotedUrl'> | undefined {
   const misskeyNoteMatch = content.match(MISSKEY_NOTE_TRAILING_LINK_REGEX);
   const quotedUrl = normalizeHttpUrl(misskeyNoteMatch?.[2]);
 
@@ -137,7 +143,7 @@ function convertQuote(quote: mastodon.v1.Status['quote'], content: string): Post
     return undefined;
   }
 
-  const fallbackQuote = extractFallbackQuote(content);
+  const fallbackQuote = extractQuoteInline(content) ?? extractMisskeyFallbackQuote(content);
 
   return {
     state: quote.state,
@@ -152,7 +158,7 @@ function convertQuote(quote: mastodon.v1.Status['quote'], content: string): Post
 }
 
 function convertFallbackQuote(content: string): PostQuote | undefined {
-  const fallbackQuote = extractFallbackQuote(content);
+  const fallbackQuote = extractMisskeyFallbackQuote(content);
 
   if (!fallbackQuote) {
     return undefined;

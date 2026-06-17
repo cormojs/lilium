@@ -127,7 +127,7 @@ const DisplayName = styled.span<{ $fontSize: number }>`
   }
 `;
 
-const PostBody = styled.div<{ $fontSize: number }>`
+const PostBody = styled.div<{ $fontSize: number; $hideQuoteInline: boolean }>`
   font-size: ${(props) => props.$fontSize}px;
   line-height: 1.6;
   word-break: break-word;
@@ -171,7 +171,7 @@ const PostBody = styled.div<{ $fontSize: number }>`
   }
 
   .quote-inline {
-    display: none;
+    display: ${(props) => (props.$hideQuoteInline ? 'none' : 'block')};
   }
 `;
 
@@ -633,6 +633,7 @@ export function PostItem({
         {!shouldHideContent && (
           <PostBody
             $fontSize={settings.postFontSize}
+            $hideQuoteInline={post.quote !== undefined}
             dangerouslySetInnerHTML={{
               __html: sanitizeContent(replaceCustomEmojis(post.content, post.emojis)),
             }}

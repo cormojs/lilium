@@ -65,7 +65,7 @@ const IdentityButton = styled.button`
   }
 `;
 
-const StatusPreview = styled.div<{ $fontSize: number }>`
+const StatusPreview = styled.div<{ $fontSize: number; $hideQuoteInline: boolean }>`
   margin-top: 8px;
   padding: 8px 12px;
   border-left: 3px solid #d9d9d9;
@@ -112,7 +112,7 @@ const StatusPreview = styled.div<{ $fontSize: number }>`
   }
 
   .quote-inline {
-    display: none;
+    display: ${(props) => (props.$hideQuoteInline ? 'none' : 'block')};
   }
 `;
 
@@ -183,6 +183,7 @@ export function NotificationItem({
         {notification.status && (
           <StatusPreview
             $fontSize={settings.postFontSize - 1}
+            $hideQuoteInline={notification.status.quote !== undefined}
             dangerouslySetInnerHTML={{
               __html: sanitizeContent(
                 replaceCustomEmojis(notification.status.content, notification.status.emojis),
