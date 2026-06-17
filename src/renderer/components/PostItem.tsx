@@ -292,6 +292,15 @@ const QuotePlaceholder = styled.div`
   color: #8c8c8c;
 `;
 
+const QuotePlaceholderLink = styled.a`
+  color: #1677ff;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
 const ContentWarning = styled.button<{ $fontSize: number }>`
   display: inline-flex;
   align-items: center;
@@ -432,6 +441,33 @@ function QuoteCard({
   const quotedPost = quote.quotedPost;
 
   if (!quotedPost) {
+    if (quote.quotedInlineContent) {
+      return (
+        <QuotePreview $fontSize={fontSize}>
+          <QuoteBody
+            dangerouslySetInnerHTML={{
+              __html: sanitizeContent(quote.quotedInlineContent),
+            }}
+          />
+          {quote.quotedUrl && (
+            <QuotePlaceholder>
+              引用元の投稿: <QuotePlaceholderLink href={quote.quotedUrl}>開く</QuotePlaceholderLink>
+            </QuotePlaceholder>
+          )}
+        </QuotePreview>
+      );
+    }
+
+    if (quote.quotedUrl) {
+      return (
+        <QuotePreview $fontSize={fontSize}>
+          <QuotePlaceholder>
+            引用元の投稿: <QuotePlaceholderLink href={quote.quotedUrl}>開く</QuotePlaceholderLink>
+          </QuotePlaceholder>
+        </QuotePreview>
+      );
+    }
+
     return (
       <QuotePreview $fontSize={fontSize}>
         <QuotePlaceholder>{quoteStateLabel(quote.state)}</QuotePlaceholder>

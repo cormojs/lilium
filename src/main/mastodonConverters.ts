@@ -10,6 +10,12 @@ import type {
 } from '../shared/types.ts';
 
 const NOTIFICATION_TYPES = ['follow', 'follow_request', 'favourite', 'reblog'] as const;
+const QUOTE_INLINE_HREF_REGEX =
+  /<p\b(?=[^>]*\bclass=(["'])[^"']*\bquote-inline\b[^"']*\1)[^>]*>[\s\S]*?<a\b[^>]*\bhref=(["'])(https?:\/\/[^"']+)\2/i;
+const QUOTE_INLINE_CONTENT_REGEX =
+  /<p\b(?=[^>]*\bclass=(["'])[^"']*\bquote-inline\b[^"']*\1)[^>]*>([\s\S]*?)<\/p>/i;
+const MISSKEY_NOTE_TRAILING_LINK_REGEX =
+  /<a\b[^>]*\bhref=(["'])(https?:\/\/[^"']+\/notes\/[A-Za-z0-9_-]+(?:[?#][^"']*)?)\1[^>]*>[\s\S]*?<\/a>\s*(?:<\/p>\s*)?$/i;
 
 export function isSupportedNotificationType(
   type: string,
@@ -68,18 +74,77 @@ function convertQuotedStatus(status: mastodon.v1.Status): QuotedPost {
   };
 }
 
-function convertQuote(quote: mastodon.v1.Status['quote']): PostQuote | undefined {
+function normalizeHttpUrl(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  try {
+    const url = new URL(value);
+
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      return undefined;
+    }
+
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+function extractFallbackQuote(
+  content: string,
+): Pick<PostQuote, 'quotedInlineContent' | 'quotedUrl'> | undefined {
+  const quoteInlineMatch = content.match(QUOTE_INLINE_HREF_REGEX);
+  const quoteInlineUrl = normalizeHttpUrl(quoteInlineMatch?.[3]);
+  const quoteInlineContent = content.match(QUOTE_INLINE_CONTENT_REGEX)?.[2]?.trim();
+
+  if (quoteInlineUrl) {
+    return {
+      quotedUrl: quoteInlineUrl,
+      quotedInlineContent: quoteInlineContent || undefined,
+    };
+  }
+
+  const misskeyNoteMatch = content.match(MISSKEY_NOTE_TRAILING_LINK_REGEX);
+  const quotedUrl = normalizeHttpUrl(misskeyNoteMatch?.[2]);
+
+  if (!quotedUrl) {
+    return undefined;
+  }
+
+  return { quotedUrl };
+}
+
+function convertQuote(quote: mastodon.v1.Status['quote'], content: string): PostQuote | undefined {
   if (!quote) {
     return undefined;
   }
 
+  const fallbackQuote = extractFallbackQuote(content);
+
   return {
     state: quote.state,
     quotedStatusId: 'quotedStatusId' in quote ? (quote.quotedStatusId ?? undefined) : undefined,
+    quotedUrl: fallbackQuote?.quotedUrl,
+    quotedInlineContent: fallbackQuote?.quotedInlineContent,
     quotedPost:
       'quotedStatus' in quote && quote.quotedStatus
         ? convertQuotedStatus(quote.quotedStatus)
         : undefined,
+  };
+}
+
+function convertFallbackQuote(content: string): PostQuote | undefined {
+  const fallbackQuote = extractFallbackQuote(content);
+
+  if (!fallbackQuote) {
+    return undefined;
+  }
+
+  return {
+    state: 'accepted',
+    ...fallbackQuote,
   };
 }
 
@@ -135,7 +200,7 @@ export function convertStatus(status: mastodon.v1.Status): Post {
     reblogged: status.reblogged ?? false,
     bookmarked: status.bookmarked ?? false,
     rebloggedBy,
-    quote: convertQuote(original.quote),
+    quote: convertQuote(original.quote, original.content) ?? convertFallbackQuote(original.content),
   };
 }
 
