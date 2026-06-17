@@ -516,7 +516,7 @@ function TimelineTabContent({
         }
         const profile = await window.api.fetchAccountProfile({
           serverUrl: account.serverUrl,
-          accessToken: account.accessToken,
+          username: account.username,
           accountId: tab.targetAccountId,
         });
         setAccountProfile(profile);
@@ -525,7 +525,7 @@ function TimelineTabContent({
       }
       const result = await window.api.fetchTimeline({
         serverUrl: account.serverUrl,
-        accessToken: account.accessToken,
+        username: account.username,
         type: tab.timelineType,
         accountId: tab.targetAccountId,
       });
@@ -554,12 +554,12 @@ function TimelineTabContent({
         accountProfile.following || accountProfile.requested
           ? await window.api.unfollowAccount({
               serverUrl: account.serverUrl,
-              accessToken: account.accessToken,
+              username: account.username,
               accountId: tab.targetAccountId,
             })
           : await window.api.followAccount({
               serverUrl: account.serverUrl,
-              accessToken: account.accessToken,
+              username: account.username,
               accountId: tab.targetAccountId,
             });
 
@@ -601,7 +601,7 @@ function TimelineTabContent({
     try {
       const result = await window.api.fetchTimeline({
         serverUrl: account.serverUrl,
-        accessToken: account.accessToken,
+        username: account.username,
         type: tab.timelineType,
         accountId: tab.targetAccountId,
         maxId: lastPost.id,
@@ -647,7 +647,7 @@ function TimelineTabContent({
     const subscriptionId = `timeline-${tab.id}`;
     window.api.subscribeStream({
       serverUrl: account.serverUrl,
-      accessToken: account.accessToken,
+      username: account.username,
       streamType,
       subscriptionId,
     });
@@ -700,7 +700,7 @@ function TimelineTabContent({
             key={post.id}
             post={post}
             serverUrl={account.serverUrl}
-            accessToken={account.accessToken}
+            username={account.username}
             onReply={(targetPost) => onReply(tab, targetPost)}
             onQuote={(targetPost) => onQuote(tab, targetPost)}
             onOpenAccountTimeline={(targetAccount) => onOpenAccountTimeline(tab, targetAccount)}
@@ -758,7 +758,7 @@ function NotificationTabContent({
     try {
       const result = await window.api.fetchNotifications({
         serverUrl: account.serverUrl,
-        accessToken: account.accessToken,
+        username: account.username,
       });
       setNotifications(result);
     } catch (e) {
@@ -779,7 +779,7 @@ function NotificationTabContent({
     try {
       const result = await window.api.fetchNotifications({
         serverUrl: account.serverUrl,
-        accessToken: account.accessToken,
+        username: account.username,
         maxId: lastNotification.id,
       });
       if (result.length > 0) {
@@ -821,7 +821,7 @@ function NotificationTabContent({
     const subscriptionId = `notifications-${tab.id}`;
     window.api.subscribeStream({
       serverUrl: account.serverUrl,
-      accessToken: account.accessToken,
+      username: account.username,
       streamType: 'user',
       subscriptionId,
     });

@@ -19,7 +19,7 @@ import { replaceCustomEmojis } from './customEmojis.ts';
 interface PostItemProps {
   post: Post;
   serverUrl: string;
-  accessToken: string;
+  username: string;
   onReply?: (post: Post) => void;
   onQuote?: (post: Post) => void;
   onOpenAccountTimeline?: (account: Post['account']) => void;
@@ -506,7 +506,7 @@ function QuoteCard({
 export function PostItem({
   post,
   serverUrl,
-  accessToken,
+  username,
   onReply,
   onQuote,
   onOpenAccountTimeline,
@@ -519,7 +519,7 @@ export function PostItem({
   const hasContentWarning = post.spoilerText.trim().length > 0;
   const [expanded, setExpanded] = useState(!hasContentWarning && !post.sensitive);
 
-  const actionParams = { serverUrl, accessToken, statusId: post.id };
+  const actionParams = { serverUrl, username, statusId: post.id };
   const reblogDisabled = post.visibility === 'private' || post.visibility === 'direct';
 
   const handleFavourite = async (): Promise<void> => {

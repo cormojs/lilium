@@ -7,7 +7,6 @@ export type PostVisibility = 'public' | 'unlisted' | 'private' | 'direct';
 
 export interface Account {
   serverUrl: string;
-  accessToken: string;
   username: string;
   displayName: string;
   avatarUrl: string;
@@ -107,7 +106,7 @@ export interface CustomEmoji {
  */
 export interface FetchCustomEmojisParams {
   serverUrl: string;
-  accessToken: string;
+  username: string;
 }
 
 /**
@@ -130,7 +129,7 @@ export interface TabConnectionStatusEvent {
  */
 export interface SavedAccount {
   serverUrl: string;
-  accessToken: string;
+  username: string;
 }
 
 /**
@@ -138,7 +137,6 @@ export interface SavedAccount {
  */
 export interface LoginResult {
   serverUrl: string;
-  accessToken: string;
   username: string;
   avatarUrl: string;
 }
@@ -147,8 +145,8 @@ export interface LoginResult {
  * Parameters for creating a new status
  */
 export interface StatusCreateParams {
+  username: string;
   serverUrl: string;
-  accessToken: string;
   status: string;
   spoilerText?: string;
   visibility: PostVisibility;
@@ -158,8 +156,8 @@ export interface StatusCreateParams {
 }
 
 export interface MediaUploadParams {
+  username: string;
   serverUrl: string;
-  accessToken: string;
   fileName: string;
   mimeType: string;
   data: Uint8Array;
@@ -173,8 +171,8 @@ export interface UploadedMedia {
 
 /** Parameters for status actions (favourite, reblog, bookmark) */
 export interface StatusActionParams {
+  username: string;
   serverUrl: string;
-  accessToken: string;
   statusId: string;
 }
 
@@ -285,8 +283,8 @@ export interface Post {
 
 /** Parameters for fetching a timeline */
 export interface TimelineFetchParams {
+  username: string;
   serverUrl: string;
-  accessToken: string;
   type: TimelineType;
   accountId?: string;
   maxId?: string;
@@ -322,14 +320,14 @@ export interface AccountRelationshipSummary {
 }
 
 export interface AccountProfileFetchParams {
+  username: string;
   serverUrl: string;
-  accessToken: string;
   accountId: string;
 }
 
 export interface AccountRelationshipParams {
+  username: string;
   serverUrl: string;
-  accessToken: string;
   accountId: string;
 }
 
@@ -347,8 +345,8 @@ export interface PaneLayout {
 export type StreamType = 'user' | 'public' | 'publicLocal';
 
 export interface StreamSubscribeParams {
+  username: string;
   serverUrl: string;
-  accessToken: string;
   streamType: StreamType;
   subscriptionId: string;
 }
@@ -376,8 +374,8 @@ export interface MastoNotification {
 }
 
 export interface NotificationFetchParams {
+  username: string;
   serverUrl: string;
-  accessToken: string;
   maxId?: string;
 }
 

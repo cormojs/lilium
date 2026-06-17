@@ -1,23 +1,29 @@
 import { app } from 'electron';
 import path from 'node:path';
-import fs from 'node:fs';
+import { z } from 'zod';
 import type { PaneLayout } from '../shared/types.ts';
+import { readJsonFile, writeJsonFile } from './jsonStorage.ts';
 
 /** File where pane layout data is stored */
 function getPaneLayoutFilePath(): string {
   return path.join(app.getPath('userData'), 'pane-layout.json');
 }
 
+const paneDefinitionSchema = z.object({
+  id: z.string(),
+  tabIds: z.array(z.string()),
+  activeTabId: z.string(),
+  widthRatio: z.number().finite().positive(),
+});
+
+const paneLayoutSchema: z.ZodType<PaneLayout> = z.object({
+  panes: z.array(paneDefinitionSchema),
+});
+
 export function loadPaneLayout(): PaneLayout | null {
-  const filePath = getPaneLayoutFilePath();
-  if (!fs.existsSync(filePath)) {
-    return null;
-  }
-  const data = fs.readFileSync(filePath, 'utf-8');
-  return JSON.parse(data) as PaneLayout;
+  return readJsonFile(getPaneLayoutFilePath(), paneLayoutSchema.nullable(), null);
 }
 
 export function savePaneLayout(layout: PaneLayout): void {
-  const filePath = getPaneLayoutFilePath();
-  fs.writeFileSync(filePath, JSON.stringify(layout, null, 2), 'utf-8');
+  writeJsonFile(getPaneLayoutFilePath(), layout);
 }

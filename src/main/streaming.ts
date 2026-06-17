@@ -30,6 +30,7 @@ interface PollingCursor {
 
 interface ActiveSubscription {
   params: StreamSubscribeParams;
+  accessToken: string;
   webContents: WebContents;
   abortController: AbortController;
   streaming?: StreamingHandles;
@@ -135,7 +136,7 @@ async function pollUserStream(active: ActiveSubscription): Promise<void> {
   if (!active.pollingClient) {
     active.pollingClient = createRestAPIClient({
       url: active.params.serverUrl,
-      accessToken: active.params.accessToken,
+      accessToken: active.accessToken,
     });
   }
 
@@ -190,7 +191,7 @@ async function pollPublicStream(active: ActiveSubscription, local = false): Prom
   if (!active.pollingClient) {
     active.pollingClient = createRestAPIClient({
       url: active.params.serverUrl,
-      accessToken: active.params.accessToken,
+      accessToken: active.accessToken,
     });
   }
 
@@ -272,17 +273,14 @@ async function startStreaming(active: ActiveSubscription): Promise<void> {
   }
 
   try {
-    const streamingApiUrl = await getStreamingApiUrl(
-      active.params.serverUrl,
-      active.params.accessToken,
-    );
+    const streamingApiUrl = await getStreamingApiUrl(active.params.serverUrl, active.accessToken);
     if (!isActive(active)) {
       return;
     }
 
     const streamingClient = createStreamingAPIClient({
       streamingApiUrl,
-      accessToken: active.params.accessToken,
+      accessToken: active.accessToken,
       retry: true,
     });
 
@@ -345,6 +343,7 @@ async function startStreaming(active: ActiveSubscription): Promise<void> {
 
 export async function subscribeStream(
   params: StreamSubscribeParams,
+  accessToken: string,
   webContents: WebContents,
 ): Promise<void> {
   if (activeSubscriptions.has(params.subscriptionId)) {
@@ -353,6 +352,7 @@ export async function subscribeStream(
 
   const active: ActiveSubscription = {
     params,
+    accessToken,
     webContents,
     abortController: new AbortController(),
     cursor: {},

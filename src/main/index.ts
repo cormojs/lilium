@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, nativeImage, Notification, shell } from 'e
 import path from 'node:path';
 import { IpcChannels } from '../shared/ipc.ts';
 import type {
+  Account,
   AppSettings,
   AccountProfileFetchParams,
   AccountRelationshipParams,
@@ -17,7 +18,7 @@ import type {
   TimelineFetchParams,
 } from '../shared/types.ts';
 import { startLogin, exchangeToken } from './oauth.ts';
-import { listAccounts, addAccount, removeAccount } from './accounts.ts';
+import { listAccounts, addAccount, removeAccount, getAccountCredentials } from './accounts.ts';
 import {
   fetchAccountProfile,
   fetchAccountRelationship,
@@ -50,6 +51,20 @@ function isHttpUrl(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+function toPublicAccount(account: {
+  serverUrl: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string;
+}): Account {
+  return {
+    serverUrl: account.serverUrl,
+    username: account.username,
+    displayName: account.displayName,
+    avatarUrl: account.avatarUrl,
+  };
 }
 
 function createWindow(): void {
@@ -111,7 +126,7 @@ function registerIpcHandlers(): void {
         params.code,
       );
       addAccount(account);
-      return account;
+      return toPublicAccount(account);
     },
   );
 
@@ -127,10 +142,11 @@ function registerIpcHandlers(): void {
   );
 
   ipcMain.handle(IpcChannels.TimelineFetch, async (_event, params: TimelineFetchParams) => {
+    const account = getAccountCredentials(params.serverUrl, params.username);
     return rateLimitedCall(() =>
       fetchTimeline(
-        params.serverUrl,
-        params.accessToken,
+        account.serverUrl,
+        account.accessToken,
         params.type,
         params.accountId,
         params.maxId,
@@ -141,8 +157,9 @@ function registerIpcHandlers(): void {
   ipcMain.handle(
     IpcChannels.AccountProfileFetch,
     async (_event, params: AccountProfileFetchParams) => {
+      const account = getAccountCredentials(params.serverUrl, params.username);
       return rateLimitedCall(() =>
-        fetchAccountProfile(params.serverUrl, params.accessToken, params.accountId),
+        fetchAccountProfile(account.serverUrl, account.accessToken, params.accountId),
       );
     },
   );
@@ -150,29 +167,33 @@ function registerIpcHandlers(): void {
   ipcMain.handle(
     IpcChannels.AccountRelationshipFetch,
     async (_event, params: AccountRelationshipParams) => {
+      const account = getAccountCredentials(params.serverUrl, params.username);
       return rateLimitedCall(() =>
-        fetchAccountRelationship(params.serverUrl, params.accessToken, params.accountId),
+        fetchAccountRelationship(account.serverUrl, account.accessToken, params.accountId),
       );
     },
   );
 
   ipcMain.handle(IpcChannels.AccountFollow, async (_event, params: AccountRelationshipParams) => {
+    const account = getAccountCredentials(params.serverUrl, params.username);
     return rateLimitedCall(() =>
-      followAccount(params.serverUrl, params.accessToken, params.accountId),
+      followAccount(account.serverUrl, account.accessToken, params.accountId),
     );
   });
 
   ipcMain.handle(IpcChannels.AccountUnfollow, async (_event, params: AccountRelationshipParams) => {
+    const account = getAccountCredentials(params.serverUrl, params.username);
     return rateLimitedCall(() =>
-      unfollowAccount(params.serverUrl, params.accessToken, params.accountId),
+      unfollowAccount(account.serverUrl, account.accessToken, params.accountId),
     );
   });
 
   ipcMain.handle(
     IpcChannels.NotificationsFetch,
     async (_event, params: NotificationFetchParams) => {
+      const account = getAccountCredentials(params.serverUrl, params.username);
       return rateLimitedCall(() =>
-        fetchNotifications(params.serverUrl, params.accessToken, params.maxId),
+        fetchNotifications(account.serverUrl, account.accessToken, params.maxId),
       );
     },
   );
@@ -186,10 +207,11 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IpcChannels.StatusesCreate, async (_event, params: StatusCreateParams) => {
+    const account = getAccountCredentials(params.serverUrl, params.username);
     await rateLimitedCall(() =>
       createStatus(
-        params.serverUrl,
-        params.accessToken,
+        account.serverUrl,
+        account.accessToken,
         params.status,
         params.spoilerText,
         params.visibility,
@@ -201,10 +223,11 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IpcChannels.MediaUpload, async (_event, params: MediaUploadParams) => {
+    const account = getAccountCredentials(params.serverUrl, params.username);
     return rateLimitedCall(() =>
       uploadMedia(
-        params.serverUrl,
-        params.accessToken,
+        account.serverUrl,
+        account.accessToken,
         params.fileName,
         params.mimeType,
         params.data,
@@ -213,43 +236,50 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IpcChannels.StatusFavourite, async (_event, params: StatusActionParams) => {
+    const account = getAccountCredentials(params.serverUrl, params.username);
     await rateLimitedCall(() =>
-      favouriteStatus(params.serverUrl, params.accessToken, params.statusId),
+      favouriteStatus(account.serverUrl, account.accessToken, params.statusId),
     );
   });
 
   ipcMain.handle(IpcChannels.StatusUnfavourite, async (_event, params: StatusActionParams) => {
+    const account = getAccountCredentials(params.serverUrl, params.username);
     await rateLimitedCall(() =>
-      unfavouriteStatus(params.serverUrl, params.accessToken, params.statusId),
+      unfavouriteStatus(account.serverUrl, account.accessToken, params.statusId),
     );
   });
 
   ipcMain.handle(IpcChannels.StatusReblog, async (_event, params: StatusActionParams) => {
+    const account = getAccountCredentials(params.serverUrl, params.username);
     await rateLimitedCall(() =>
-      reblogStatus(params.serverUrl, params.accessToken, params.statusId),
+      reblogStatus(account.serverUrl, account.accessToken, params.statusId),
     );
   });
 
   ipcMain.handle(IpcChannels.StatusUnreblog, async (_event, params: StatusActionParams) => {
+    const account = getAccountCredentials(params.serverUrl, params.username);
     await rateLimitedCall(() =>
-      unreblogStatus(params.serverUrl, params.accessToken, params.statusId),
+      unreblogStatus(account.serverUrl, account.accessToken, params.statusId),
     );
   });
 
   ipcMain.handle(IpcChannels.StatusBookmark, async (_event, params: StatusActionParams) => {
+    const account = getAccountCredentials(params.serverUrl, params.username);
     await rateLimitedCall(() =>
-      bookmarkStatus(params.serverUrl, params.accessToken, params.statusId),
+      bookmarkStatus(account.serverUrl, account.accessToken, params.statusId),
     );
   });
 
   ipcMain.handle(IpcChannels.StatusUnbookmark, async (_event, params: StatusActionParams) => {
+    const account = getAccountCredentials(params.serverUrl, params.username);
     await rateLimitedCall(() =>
-      unbookmarkStatus(params.serverUrl, params.accessToken, params.statusId),
+      unbookmarkStatus(account.serverUrl, account.accessToken, params.statusId),
     );
   });
 
   ipcMain.handle(IpcChannels.StreamSubscribe, async (event, params: StreamSubscribeParams) => {
-    await subscribeStream(params, event.sender);
+    const account = getAccountCredentials(params.serverUrl, params.username);
+    await subscribeStream(params, account.accessToken, event.sender);
   });
 
   ipcMain.handle(IpcChannels.StreamUnsubscribe, async (_event, subscriptionId: string) => {

@@ -1,6 +1,7 @@
 import { app, type BrowserWindow, type BrowserWindowConstructorOptions } from 'electron';
-import fs from 'node:fs';
 import path from 'node:path';
+import { z } from 'zod';
+import { readJsonFile, writeJsonFile } from './jsonStorage.ts';
 
 const DEFAULT_WINDOW_SIZE = {
   width: 900,
@@ -19,51 +20,16 @@ function getWindowStateFilePath(): string {
   return path.join(app.getPath('userData'), 'window-state.json');
 }
 
-function isNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
-
-function isValidWindowState(value: unknown): value is WindowState {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-
-  const candidate = value as Partial<WindowState>;
-  if (!isNumber(candidate.width) || !isNumber(candidate.height)) {
-    return false;
-  }
-
-  if (candidate.width <= 0 || candidate.height <= 0) {
-    return false;
-  }
-
-  if (candidate.x !== undefined && !isNumber(candidate.x)) {
-    return false;
-  }
-
-  if (candidate.y !== undefined && !isNumber(candidate.y)) {
-    return false;
-  }
-
-  return typeof candidate.isMaximized === 'boolean';
-}
+const windowStateSchema: z.ZodType<WindowState> = z.object({
+  width: z.number().finite().positive(),
+  height: z.number().finite().positive(),
+  x: z.number().finite().optional(),
+  y: z.number().finite().optional(),
+  isMaximized: z.boolean(),
+});
 
 function readWindowState(): WindowState | null {
-  const filePath = getWindowStateFilePath();
-  if (!fs.existsSync(filePath)) {
-    return null;
-  }
-
-  try {
-    const content = fs.readFileSync(filePath, 'utf-8');
-    const parsed = JSON.parse(content) as unknown;
-    if (!isValidWindowState(parsed)) {
-      return null;
-    }
-    return parsed;
-  } catch {
-    return null;
-  }
+  return readJsonFile(getWindowStateFilePath(), windowStateSchema.nullable(), null);
 }
 
 export function createMainWindowOptions(): BrowserWindowConstructorOptions {
@@ -86,7 +52,6 @@ export function restoreMaximizeState(mainWindow: BrowserWindow): void {
 }
 
 export function saveWindowState(mainWindow: BrowserWindow): void {
-  const filePath = getWindowStateFilePath();
   const isMaximized = mainWindow.isMaximized();
   const bounds = isMaximized ? mainWindow.getNormalBounds() : mainWindow.getBounds();
 
@@ -98,5 +63,5 @@ export function saveWindowState(mainWindow: BrowserWindow): void {
     isMaximized,
   };
 
-  fs.writeFileSync(filePath, JSON.stringify(state, null, 2), 'utf-8');
+  writeJsonFile(getWindowStateFilePath(), state);
 }

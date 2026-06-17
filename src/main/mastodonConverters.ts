@@ -3,13 +3,13 @@ import type {
   AccountProfile,
   AccountProfileField,
   MastoNotification,
+  NotificationType,
   Post,
   PostQuote,
   PostVisibility,
   QuotedPost,
 } from '../shared/types.ts';
 
-const NOTIFICATION_TYPES = ['follow', 'follow_request', 'favourite', 'reblog'] as const;
 const QUOTE_INLINE_HREF_REGEX =
   /<p\b(?=[^>]*\bclass=(["'])[^"']*\bquote-inline\b[^"']*\1)[^>]*>[\s\S]*?<a\b[^>]*\bhref=(["'])(https?:\/\/[^"']+)\2/i;
 const QUOTE_INLINE_CONTENT_REGEX =
@@ -17,10 +17,26 @@ const QUOTE_INLINE_CONTENT_REGEX =
 const MISSKEY_NOTE_TRAILING_LINK_REGEX =
   /<a\b[^>]*\bhref=(["'])(https?:\/\/[^"']+\/notes\/[A-Za-z0-9_-]+(?:[?#][^"']*)?)\1[^>]*>[\s\S]*?<\/a>\s*(?:<\/p>\s*)?$/i;
 
-export function isSupportedNotificationType(
-  type: string,
-): type is (typeof NOTIFICATION_TYPES)[number] {
-  return NOTIFICATION_TYPES.includes(type as (typeof NOTIFICATION_TYPES)[number]);
+export function isSupportedNotificationType(type: string): type is NotificationType {
+  switch (type) {
+    case 'follow':
+    case 'follow_request':
+    case 'favourite':
+    case 'reblog':
+      return true;
+    default:
+      return false;
+  }
+}
+
+function toPostVisibility(visibility: mastodon.v1.Status['visibility']): PostVisibility {
+  switch (visibility) {
+    case 'public':
+    case 'unlisted':
+    case 'private':
+    case 'direct':
+      return visibility;
+  }
 }
 
 function convertEmojis(emojis: mastodon.v1.CustomEmoji[]): Post['emojis'] {
@@ -61,7 +77,7 @@ function convertQuotedStatus(status: mastodon.v1.Status): QuotedPost {
     spoilerText: status.spoilerText,
     sensitive: status.sensitive,
     url: status.url ?? null,
-    visibility: status.visibility as PostVisibility,
+    visibility: toPostVisibility(status.visibility),
     account: {
       id: status.account.id,
       acct: status.account.acct,
@@ -186,7 +202,7 @@ export function convertStatus(status: mastodon.v1.Status): Post {
     spoilerText: original.spoilerText,
     sensitive: original.sensitive,
     url: original.url ?? null,
-    visibility: original.visibility as PostVisibility,
+    visibility: toPostVisibility(original.visibility),
     account: {
       id: original.account.id,
       acct: original.account.acct,

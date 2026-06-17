@@ -1,7 +1,8 @@
 import { app, safeStorage } from 'electron';
 import path from 'node:path';
-import fs from 'node:fs';
+import { z } from 'zod';
 import type { Account } from '../shared/types.ts';
+import { readJsonFile, writeJsonFile } from './jsonStorage.ts';
 
 /** File where encrypted account data is stored */
 function getAccountsFilePath(): string {
@@ -17,6 +18,20 @@ interface StoredAccount {
   displayName: string;
   avatarUrl: string;
 }
+
+export interface AccountCredentials extends Account {
+  accessToken: string;
+}
+
+const storedAccountSchema: z.ZodType<StoredAccount> = z.object({
+  serverUrl: z.string(),
+  encryptedToken: z.string(),
+  username: z.string(),
+  displayName: z.string(),
+  avatarUrl: z.string(),
+});
+
+const storedAccountListSchema = z.array(storedAccountSchema);
 
 function encryptToken(token: string): string {
   if (safeStorage.isEncryptionAvailable()) {
@@ -35,30 +50,39 @@ function decryptToken(encrypted: string): string {
 }
 
 function readStoredAccounts(): StoredAccount[] {
-  const filePath = getAccountsFilePath();
-  if (!fs.existsSync(filePath)) {
-    return [];
-  }
-  const data = fs.readFileSync(filePath, 'utf-8');
-  return JSON.parse(data) as StoredAccount[];
+  return readJsonFile(getAccountsFilePath(), storedAccountListSchema, []);
 }
 
 function writeStoredAccounts(accounts: StoredAccount[]): void {
-  const filePath = getAccountsFilePath();
-  fs.writeFileSync(filePath, JSON.stringify(accounts, null, 2), 'utf-8');
+  writeJsonFile(getAccountsFilePath(), accounts);
 }
 
 export function listAccounts(): Account[] {
   return readStoredAccounts().map((stored) => ({
     serverUrl: stored.serverUrl,
-    accessToken: decryptToken(stored.encryptedToken),
     username: stored.username,
     displayName: stored.displayName,
     avatarUrl: stored.avatarUrl,
   }));
 }
 
-export function addAccount(account: Account): void {
+export function getAccountCredentials(serverUrl: string, username: string): AccountCredentials {
+  const stored = readStoredAccounts().find(
+    (account) => account.serverUrl === serverUrl && account.username === username,
+  );
+  if (!stored) {
+    throw new Error('指定されたアカウントが見つかりません');
+  }
+  return {
+    serverUrl: stored.serverUrl,
+    accessToken: decryptToken(stored.encryptedToken),
+    username: stored.username,
+    displayName: stored.displayName,
+    avatarUrl: stored.avatarUrl,
+  };
+}
+
+export function addAccount(account: AccountCredentials): void {
   const stored = readStoredAccounts();
   // Replace existing account for same server+username
   const idx = stored.findIndex(
