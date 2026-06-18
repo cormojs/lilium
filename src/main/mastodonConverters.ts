@@ -1,3 +1,5 @@
+import log from 'electron-log/main';
+import { DomUtils, parseDocument } from 'htmlparser2';
 import type { mastodon } from 'masto';
 import type {
   AccountProfile,
@@ -10,10 +12,6 @@ import type {
   QuotedPost,
 } from '../shared/types.ts';
 
-const QUOTE_INLINE_HREF_REGEX =
-  /<p\b(?=[^>]*\bclass=(["'])[^"']*\bquote-inline\b[^"']*\1)[^>]*>[\s\S]*?<a\b[^>]*\bhref=(["'])(https?:\/\/[^"']+)\2/i;
-const QUOTE_INLINE_CONTENT_REGEX =
-  /<p\b(?=[^>]*\bclass=(["'])[^"']*\bquote-inline\b[^"']*\1)[^>]*>([\s\S]*?)<\/p>/i;
 const MISSKEY_NOTE_TRAILING_LINK_REGEX =
   /<a\b[^>]*\bhref=(["'])(https?:\/\/[^"']+\/notes\/[A-Za-z0-9_-]+(?:[?#][^"']*)?)\1[^>]*>[\s\S]*?<\/a>\s*(?:<\/p>\s*)?$/i;
 
@@ -108,18 +106,44 @@ function normalizeHttpUrl(value: string | undefined): string | undefined {
   }
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function extractFallbackQuote(
   content: string,
 ): Pick<PostQuote, 'quotedInlineContent' | 'quotedUrl'> | undefined {
-  const quoteInlineMatch = content.match(QUOTE_INLINE_HREF_REGEX);
-  const quoteInlineUrl = normalizeHttpUrl(quoteInlineMatch?.[3]);
-  const quoteInlineContent = content.match(QUOTE_INLINE_CONTENT_REGEX)?.[2]?.trim();
+  const document = parseDocument(content);
+  const quoteInlineElement = DomUtils.findOne(
+    (element) => element.attribs['class']?.split(/\s+/).includes('quote-inline') ?? false,
+    document,
+  );
 
-  if (quoteInlineUrl) {
-    return {
-      quotedUrl: quoteInlineUrl,
-      quotedInlineContent: quoteInlineContent || undefined,
-    };
+  if (quoteInlineElement) {
+    const quoteInlineLink = DomUtils.findOne(
+      (element) => element.name === 'a' && normalizeHttpUrl(element.attribs['href']) !== undefined,
+      quoteInlineElement,
+    );
+    const quoteInlineUrl = normalizeHttpUrl(quoteInlineLink?.attribs['href']);
+    const quoteInlineContent = DomUtils.getInnerHTML(quoteInlineElement).trim();
+
+    log.info('[mastodonConverters] Parsed quote-inline element', {
+      tagName: quoteInlineElement.name,
+      quoteInlineUrl,
+      quoteInlineContent,
+    });
+
+    if (quoteInlineUrl) {
+      return {
+        quotedUrl: quoteInlineUrl,
+        quotedInlineContent: quoteInlineContent || undefined,
+      };
+    }
   }
 
   const misskeyNoteMatch = content.match(MISSKEY_NOTE_TRAILING_LINK_REGEX);
@@ -132,6 +156,35 @@ function extractFallbackQuote(
   return { quotedUrl };
 }
 
+function getQuotedStatusUrl(quote: NonNullable<mastodon.v1.Status['quote']>): string | undefined {
+  if (!('quotedStatus' in quote) || !quote.quotedStatus) {
+    return undefined;
+  }
+
+  return normalizeHttpUrl(quote.quotedStatus.url ?? undefined);
+}
+
+function appendMissingQuoteInline(content: string, quote: mastodon.v1.Status['quote']): string {
+  if (!quote) {
+    return content;
+  }
+
+  const fallbackQuote = extractFallbackQuote(content);
+
+  if (fallbackQuote?.quotedInlineContent) {
+    return content;
+  }
+
+  const quotedUrl = getQuotedStatusUrl(quote);
+
+  if (!quotedUrl) {
+    return content;
+  }
+
+  const escapedQuotedUrl = escapeHtml(quotedUrl);
+  return `${content}<p class="quote-inline">RE: <a href="${escapedQuotedUrl}">${escapedQuotedUrl}</a></p>`;
+}
+
 function convertQuote(quote: mastodon.v1.Status['quote'], content: string): PostQuote | undefined {
   if (!quote) {
     return undefined;
@@ -142,7 +195,7 @@ function convertQuote(quote: mastodon.v1.Status['quote'], content: string): Post
   return {
     state: quote.state,
     quotedStatusId: 'quotedStatusId' in quote ? (quote.quotedStatusId ?? undefined) : undefined,
-    quotedUrl: fallbackQuote?.quotedUrl,
+    quotedUrl: getQuotedStatusUrl(quote) ?? fallbackQuote?.quotedUrl,
     quotedInlineContent: fallbackQuote?.quotedInlineContent,
     quotedPost:
       'quotedStatus' in quote && quote.quotedStatus
@@ -186,6 +239,7 @@ export function convertAccount(account: mastodon.v1.Account): AccountProfile {
 
 export function convertStatus(status: mastodon.v1.Status): Post {
   const original = status.reblog ?? status;
+  const content = appendMissingQuoteInline(original.content, original.quote);
   const rebloggedBy = status.reblog
     ? {
         id: status.account.id,
@@ -197,7 +251,7 @@ export function convertStatus(status: mastodon.v1.Status): Post {
 
   return {
     id: status.id,
-    content: original.content,
+    content,
     createdAt: original.createdAt,
     spoilerText: original.spoilerText,
     sensitive: original.sensitive,
@@ -216,7 +270,7 @@ export function convertStatus(status: mastodon.v1.Status): Post {
     reblogged: status.reblogged ?? false,
     bookmarked: status.bookmarked ?? false,
     rebloggedBy,
-    quote: convertQuote(original.quote, original.content) ?? convertFallbackQuote(original.content),
+    quote: convertQuote(original.quote, content) ?? convertFallbackQuote(content),
   };
 }
 

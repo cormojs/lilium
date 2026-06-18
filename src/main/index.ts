@@ -103,6 +103,12 @@ function createWindow(): void {
       shell.openExternal(url);
     }
   });
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.key === 'F12') {
+      event.preventDefault();
+      mainWindow.webContents.toggleDevTools();
+    }
+  });
 
   if (process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);
