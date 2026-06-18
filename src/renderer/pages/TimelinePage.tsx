@@ -1290,8 +1290,9 @@ export function TimelinePage({
         const toIndex = direction === 'left' ? fromIndex - 1 : fromIndex + 1;
         if (toIndex < 0 || toIndex >= prevPanes.length) return prevPanes;
 
-        const fromPane = prevPanes[fromIndex]!;
-        const toPane = prevPanes[toIndex]!;
+        const fromPane = prevPanes[fromIndex];
+        const toPane = prevPanes[toIndex];
+        if (!fromPane || !toPane) return prevPanes;
 
         const newFromTabIds = fromPane.tabIds.filter((id) => id !== tabId);
         const newFromActiveTabId =

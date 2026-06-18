@@ -35,8 +35,13 @@ function release(): void {
 }
 
 function processQueue(): void {
-  while (waitQueue.length > 0 && tryAcquire()) {
-    const resolve = waitQueue.shift()!;
+  while (waitQueue.length > 0) {
+    const resolve = waitQueue[0];
+    if (!resolve || !tryAcquire()) {
+      return;
+    }
+
+    waitQueue.shift();
     resolve();
   }
 }

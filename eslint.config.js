@@ -8,7 +8,7 @@ import globals from 'globals';
 
 export default [
   js.configs.recommended,
-  ...tseslint.configs.recommended,
+  ...tseslint.configs.strict,
   {
     ...reactPlugin.configs.flat.recommended,
     languageOptions: {

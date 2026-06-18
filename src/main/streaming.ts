@@ -139,16 +139,17 @@ async function pollUserStream(active: ActiveSubscription): Promise<void> {
       accessToken: active.accessToken,
     });
   }
+  const pollingClient = active.pollingClient;
 
   const [statuses, notifications] = await Promise.all([
     rateLimitedCall(async () =>
-      active.pollingClient!.v1.timelines.home.list({
+      pollingClient.v1.timelines.home.list({
         sinceId: active.cursor.statusSinceId,
         limit: 20,
       }),
     ),
     rateLimitedCall(async () =>
-      active.pollingClient!.v1.notifications.list({
+      pollingClient.v1.notifications.list({
         sinceId: active.cursor.notificationSinceId,
         limit: 20,
         types: ['follow', 'follow_request', 'favourite', 'reblog'],
@@ -194,9 +195,10 @@ async function pollPublicStream(active: ActiveSubscription, local = false): Prom
       accessToken: active.accessToken,
     });
   }
+  const pollingClient = active.pollingClient;
 
   const statuses = await rateLimitedCall(async () =>
-    active.pollingClient!.v1.timelines.public.list({
+    pollingClient.v1.timelines.public.list({
       sinceId: active.cursor.statusSinceId,
       limit: 20,
       local,

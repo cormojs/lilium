@@ -56,15 +56,21 @@ function convertFields(fields: mastodon.v1.AccountField[]): AccountProfileField[
 function convertMediaAttachments(
   mediaAttachments: mastodon.v1.MediaAttachment[],
 ): Post['mediaAttachments'] {
-  return mediaAttachments
-    .filter((media) => media.url != null)
-    .map((media) => ({
-      id: media.id,
-      type: media.type,
-      url: media.url!,
-      previewUrl: media.previewUrl ?? media.url!,
-      description: media.description ?? null,
-    }));
+  return mediaAttachments.flatMap((media) => {
+    if (media.url == null) {
+      return [];
+    }
+
+    return [
+      {
+        id: media.id,
+        type: media.type,
+        url: media.url,
+        previewUrl: media.previewUrl ?? media.url,
+        description: media.description ?? null,
+      },
+    ];
+  });
 }
 
 function convertQuotedStatus(status: mastodon.v1.Status): QuotedPost {
