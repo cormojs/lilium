@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test';
+import log from 'electron-log/main';
 import type { mastodon } from 'masto';
 import { convertStatus } from './mastodonConverters.ts';
+
+log.transports.file.level = false;
 
 function createStatus(overrides: Partial<mastodon.v1.Status> = {}): mastodon.v1.Status {
   return {

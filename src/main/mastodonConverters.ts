@@ -1,3 +1,4 @@
+import log from 'electron-log/main';
 import type { mastodon } from 'masto';
 import type {
   AccountProfile,
@@ -224,6 +225,16 @@ export function convertAccount(account: mastodon.v1.Account): AccountProfile {
 
 export function convertStatus(status: mastodon.v1.Status): Post {
   const original = status.reblog ?? status;
+
+  if (original.quote) {
+    log.info('[mastodonConverters] Converting status with quote', {
+      statusId: original.id,
+      statusUrl: original.url,
+      content: original.content,
+      quote: original.quote,
+    });
+  }
+
   const content = appendMissingQuoteInline(original.content, original.quote);
   const rebloggedBy = status.reblog
     ? {
