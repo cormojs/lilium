@@ -1,4 +1,5 @@
 import log from 'electron-log/main';
+import { DomUtils, parseDocument } from 'htmlparser2';
 import type { mastodon } from 'masto';
 import type {
   AccountProfile,
@@ -11,10 +12,6 @@ import type {
   QuotedPost,
 } from '../shared/types.ts';
 
-const QUOTE_INLINE_HREF_REGEX =
-  /<p\b(?=[^>]*\bclass=(["'])[^"']*\bquote-inline\b[^"']*\1)[^>]*>[\s\S]*?<a\b[^>]*\bhref=(["'])(https?:\/\/[^"']+)\2/i;
-const QUOTE_INLINE_CONTENT_REGEX =
-  /<p\b(?=[^>]*\bclass=(["'])[^"']*\bquote-inline\b[^"']*\1)[^>]*>([\s\S]*?)<\/p>/i;
 const MISSKEY_NOTE_TRAILING_LINK_REGEX =
   /<a\b[^>]*\bhref=(["'])(https?:\/\/[^"']+\/notes\/[A-Za-z0-9_-]+(?:[?#][^"']*)?)\1[^>]*>[\s\S]*?<\/a>\s*(?:<\/p>\s*)?$/i;
 
@@ -121,15 +118,32 @@ function escapeHtml(value: string): string {
 function extractFallbackQuote(
   content: string,
 ): Pick<PostQuote, 'quotedInlineContent' | 'quotedUrl'> | undefined {
-  const quoteInlineMatch = content.match(QUOTE_INLINE_HREF_REGEX);
-  const quoteInlineUrl = normalizeHttpUrl(quoteInlineMatch?.[3]);
-  const quoteInlineContent = content.match(QUOTE_INLINE_CONTENT_REGEX)?.[2]?.trim();
+  const document = parseDocument(content);
+  const quoteInlineElement = DomUtils.findOne(
+    (element) => element.attribs['class']?.split(/\s+/).includes('quote-inline') ?? false,
+    document,
+  );
 
-  if (quoteInlineUrl) {
-    return {
-      quotedUrl: quoteInlineUrl,
-      quotedInlineContent: quoteInlineContent || undefined,
-    };
+  if (quoteInlineElement) {
+    const quoteInlineLink = DomUtils.findOne(
+      (element) => element.name === 'a' && normalizeHttpUrl(element.attribs['href']) !== undefined,
+      quoteInlineElement,
+    );
+    const quoteInlineUrl = normalizeHttpUrl(quoteInlineLink?.attribs['href']);
+    const quoteInlineContent = DomUtils.getInnerHTML(quoteInlineElement).trim();
+
+    log.info('[mastodonConverters] Parsed quote-inline element', {
+      tagName: quoteInlineElement.name,
+      quoteInlineUrl,
+      quoteInlineContent,
+    });
+
+    if (quoteInlineUrl) {
+      return {
+        quotedUrl: quoteInlineUrl,
+        quotedInlineContent: quoteInlineContent || undefined,
+      };
+    }
   }
 
   const misskeyNoteMatch = content.match(MISSKEY_NOTE_TRAILING_LINK_REGEX);
@@ -225,16 +239,6 @@ export function convertAccount(account: mastodon.v1.Account): AccountProfile {
 
 export function convertStatus(status: mastodon.v1.Status): Post {
   const original = status.reblog ?? status;
-
-  if (original.quote) {
-    log.info('[mastodonConverters] Converting status with quote', {
-      statusId: original.id,
-      statusUrl: original.url,
-      content: original.content,
-      quote: original.quote,
-    });
-  }
-
   const content = appendMissingQuoteInline(original.content, original.quote);
   const rebloggedBy = status.reblog
     ? {

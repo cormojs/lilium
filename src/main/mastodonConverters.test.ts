@@ -71,6 +71,29 @@ describe('convertStatus', () => {
     expect(convertStatus(status).content).toBe(content);
   });
 
+  test('extracts quote-inline content from a span element', () => {
+    const content =
+      '<p>本文</p><span class="status-link quote-inline">RE: <a href="https://example.com/@bob/2">https://example.com/@bob/2</a></span>';
+    const status = createStatus({
+      content,
+      quote: {
+        state: 'accepted',
+        quotedStatus: createStatus({
+          id: 'status-2',
+          url: 'https://example.com/@bob/2',
+        }),
+      },
+    });
+
+    const post = convertStatus(status);
+
+    expect(post.content).toBe(content);
+    expect(post.quote?.quotedUrl).toBe('https://example.com/@bob/2');
+    expect(post.quote?.quotedInlineContent).toBe(
+      'RE: <a href="https://example.com/@bob/2">https://example.com/@bob/2</a>',
+    );
+  });
+
   test('leaves content unchanged when the quoted status URL is unavailable', () => {
     const status = createStatus({
       quote: {
