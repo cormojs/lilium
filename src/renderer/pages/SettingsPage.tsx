@@ -113,7 +113,9 @@ export function SettingsPage({ onBack }: SettingsPageProps): React.JSX.Element {
             min={16}
             max={128}
             value={draft.avatarSize}
-            onChange={(v) => updateNumber('avatarSize', v)}
+            onChange={(v) => {
+              updateNumber('avatarSize', v);
+            }}
             style={{ marginTop: 8 }}
           />
         </SettingRow>
@@ -125,7 +127,9 @@ export function SettingsPage({ onBack }: SettingsPageProps): React.JSX.Element {
             min={12}
             max={64}
             value={draft.boostAvatarSize}
-            onChange={(v) => updateNumber('boostAvatarSize', v)}
+            onChange={(v) => {
+              updateNumber('boostAvatarSize', v);
+            }}
             style={{ marginTop: 8 }}
           />
         </SettingRow>
@@ -137,7 +141,9 @@ export function SettingsPage({ onBack }: SettingsPageProps): React.JSX.Element {
             min={8}
             max={32}
             value={draft.postFontSize}
-            onChange={(v) => updateNumber('postFontSize', v)}
+            onChange={(v) => {
+              updateNumber('postFontSize', v);
+            }}
             style={{ marginTop: 8 }}
           />
         </SettingRow>
@@ -149,7 +155,9 @@ export function SettingsPage({ onBack }: SettingsPageProps): React.JSX.Element {
             min={8}
             max={32}
             value={draft.uiFontSize}
-            onChange={(v) => updateNumber('uiFontSize', v)}
+            onChange={(v) => {
+              updateNumber('uiFontSize', v);
+            }}
             style={{ marginTop: 8 }}
           />
         </SettingRow>
@@ -161,7 +169,9 @@ export function SettingsPage({ onBack }: SettingsPageProps): React.JSX.Element {
             min={8}
             max={24}
             value={draft.compactFontSize}
-            onChange={(v) => updateNumber('compactFontSize', v)}
+            onChange={(v) => {
+              updateNumber('compactFontSize', v);
+            }}
             style={{ marginTop: 8 }}
           />
         </SettingRow>
@@ -171,7 +181,9 @@ export function SettingsPage({ onBack }: SettingsPageProps): React.JSX.Element {
           <br />
           <Switch
             checked={draft.disableCompactDisplay}
-            onChange={(checked) => updateBoolean('disableCompactDisplay', checked)}
+            onChange={(checked) => {
+              updateBoolean('disableCompactDisplay', checked);
+            }}
             style={{ marginTop: 8 }}
           />
         </SettingRow>
@@ -181,13 +193,20 @@ export function SettingsPage({ onBack }: SettingsPageProps): React.JSX.Element {
           <br />
           <Switch
             checked={draft.mastodonLikeExpandedDisplay}
-            onChange={(checked) => updateBoolean('mastodonLikeExpandedDisplay', checked)}
+            onChange={(checked) => {
+              updateBoolean('mastodonLikeExpandedDisplay', checked);
+            }}
             style={{ marginTop: 8 }}
           />
         </SettingRow>
 
         <Flex gap={12}>
-          <Button type="primary" onClick={handleSave}>
+          <Button
+            type="primary"
+            onClick={() => {
+              void handleSave();
+            }}
+          >
             保存
           </Button>
           <Button onClick={handleReset}>デフォルトに戻す</Button>

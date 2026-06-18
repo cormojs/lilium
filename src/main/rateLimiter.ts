@@ -54,7 +54,9 @@ function acquire(): Promise<void> {
     waitQueue.push(resolve);
     // Schedule a retry for when tokens should refill
     const waitMs = tokens < 1 ? ((1 - tokens) / TOKENS_PER_SECOND) * 1000 : 100;
-    setTimeout(() => processQueue(), Math.ceil(waitMs));
+    setTimeout(() => {
+      processQueue();
+    }, Math.ceil(waitMs));
   });
 }
 

@@ -26,7 +26,7 @@ export interface TabDefinition {
  * Notification event forwarded from main process to renderer via IPC
  */
 export interface NotificationEvent {
-  type: 'favourite' | 'reblog' | 'mention' | 'follow' | 'poll' | 'update' | 'status' | string;
+  type: string;
   accountDisplayName: string;
   accountAcct: string;
   statusContent?: string;

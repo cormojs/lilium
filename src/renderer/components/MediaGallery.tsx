@@ -79,7 +79,9 @@ export function MediaGallery({ attachments }: MediaGalleryProps): React.JSX.Elem
                 key={attachment.id}
                 src={attachment.previewUrl}
                 alt={attachment.description ?? ''}
-                onClick={() => setPreviewIndex(index)}
+                onClick={() => {
+                  setPreviewIndex(index);
+                }}
               />
             );
           }
@@ -123,7 +125,9 @@ export function MediaGallery({ attachments }: MediaGalleryProps): React.JSX.Elem
       </Grid>
       <Modal
         open={previewImage?.type === 'image'}
-        onCancel={() => setPreviewIndex(null)}
+        onCancel={() => {
+          setPreviewIndex(null);
+        }}
         footer={null}
         centered
         width="auto"

@@ -89,7 +89,7 @@ function createWindow(): void {
   // Open external links in the default browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (isHttpUrl(url)) {
-      shell.openExternal(url);
+      void shell.openExternal(url);
     }
     return { action: 'deny' };
   });
@@ -100,7 +100,7 @@ function createWindow(): void {
     }
     event.preventDefault();
     if (isHttpUrl(url)) {
-      shell.openExternal(url);
+      void shell.openExternal(url);
     }
   });
   mainWindow.webContents.on('before-input-event', (event, input) => {
@@ -111,9 +111,9 @@ function createWindow(): void {
   });
 
   if (process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);
+    void mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+    void mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
 }
 
@@ -136,16 +136,13 @@ function registerIpcHandlers(): void {
     },
   );
 
-  ipcMain.handle(IpcChannels.AccountsList, async () => {
+  ipcMain.handle(IpcChannels.AccountsList, () => {
     return listAccounts();
   });
 
-  ipcMain.handle(
-    IpcChannels.AccountsRemove,
-    async (_event, serverUrl: string, username: string) => {
-      removeAccount(serverUrl, username);
-    },
-  );
+  ipcMain.handle(IpcChannels.AccountsRemove, (_event, serverUrl: string, username: string) => {
+    removeAccount(serverUrl, username);
+  });
 
   ipcMain.handle(IpcChannels.TimelineFetch, async (_event, params: TimelineFetchParams) => {
     const account = getAccountCredentials(params.serverUrl, params.username);
@@ -204,11 +201,11 @@ function registerIpcHandlers(): void {
     },
   );
 
-  ipcMain.handle(IpcChannels.TabsList, async () => {
+  ipcMain.handle(IpcChannels.TabsList, () => {
     return listTabs();
   });
 
-  ipcMain.handle(IpcChannels.TabsSave, async (_event, tabs: TabDefinition[]) => {
+  ipcMain.handle(IpcChannels.TabsSave, (_event, tabs: TabDefinition[]) => {
     saveTabs(tabs);
   });
 
@@ -288,23 +285,23 @@ function registerIpcHandlers(): void {
     await subscribeStream(params, account.accessToken, event.sender);
   });
 
-  ipcMain.handle(IpcChannels.StreamUnsubscribe, async (_event, subscriptionId: string) => {
+  ipcMain.handle(IpcChannels.StreamUnsubscribe, (_event, subscriptionId: string) => {
     unsubscribeStream(subscriptionId);
   });
 
-  ipcMain.handle(IpcChannels.SettingsLoad, async () => {
+  ipcMain.handle(IpcChannels.SettingsLoad, () => {
     return loadSettings();
   });
 
-  ipcMain.handle(IpcChannels.SettingsSave, async (_event, settings: AppSettings) => {
+  ipcMain.handle(IpcChannels.SettingsSave, (_event, settings: AppSettings) => {
     saveSettings(settings);
   });
 
-  ipcMain.handle(IpcChannels.PaneLayoutLoad, async () => {
+  ipcMain.handle(IpcChannels.PaneLayoutLoad, () => {
     return loadPaneLayout();
   });
 
-  ipcMain.handle(IpcChannels.PaneLayoutSave, async (_event, layout: PaneLayout) => {
+  ipcMain.handle(IpcChannels.PaneLayoutSave, (_event, layout: PaneLayout) => {
     savePaneLayout(layout);
   });
 
@@ -329,7 +326,7 @@ function registerIpcHandlers(): void {
 
 app.commandLine.appendSwitch('disable-gpu-sandbox');
 
-app.whenReady().then(() => {
+void app.whenReady().then(() => {
   app.setAppUserModelId('com.lilium.app');
   registerIpcHandlers();
   console.log('Registered IPC handlers');

@@ -1,5 +1,6 @@
 import log from 'electron-log/main';
 import { DomUtils, parseDocument } from 'htmlparser2';
+import render from 'dom-serializer';
 import type { mastodon } from 'masto';
 import type {
   AccountProfile,
@@ -66,7 +67,7 @@ function convertMediaAttachments(
         id: media.id,
         type: media.type,
         url: media.url,
-        previewUrl: media.previewUrl ?? media.url,
+        previewUrl: media.previewUrl,
         description: media.description ?? null,
       },
     ];
@@ -136,7 +137,10 @@ function extractFallbackQuote(
       quoteInlineElement,
     );
     const quoteInlineUrl = normalizeHttpUrl(quoteInlineLink?.attribs['href']);
-    const quoteInlineContent = DomUtils.getInnerHTML(quoteInlineElement).trim();
+    const quoteInlineContent = quoteInlineElement.children
+      .map((child) => render(child))
+      .join('')
+      .trim();
 
     log.info('[mastodonConverters] Parsed quote-inline element', {
       tagName: quoteInlineElement.name,

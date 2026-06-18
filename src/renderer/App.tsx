@@ -20,7 +20,7 @@ function AppContent(): React.JSX.Element {
   }, []);
 
   useEffect(() => {
-    loadAccounts().then((list) => {
+    void loadAccounts().then((list) => {
       setPage(list.length > 0 ? 'timeline' : 'login');
       setLoaded(true);
     });
@@ -36,23 +36,41 @@ function AppContent(): React.JSX.Element {
   if (!loaded) return <></>;
 
   if (page === 'settings') {
-    return <SettingsPage onBack={() => setPage('timeline')} />;
+    return (
+      <SettingsPage
+        onBack={() => {
+          setPage('timeline');
+        }}
+      />
+    );
   }
 
   if (page === 'timeline' && accounts.length > 0) {
     return (
       <TimelinePage
         accounts={accounts}
-        onNavigateToLogin={() => setPage('login')}
-        onNavigateToSettings={() => setPage('settings')}
+        onNavigateToLogin={() => {
+          setPage('login');
+        }}
+        onNavigateToSettings={() => {
+          setPage('settings');
+        }}
       />
     );
   }
 
   return (
     <LoginPage
-      onLoginSuccess={handleLoginSuccess}
-      onNavigateToTimeline={accounts.length > 0 ? () => setPage('timeline') : undefined}
+      onLoginSuccess={() => {
+        void handleLoginSuccess();
+      }}
+      onNavigateToTimeline={
+        accounts.length > 0
+          ? () => {
+              setPage('timeline');
+            }
+          : undefined
+      }
     />
   );
 }
@@ -66,7 +84,7 @@ function SettingsProvider({ children }: { children: React.ReactNode }): React.JS
   }, []);
 
   useEffect(() => {
-    window.api.loadSettings().then(setSettings);
+    void window.api.loadSettings().then(setSettings);
   }, []);
 
   return (

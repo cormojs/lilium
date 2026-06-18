@@ -21,10 +21,10 @@ function getWindowStateFilePath(): string {
 }
 
 const windowStateSchema: z.ZodType<WindowState> = z.object({
-  width: z.number().finite().positive(),
-  height: z.number().finite().positive(),
-  x: z.number().finite().optional(),
-  y: z.number().finite().optional(),
+  width: z.number().positive(),
+  height: z.number().positive(),
+  x: z.number().optional(),
+  y: z.number().optional(),
   isMaximized: z.boolean(),
 });
 

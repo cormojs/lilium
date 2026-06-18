@@ -1,6 +1,13 @@
 import { createRestAPIClient } from 'masto';
 import type { PostVisibility, UploadedMedia } from '../shared/types.ts';
 
+function resolveMediaUrl(
+  preferred: string | null | undefined,
+  fallback: string | null | undefined,
+): string {
+  return preferred ?? fallback ?? '';
+}
+
 export async function createStatus(
   serverUrl: string,
   accessToken: string,
@@ -52,8 +59,8 @@ export async function uploadMedia(
   return {
     id: uploaded.id,
     type: uploaded.type,
-    previewUrl: uploaded.previewUrl ?? uploaded.url ?? '',
-    url: uploaded.url ?? uploaded.previewUrl ?? '',
+    previewUrl: resolveMediaUrl(uploaded.previewUrl, uploaded.url),
+    url: resolveMediaUrl(uploaded.url, uploaded.previewUrl),
     description: uploaded.description ?? null,
   };
 }

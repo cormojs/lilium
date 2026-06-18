@@ -13,7 +13,7 @@ const paneDefinitionSchema = z.object({
   id: z.string(),
   tabIds: z.array(z.string()),
   activeTabId: z.string(),
-  widthRatio: z.number().finite().positive(),
+  widthRatio: z.number().positive(),
 });
 
 const paneLayoutSchema: z.ZodType<PaneLayout> = z.object({

@@ -8,7 +8,11 @@ import globals from 'globals';
 
 export default [
   js.configs.recommended,
-  ...tseslint.configs.strict,
+  ...tseslint.configs.strictTypeChecked,
+  {
+    files: ['**/*.test.{ts,tsx}'],
+    ...tseslint.configs.disableTypeChecked,
+  },
   {
     ...reactPlugin.configs.flat.recommended,
     languageOptions: {
@@ -16,6 +20,9 @@ export default [
       globals: {
         ...globals.browser,
         ...globals.node,
+      },
+      parserOptions: {
+        project: ['./tsconfig.eslint.json'],
       },
     },
     settings: {

@@ -117,11 +117,16 @@ export function PaneContainer({
   for (let i = 0; i < paneCount; i++) {
     if (i > 0) {
       elements.push(
-        <Divider key={`divider-${i}`} onMouseDown={(e) => handleMouseDown(i - 1, e)} />,
+        <Divider
+          key={`divider-${String(i)}`}
+          onMouseDown={(e) => {
+            handleMouseDown(i - 1, e);
+          }}
+        />,
       );
     }
     elements.push(
-      <PaneWrapper key={`pane-${i}`} style={{ flex: widthRatios[i] ?? 1 }}>
+      <PaneWrapper key={`pane-${String(i)}`} style={{ flex: widthRatios[i] ?? 1 }}>
         {children[i]}
       </PaneWrapper>,
     );
@@ -132,14 +137,18 @@ export function PaneContainer({
       <AddPaneButtonLeft
         type="default"
         icon={<PlusOutlined />}
-        onClick={() => onAddPane('left')}
+        onClick={() => {
+          onAddPane('left');
+        }}
         title="左にペインを追加"
       />
       {elements}
       <AddPaneButtonRight
         type="default"
         icon={<PlusOutlined />}
-        onClick={() => onAddPane('right')}
+        onClick={() => {
+          onAddPane('right');
+        }}
         title="右にペインを追加"
       />
     </Container>
