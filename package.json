@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "antd": "^6.3.1",
+    "dom-serializer": "^2.0.0",
     "electron-log": "^5.4.4",
     "htmlparser2": "^8.0.2",
     "masto": "^7.10.1",

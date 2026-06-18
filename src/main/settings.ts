@@ -20,11 +20,11 @@ function getSettingsFilePath(): string {
 
 const partialAppSettingsSchema: z.ZodType<Partial<AppSettings>> = z
   .object({
-    avatarSize: z.number().finite(),
-    boostAvatarSize: z.number().finite(),
-    postFontSize: z.number().finite(),
-    uiFontSize: z.number().finite(),
-    compactFontSize: z.number().finite(),
+    avatarSize: z.number(),
+    boostAvatarSize: z.number(),
+    postFontSize: z.number(),
+    uiFontSize: z.number(),
+    compactFontSize: z.number(),
     disableCompactDisplay: z.boolean(),
     mastodonLikeExpandedDisplay: z.boolean(),
   })

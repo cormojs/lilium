@@ -1,5 +1,6 @@
 import log from 'electron-log/main';
 import { DomUtils, parseDocument } from 'htmlparser2';
+import render from 'dom-serializer';
 import type { mastodon } from 'masto';
 import type {
   AccountProfile,
@@ -56,15 +57,21 @@ function convertFields(fields: mastodon.v1.AccountField[]): AccountProfileField[
 function convertMediaAttachments(
   mediaAttachments: mastodon.v1.MediaAttachment[],
 ): Post['mediaAttachments'] {
-  return mediaAttachments
-    .filter((media) => media.url != null)
-    .map((media) => ({
-      id: media.id,
-      type: media.type,
-      url: media.url!,
-      previewUrl: media.previewUrl ?? media.url!,
-      description: media.description ?? null,
-    }));
+  return mediaAttachments.flatMap((media) => {
+    if (media.url == null) {
+      return [];
+    }
+
+    return [
+      {
+        id: media.id,
+        type: media.type,
+        url: media.url,
+        previewUrl: media.previewUrl,
+        description: media.description ?? null,
+      },
+    ];
+  });
 }
 
 function convertQuotedStatus(status: mastodon.v1.Status): QuotedPost {
@@ -130,7 +137,10 @@ function extractFallbackQuote(
       quoteInlineElement,
     );
     const quoteInlineUrl = normalizeHttpUrl(quoteInlineLink?.attribs['href']);
-    const quoteInlineContent = DomUtils.getInnerHTML(quoteInlineElement).trim();
+    const quoteInlineContent = quoteInlineElement.children
+      .map((child) => render(child))
+      .join('')
+      .trim();
 
     log.info('[mastodonConverters] Parsed quote-inline element', {
       tagName: quoteInlineElement.name,

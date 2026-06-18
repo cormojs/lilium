@@ -140,7 +140,7 @@ const NOTIFICATION_LABEL: Record<NotificationType, string> = {
 function formatTimestamp(isoString: string): string {
   const d = new Date(isoString);
   const pad = (n: number): string => String(n).padStart(2, '0');
-  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  return `${String(d.getFullYear())}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 function sanitizeContent(html: string): string {

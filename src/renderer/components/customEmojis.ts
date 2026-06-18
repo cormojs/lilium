@@ -40,7 +40,7 @@ export function replaceCustomEmojis(html: string, emojis: PostCustomEmoji[]): st
   let currentNode = walker.nextNode();
   while (currentNode) {
     const textNode = currentNode as Text;
-    const sourceText = textNode.textContent ?? '';
+    const sourceText = textNode.textContent;
 
     CUSTOM_EMOJI_PATTERN.lastIndex = 0;
     if (!CUSTOM_EMOJI_PATTERN.test(sourceText)) {
@@ -56,10 +56,6 @@ export function replaceCustomEmojis(html: string, emojis: PostCustomEmoji[]): st
       const shortcode = match[1];
       const matchedText = match[0];
       const startIndex = match.index;
-      if (startIndex === undefined) {
-        continue;
-      }
-
       if (startIndex > lastIndex) {
         fragment.append(sourceText.slice(lastIndex, startIndex));
       }

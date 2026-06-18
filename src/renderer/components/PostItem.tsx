@@ -368,7 +368,7 @@ const ActionButton = styled.button<{ $active: boolean; $activeColor: string; $fo
 function formatTimestamp(isoString: string): string {
   const d = new Date(isoString);
   const pad = (n: number): string => String(n).padStart(2, '0');
-  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  return `${String(d.getFullYear())}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
 function sanitizeContent(html: string): string {
@@ -625,7 +625,12 @@ export function PostItem({
           </ProfileIdentityButton>
         </HeaderLine>
         {hasContentWarning && (
-          <ContentWarning $fontSize={settings.postFontSize} onClick={() => setExpanded(!expanded)}>
+          <ContentWarning
+            $fontSize={settings.postFontSize}
+            onClick={() => {
+              setExpanded(!expanded);
+            }}
+          >
             {post.spoilerText}
             {expanded ? '（クリックで隠す）' : <ContentWarningIcon aria-hidden="true" />}
           </ContentWarning>
@@ -639,7 +644,12 @@ export function PostItem({
           />
         )}
         {isSensitiveWithoutContentWarning && hasMediaAttachments && (
-          <ContentWarning $fontSize={settings.postFontSize} onClick={() => setExpanded(!expanded)}>
+          <ContentWarning
+            $fontSize={settings.postFontSize}
+            onClick={() => {
+              setExpanded(!expanded);
+            }}
+          >
             NSFW
             {expanded ? '（クリックで隠す）' : <ContentWarningIcon aria-hidden="true" />}
           </ContentWarning>
@@ -668,7 +678,9 @@ export function PostItem({
             $active={favourited}
             $activeColor="#eb2f96"
             $fontSize={smallFontSize}
-            onClick={handleFavourite}
+            onClick={() => {
+              void handleFavourite();
+            }}
             title="お気に入り"
           >
             {favourited ? <HeartFilled /> : <HeartOutlined />}
@@ -677,7 +689,9 @@ export function PostItem({
             $active={reblogged}
             $activeColor="#52c41a"
             $fontSize={smallFontSize}
-            onClick={handleReblog}
+            onClick={() => {
+              void handleReblog();
+            }}
             title={reblogDisabled ? 'この投稿はブーストできません' : 'ブースト'}
             disabled={reblogDisabled}
           >
@@ -705,7 +719,9 @@ export function PostItem({
             $active={bookmarked}
             $activeColor="#1677ff"
             $fontSize={smallFontSize}
-            onClick={handleBookmark}
+            onClick={() => {
+              void handleBookmark();
+            }}
             title="ブックマーク"
           >
             {bookmarked ? <BookFilled /> : <BookOutlined />}

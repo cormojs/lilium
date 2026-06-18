@@ -47,7 +47,7 @@ export function LoginPage({
   }, []);
 
   useEffect(() => {
-    loadAccounts();
+    void loadAccounts();
   }, [loadAccounts]);
 
   const handleStartLogin = async (): Promise<void> => {
@@ -144,7 +144,9 @@ export function LoginPage({
                     type="text"
                     danger
                     icon={<DeleteOutlined />}
-                    onClick={() => handleRemoveAccount(account)}
+                    onClick={() => {
+                      void handleRemoveAccount(account);
+                    }}
                   />,
                 ]}
               >
@@ -174,8 +176,12 @@ export function LoginPage({
             <Input
               placeholder="mastodon.social"
               value={serverUrl}
-              onChange={(e) => setServerUrl(e.target.value)}
-              onPressEnter={handleStartLogin}
+              onChange={(e) => {
+                setServerUrl(e.target.value);
+              }}
+              onPressEnter={() => {
+                void handleStartLogin();
+              }}
               disabled={loading}
               style={{ flex: 1 }}
             />
@@ -183,7 +189,9 @@ export function LoginPage({
               type="primary"
               icon={<LoginOutlined />}
               loading={loading}
-              onClick={handleStartLogin}
+              onClick={() => {
+                void handleStartLogin();
+              }}
               disabled={!serverUrl.trim()}
             >
               ログイン開始
@@ -192,13 +200,18 @@ export function LoginPage({
         )}
 
         {step === 'authorizing' && oauthData && (
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
             <Text>以下のリンクをブラウザで開いて、アプリを認可してください。</Text>
             <Flex gap={8}>
               <Button icon={<LinkOutlined />} onClick={handleOpenLink}>
                 ブラウザで開く
               </Button>
-              <Button icon={<CopyOutlined />} onClick={handleCopyLink}>
+              <Button
+                icon={<CopyOutlined />}
+                onClick={() => {
+                  void handleCopyLink();
+                }}
+              >
                 リンクをコピー
               </Button>
             </Flex>
@@ -207,14 +220,20 @@ export function LoginPage({
               <Input
                 placeholder="認可コードを入力"
                 value={authCode}
-                onChange={(e) => setAuthCode(e.target.value)}
-                onPressEnter={handleExchangeToken}
+                onChange={(e) => {
+                  setAuthCode(e.target.value);
+                }}
+                onPressEnter={() => {
+                  void handleExchangeToken();
+                }}
                 style={{ flex: 1 }}
               />
               <Button
                 type="primary"
                 loading={loading}
-                onClick={handleExchangeToken}
+                onClick={() => {
+                  void handleExchangeToken();
+                }}
                 disabled={!authCode.trim()}
               >
                 ログイン完了

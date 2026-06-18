@@ -35,8 +35,13 @@ function release(): void {
 }
 
 function processQueue(): void {
-  while (waitQueue.length > 0 && tryAcquire()) {
-    const resolve = waitQueue.shift()!;
+  while (waitQueue.length > 0) {
+    const resolve = waitQueue[0];
+    if (!resolve || !tryAcquire()) {
+      return;
+    }
+
+    waitQueue.shift();
     resolve();
   }
 }
@@ -49,7 +54,9 @@ function acquire(): Promise<void> {
     waitQueue.push(resolve);
     // Schedule a retry for when tokens should refill
     const waitMs = tokens < 1 ? ((1 - tokens) / TOKENS_PER_SECOND) * 1000 : 100;
-    setTimeout(() => processQueue(), Math.ceil(waitMs));
+    setTimeout(() => {
+      processQueue();
+    }, Math.ceil(waitMs));
   });
 }
 

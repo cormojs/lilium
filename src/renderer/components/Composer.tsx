@@ -246,13 +246,13 @@ export function Composer({
 
     const remainingSlots = MAX_MEDIA_ATTACHMENTS - mediaAttachments.length;
     if (remainingSlots <= 0) {
-      message.warning(`メディアは最大${MAX_MEDIA_ATTACHMENTS}件まで添付できます`);
+      message.warning(`メディアは最大${String(MAX_MEDIA_ATTACHMENTS)}件まで添付できます`);
       return;
     }
 
     const targetFiles = supportedFiles.slice(0, remainingSlots);
     if (supportedFiles.length > targetFiles.length) {
-      message.warning(`画像は最大${MAX_MEDIA_ATTACHMENTS}枚まで添付できます`);
+      message.warning(`画像は最大${String(MAX_MEDIA_ATTACHMENTS)}枚まで添付できます`);
     }
 
     setUploadingCount((count) => count + targetFiles.length);
@@ -326,7 +326,9 @@ export function Composer({
         event.preventDefault();
         setIsDragOver(true);
       }}
-      onDragLeave={() => setIsDragOver(false)}
+      onDragLeave={() => {
+        setIsDragOver(false);
+      }}
       onDrop={(event) => {
         event.preventDefault();
         setIsDragOver(false);
@@ -370,14 +372,18 @@ export function Composer({
           <InputColumn>
             <Input
               value={spoilerText}
-              onChange={(event) => setSpoilerText(event.target.value)}
+              onChange={(event) => {
+                setSpoilerText(event.target.value);
+              }}
               placeholder="内容の警告 (CW)"
               maxLength={100}
               style={{ display: useContentWarning ? 'block' : 'none' }}
             />
             <TextArea
               value={text}
-              onChange={(event) => setText(event.target.value)}
+              onChange={(event) => {
+                setText(event.target.value);
+              }}
               onPaste={(event) => {
                 const clipboardFiles = Array.from(event.clipboardData.files);
                 if (clipboardFiles.length === 0) {

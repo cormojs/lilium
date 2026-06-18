@@ -587,7 +587,9 @@ function TimelineTabContent({
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [handleRefresh]);
 
   const loadMore = useCallback(async () => {
@@ -622,7 +624,7 @@ function TimelineTabContent({
   }, [account, tab.timelineType, tab.targetAccountId, message]);
 
   useEffect(() => {
-    loadTimeline();
+    void loadTimeline();
   }, [loadTimeline]);
 
   useEffect(() => {
@@ -635,7 +637,9 @@ function TimelineTabContent({
     };
     checkAndLoad();
     el.addEventListener('scroll', checkAndLoad, { passive: true });
-    return () => el.removeEventListener('scroll', checkAndLoad);
+    return () => {
+      el.removeEventListener('scroll', checkAndLoad);
+    };
   }, [loadMore, posts.length]);
 
   // Subscribe to streaming for real-time updates
@@ -645,7 +649,7 @@ function TimelineTabContent({
     if (!streamType) return;
 
     const subscriptionId = `timeline-${tab.id}`;
-    window.api.subscribeStream({
+    void window.api.subscribeStream({
       serverUrl: account.serverUrl,
       username: account.username,
       streamType,
@@ -664,7 +668,7 @@ function TimelineTabContent({
 
     return () => {
       removeListener();
-      window.api.unsubscribeStream(subscriptionId);
+      void window.api.unsubscribeStream(subscriptionId);
     };
   }, [account, tab.id, tab.timelineType]);
 
@@ -689,7 +693,9 @@ function TimelineTabContent({
       {accountProfile && (
         <AccountProfileHeader
           profile={accountProfile}
-          onToggleFollow={handleToggleFollow}
+          onToggleFollow={() => {
+            void handleToggleFollow();
+          }}
           followBusy={followBusy}
         />
       )}
@@ -701,17 +707,33 @@ function TimelineTabContent({
             post={post}
             serverUrl={account.serverUrl}
             username={account.username}
-            onReply={(targetPost) => onReply(tab, targetPost)}
-            onQuote={(targetPost) => onQuote(tab, targetPost)}
-            onOpenAccountTimeline={(targetAccount) => onOpenAccountTimeline(tab, targetAccount)}
-            onCollapse={settings.disableCompactDisplay ? undefined : () => setExpandedPostId(null)}
+            onReply={(targetPost) => {
+              onReply(tab, targetPost);
+            }}
+            onQuote={(targetPost) => {
+              onQuote(tab, targetPost);
+            }}
+            onOpenAccountTimeline={(targetAccount) => {
+              onOpenAccountTimeline(tab, targetAccount);
+            }}
+            onCollapse={
+              settings.disableCompactDisplay
+                ? undefined
+                : () => {
+                    setExpandedPostId(null);
+                  }
+            }
           />
         ) : (
           <CompactPostItem
             key={post.id}
             post={post}
-            onClick={() => setExpandedPostId(post.id)}
-            onOpenAccountTimeline={(targetAccount) => onOpenAccountTimeline(tab, targetAccount)}
+            onClick={() => {
+              setExpandedPostId(post.id);
+            }}
+            onOpenAccountTimeline={(targetAccount) => {
+              onOpenAccountTimeline(tab, targetAccount);
+            }}
           />
         ),
       )}
@@ -796,7 +818,7 @@ function NotificationTabContent({
   }, [account, message]);
 
   useEffect(() => {
-    loadNotifications();
+    void loadNotifications();
   }, [loadNotifications]);
 
   // System notifications are handled via Electron's Notification module in the main process
@@ -811,7 +833,9 @@ function NotificationTabContent({
     };
     checkAndLoad();
     el.addEventListener('scroll', checkAndLoad, { passive: true });
-    return () => el.removeEventListener('scroll', checkAndLoad);
+    return () => {
+      el.removeEventListener('scroll', checkAndLoad);
+    };
   }, [loadMoreNotifications, notifications.length]);
 
   // Subscribe to user stream for real-time notification updates
@@ -819,7 +843,7 @@ function NotificationTabContent({
     if (!account) return;
 
     const subscriptionId = `notifications-${tab.id}`;
-    window.api.subscribeStream({
+    void window.api.subscribeStream({
       serverUrl: account.serverUrl,
       username: account.username,
       streamType: 'user',
@@ -854,7 +878,7 @@ function NotificationTabContent({
               : undefined;
             const body = statusPreview;
 
-            window.api.showNotification({
+            void window.api.showNotification({
               title: `${actor}${actionLabel[notification.type]}`,
               body,
               iconUrl: notification.account.avatarUrl,
@@ -868,7 +892,7 @@ function NotificationTabContent({
 
     return () => {
       removeListener();
-      window.api.unsubscribeStream(subscriptionId);
+      void window.api.unsubscribeStream(subscriptionId);
     };
   }, [account, tab.id]);
 
@@ -894,7 +918,9 @@ function NotificationTabContent({
         <NotificationItem
           key={notification.id}
           notification={notification}
-          onOpenAccountTimeline={(target) => onOpenAccountTimeline(tab, target)}
+          onOpenAccountTimeline={(target) => {
+            onOpenAccountTimeline(tab, target);
+          }}
         />
       ))}
       {loadingMore && (
@@ -1033,7 +1059,9 @@ function Pane({
           >
             <MoreOutlined
               style={{ fontSize: 12, cursor: 'pointer', color: '#8c8c8c' }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
             />
           </Dropdown>
           {(() => {
@@ -1068,11 +1096,13 @@ function Pane({
       <StyledTabs
         type="editable-card"
         activeKey={pane.activeTabId}
-        onChange={(key) => onActiveTabChange(pane.id, key)}
+        onChange={(key) => {
+          onActiveTabChange(pane.id, key);
+        }}
         onEdit={(targetKey, action) => {
           if (action === 'add') {
             onAddTab(pane.id);
-          } else if (action === 'remove' && typeof targetKey === 'string') {
+          } else if (typeof targetKey === 'string') {
             onRemoveTab(pane.id, targetKey);
           }
         }}
@@ -1097,14 +1127,18 @@ function Pane({
           onRenameTab(renameTabId, renameValue.trim());
           setRenameModalOpen(false);
         }}
-        onCancel={() => setRenameModalOpen(false)}
+        onCancel={() => {
+          setRenameModalOpen(false);
+        }}
         okText="変更"
         cancelText="キャンセル"
-        destroyOnClose
+        destroyOnHidden
       >
         <Input
           value={renameValue}
-          onChange={(e) => setRenameValue(e.target.value)}
+          onChange={(e) => {
+            setRenameValue(e.target.value);
+          }}
           placeholder="タブ名を入力してください"
           maxLength={60}
           autoFocus
@@ -1137,7 +1171,7 @@ export function TimelinePage({
 
   // Load saved data on mount
   useEffect(() => {
-    Promise.all([window.api.listTabs(), window.api.loadPaneLayout()]).then(
+    void Promise.all([window.api.listTabs(), window.api.loadPaneLayout()]).then(
       ([savedTabs, savedLayout]) => {
         if (savedTabs.length > 0 && savedLayout && savedLayout.panes.length > 0) {
           setTabs(savedTabs);
@@ -1177,20 +1211,20 @@ export function TimelinePage({
       };
       setTabs([defaultTab]);
       setPanes([defaultPane]);
-      window.api.saveTabs([defaultTab]);
-      window.api.savePaneLayout({ panes: [defaultPane] });
+      void window.api.saveTabs([defaultTab]);
+      void window.api.savePaneLayout({ panes: [defaultPane] });
     }
   }, [accounts, tabs.length, loaded]);
 
   const persistLayout = useCallback((newTabs: TabDefinition[], newPanes: PaneDefinition[]) => {
-    window.api.saveTabs(newTabs);
-    window.api.savePaneLayout({ panes: newPanes });
+    void window.api.saveTabs(newTabs);
+    void window.api.savePaneLayout({ panes: newPanes });
   }, []);
 
   const handleActiveTabChange = useCallback((paneId: string, tabId: string) => {
     setPanes((prev) => {
       const next = prev.map((p) => (p.id === paneId ? { ...p, activeTabId: tabId } : p));
-      window.api.savePaneLayout({ panes: next });
+      void window.api.savePaneLayout({ panes: next });
       return next;
     });
   }, []);
@@ -1290,8 +1324,9 @@ export function TimelinePage({
         const toIndex = direction === 'left' ? fromIndex - 1 : fromIndex + 1;
         if (toIndex < 0 || toIndex >= prevPanes.length) return prevPanes;
 
-        const fromPane = prevPanes[fromIndex]!;
-        const toPane = prevPanes[toIndex]!;
+        const fromPane = prevPanes[fromIndex];
+        const toPane = prevPanes[toIndex];
+        if (!fromPane || !toPane) return prevPanes;
 
         const newFromTabIds = fromPane.tabIds.filter((id) => id !== tabId);
         const newFromActiveTabId =
@@ -1317,7 +1352,7 @@ export function TimelinePage({
           }));
         }
 
-        window.api.savePaneLayout({ panes: nextPanes });
+        void window.api.savePaneLayout({ panes: nextPanes });
         return nextPanes;
       });
     },
@@ -1330,7 +1365,7 @@ export function TimelinePage({
         ...p,
         widthRatio: ratios[i] ?? p.widthRatio,
       }));
-      window.api.savePaneLayout({ panes: nextPanes });
+      void window.api.savePaneLayout({ panes: nextPanes });
       return nextPanes;
     });
   }, []);
@@ -1351,7 +1386,7 @@ export function TimelinePage({
         ...p,
         widthRatio: p.widthRatio / totalRatio,
       }));
-      window.api.savePaneLayout({ panes: normalizedPanes });
+      void window.api.savePaneLayout({ panes: normalizedPanes });
       return normalizedPanes;
     });
   }, []);
@@ -1361,7 +1396,7 @@ export function TimelinePage({
       const nextTabs = prevTabs.map((tab) =>
         tab.id === tabId ? { ...tab, customName: name || undefined } : tab,
       );
-      window.api.saveTabs(nextTabs);
+      void window.api.saveTabs(nextTabs);
       return nextTabs;
     });
   }, []);
@@ -1489,7 +1524,9 @@ export function TimelinePage({
         title="タブを追加"
         open={modalOpen}
         onOk={handleConfirmAddTab}
-        onCancel={() => setModalOpen(false)}
+        onCancel={() => {
+          setModalOpen(false);
+        }}
         okText="追加"
         cancelText="キャンセル"
         okButtonProps={{ disabled: !newTabAccount }}
@@ -1519,7 +1556,9 @@ export function TimelinePage({
             <Input
               style={{ marginTop: 8 }}
               value={newTabCustomName}
-              onChange={(event) => setNewTabCustomName(event.target.value)}
+              onChange={(event) => {
+                setNewTabCustomName(event.target.value);
+              }}
               placeholder="未設定時は自動生成"
               maxLength={60}
             />
