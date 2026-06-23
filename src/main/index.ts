@@ -6,6 +6,7 @@ import type {
   AppSettings,
   AccountProfileFetchParams,
   AccountRelationshipParams,
+  AccountSuggestionsFetchParams,
   NotificationFetchParams,
   OAuthExchangeTokenParams,
   PaneLayout,
@@ -22,6 +23,7 @@ import { listAccounts, addAccount, removeAccount, getAccountCredentials } from '
 import {
   fetchAccountProfile,
   fetchAccountRelationship,
+  fetchAccountSuggestions,
   fetchTimeline,
   followAccount,
   unfollowAccount,
@@ -173,6 +175,16 @@ function registerIpcHandlers(): void {
       const account = getAccountCredentials(params.serverUrl, params.username);
       return rateLimitedCall(() =>
         fetchAccountRelationship(account.serverUrl, account.accessToken, params.accountId),
+      );
+    },
+  );
+
+  ipcMain.handle(
+    IpcChannels.AccountSuggestionsFetch,
+    async (_event, params: AccountSuggestionsFetchParams) => {
+      const account = getAccountCredentials(params.serverUrl, params.username);
+      return rateLimitedCall(() =>
+        fetchAccountSuggestions(account.serverUrl, account.accessToken, params.query),
       );
     },
   );

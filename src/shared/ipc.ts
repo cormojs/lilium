@@ -14,6 +14,8 @@ export const IpcChannels = {
   AccountProfileFetch: 'account-profile:fetch',
   /** Fetch an account relationship */
   AccountRelationshipFetch: 'account-relationship:fetch',
+  /** Fetch account suggestions for acct completion */
+  AccountSuggestionsFetch: 'account-suggestions:fetch',
   /** Follow an account */
   AccountFollow: 'account:follow',
   /** Unfollow an account */
