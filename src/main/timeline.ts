@@ -9,6 +9,10 @@ import type {
 } from '../shared/types.ts';
 import { convertAccount, convertStatus } from './mastodonConverters.ts';
 
+const ACCOUNT_SUGGESTION_PAGE_LIMIT = 80;
+const ACCOUNT_SUGGESTION_MAX_PAGES = 3;
+const ACCOUNT_SUGGESTION_SEARCH_LIMIT = 40;
+
 export async function fetchTimeline(
   serverUrl: string,
   accessToken: string,
@@ -125,6 +129,55 @@ function compareAccountSuggestions(query: string) {
   };
 }
 
+async function addRelationshipAccounts(
+  suggestions: Map<string, AccountSuggestion>,
+  pages: AsyncIterable<mastodon.v1.Account[]>,
+): Promise<void> {
+  let pageCount = 0;
+  for await (const accounts of pages) {
+    for (const account of accounts) {
+      suggestions.set(account.id, toAccountSuggestion(account));
+    }
+
+    pageCount += 1;
+    if (pageCount >= ACCOUNT_SUGGESTION_MAX_PAGES) {
+      break;
+    }
+  }
+}
+
+async function addSearchedRelationshipAccounts(
+  client: ReturnType<typeof createRestAPIClient>,
+  suggestions: Map<string, AccountSuggestion>,
+  query: string,
+): Promise<void> {
+  if (query.length === 0) {
+    return;
+  }
+
+  const accounts = await client.v1.accounts.search.list({
+    q: query,
+    limit: ACCOUNT_SUGGESTION_SEARCH_LIMIT,
+  });
+  if (accounts.length === 0) {
+    return;
+  }
+
+  const relationships = await client.v1.accounts.relationships.fetch({
+    id: accounts.map((account) => account.id),
+  });
+  const relationshipById = new Map(
+    relationships.map((relationship) => [relationship.id, relationship]),
+  );
+
+  for (const account of accounts) {
+    const relationship = relationshipById.get(account.id);
+    if (relationship?.following || relationship?.followedBy) {
+      suggestions.set(account.id, toAccountSuggestion(account));
+    }
+  }
+}
+
 export async function fetchAccountSuggestions(
   serverUrl: string,
   accessToken: string,
@@ -132,19 +185,24 @@ export async function fetchAccountSuggestions(
 ): Promise<AccountSuggestion[]> {
   const client = createRestAPIClient({ url: serverUrl, accessToken });
   const me = await client.v1.accounts.verifyCredentials();
-  const [following, followers] = await Promise.all([
-    client.v1.accounts.$select(me.id).following.list({ limit: 80 }),
-    client.v1.accounts.$select(me.id).followers.list({ limit: 80 }),
+  const trimmedQuery = query.trim();
+  const suggestions = new Map<string, AccountSuggestion>();
+
+  await Promise.all([
+    addRelationshipAccounts(
+      suggestions,
+      client.v1.accounts.$select(me.id).following.list({ limit: ACCOUNT_SUGGESTION_PAGE_LIMIT }),
+    ),
+    addRelationshipAccounts(
+      suggestions,
+      client.v1.accounts.$select(me.id).followers.list({ limit: ACCOUNT_SUGGESTION_PAGE_LIMIT }),
+    ),
+    addSearchedRelationshipAccounts(client, suggestions, trimmedQuery),
   ]);
 
-  const suggestions = new Map<string, AccountSuggestion>();
-  for (const account of [...following, ...followers]) {
-    suggestions.set(account.id, toAccountSuggestion(account));
-  }
-
   return [...suggestions.values()]
-    .filter((account) => accountMatchesQuery(account, query.trim()))
-    .sort(compareAccountSuggestions(query.trim()))
+    .filter((account) => accountMatchesQuery(account, trimmedQuery))
+    .sort(compareAccountSuggestions(trimmedQuery))
     .slice(0, 8);
 }
 
