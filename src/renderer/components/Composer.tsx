@@ -27,6 +27,7 @@ interface ComposerProps {
 }
 
 const Container = styled.div<{ $dragOver: boolean }>`
+  container: composer / inline-size;
   border-bottom: 1px solid #f0f0f0;
   padding: 12px 16px;
   background: ${(props) => (props.$dragOver ? '#f0f7ff' : '#fff')};
@@ -55,6 +56,10 @@ const ComposerRight = styled.div`
   display: flex;
   gap: 8px;
   align-items: stretch;
+
+  @container composer (max-width: 600px) {
+    flex-direction: column;
+  }
 `;
 
 const InputColumn = styled.div`
@@ -120,12 +125,18 @@ const ActionColumn = styled.div`
   flex-direction: column;
   gap: 4px;
   flex-shrink: 0;
+
+  @container composer (max-width: 600px) {
+    flex-direction: row;
+    align-items: stretch;
+  }
 `;
 
 const ActionRow = styled.div`
   display: flex;
   gap: 4px;
   align-items: center;
+  flex-shrink: 0;
 `;
 
 const visibilityOptions: { value: PostVisibility; label: string }[] = [
