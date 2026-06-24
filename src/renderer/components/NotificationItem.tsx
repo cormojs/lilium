@@ -183,7 +183,7 @@ export function NotificationItem({
             <NotificationMessage>{NOTIFICATION_LABEL[notification.type]}</NotificationMessage>
           </IdentityButton>
         </NotificationHeader>
-        {notification.status && (
+        {notification.status ? (
           <StatusPreview
             $fontSize={settings.postFontSize - 1}
             dangerouslySetInnerHTML={{
@@ -192,7 +192,7 @@ export function NotificationItem({
               ),
             }}
           />
-        )}
+        ) : null}
         <Timestamp $fontSize={settings.uiFontSize - 2}>
           {formatTimestamp(notification.createdAt)}
         </Timestamp>

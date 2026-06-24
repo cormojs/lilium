@@ -133,9 +133,9 @@ export function MediaGallery({ attachments }: MediaGalleryProps): React.JSX.Elem
         width="auto"
         styles={{ body: { padding: 0, lineHeight: 0 } }}
       >
-        {previewImage && (
+        {previewImage ? (
           <PreviewImage src={previewImage.url} alt={previewImage.description ?? ''} />
-        )}
+        ) : null}
       </Modal>
     </>
   );
