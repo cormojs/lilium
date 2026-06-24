@@ -372,6 +372,10 @@ function formatCount(count: number): string {
   return countFormatter.format(count);
 }
 
+function getAccountKey(serverUrl: string, username: string): string {
+  return `${serverUrl}|${username}`;
+}
+
 function handleAccountProfileLinkClick(event: React.MouseEvent): void {
   const anchor = event.target instanceof Element ? event.target.closest('a') : null;
   if (!anchor) return;
@@ -397,7 +401,7 @@ function renderAccountField(
             __html: sanitizeProfileHtml(replaceCustomEmojis(field.value, emojis)),
           }}
         />
-        {field.verifiedAt && <AccountFieldVerified>認証済み</AccountFieldVerified>}
+        {field.verifiedAt ? <AccountFieldVerified>認証済み</AccountFieldVerified> : null}
       </div>
     </AccountFieldItem>
   );
@@ -458,19 +462,19 @@ function AccountProfileHeader({
               </Button>
             </AccountHeaderActions>
           </AccountHeaderTop>
-          {profile.note.trim().length > 0 && (
+          {profile.note.trim().length > 0 ? (
             <AccountNote
               onClick={handleAccountProfileLinkClick}
               dangerouslySetInnerHTML={{
                 __html: sanitizeProfileHtml(replaceCustomEmojis(profile.note, profile.emojis)),
               }}
             />
-          )}
-          {profile.fields.length > 0 && (
+          ) : null}
+          {profile.fields.length > 0 ? (
             <AccountFields>
               {profile.fields.map((field) => renderAccountField(field, profile.emojis))}
             </AccountFields>
-          )}
+          ) : null}
           <AccountStats>
             <span>{formatCount(profile.statusesCount)} 投稿</span>
             <span>{formatCount(profile.followingCount)} フォロー</span>
@@ -480,6 +484,139 @@ function AccountProfileHeader({
       </AccountHeaderBody>
     </AccountHeader>
   );
+}
+
+function useTimelinePollExpirationNotifications({
+  accountServerUrl,
+  accountUsername,
+  posts,
+  setPosts,
+  message,
+}: {
+  accountServerUrl: string | undefined;
+  accountUsername: string | undefined;
+  posts: Post[];
+  setPosts: React.Dispatch<React.SetStateAction<Post[]>>;
+  message: ReturnType<typeof App.useApp>['message'];
+}): void {
+  useEffect(() => {
+    if (!accountServerUrl || !accountUsername) return;
+
+    const timers: number[] = [];
+    for (const post of posts) {
+      const poll = post.poll;
+      if (!poll || poll.expired || poll.expiresAt === null) {
+        continue;
+      }
+
+      const delay = new Date(poll.expiresAt).getTime() - Date.now();
+      if (delay <= 0 || delay > MAX_POLL_EXPIRATION_TIMER_MS) {
+        continue;
+      }
+
+      const timer = window.setTimeout(() => {
+        void window.api
+          .refreshPoll({
+            serverUrl: accountServerUrl,
+            username: accountUsername,
+            pollId: poll.id,
+          })
+          .then((updatedPoll) => {
+            setPosts((prev) =>
+              prev.map((currentPost) =>
+                currentPost.id === post.id ? { ...currentPost, poll: updatedPoll } : currentPost,
+              ),
+            );
+            void window.api.showNotification({
+              title: '投票が終了しました',
+              body: createStatusPreview(post.content),
+              iconUrl: post.account.avatarUrl,
+            });
+          })
+          .catch((error: unknown) => {
+            message.error(
+              `投票結果の再取得に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          });
+      }, delay);
+
+      timers.push(timer);
+    }
+
+    return () => {
+      for (const timer of timers) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [accountServerUrl, accountUsername, message, posts, setPosts]);
+}
+
+function useScrollLoadMore({
+  listRef,
+  loadMore,
+  itemCount,
+}: {
+  listRef: React.RefObject<HTMLDivElement | null>;
+  loadMore: () => void | Promise<void>;
+  itemCount: number;
+}): void {
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const checkAndLoad = (): void => {
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
+        void loadMore();
+      }
+    };
+    checkAndLoad();
+    el.addEventListener('scroll', checkAndLoad, { passive: true });
+    return () => {
+      el.removeEventListener('scroll', checkAndLoad);
+    };
+  }, [itemCount, listRef, loadMore]);
+}
+
+function useTimelineStream({
+  accountServerUrl,
+  accountUsername,
+  tabId,
+  timelineType,
+  setPosts,
+}: {
+  accountServerUrl: string | undefined;
+  accountUsername: string | undefined;
+  tabId: string;
+  timelineType: TimelineType;
+  setPosts: React.Dispatch<React.SetStateAction<Post[]>>;
+}): void {
+  useEffect(() => {
+    if (!accountServerUrl || !accountUsername) return;
+    const streamType = getStreamType(timelineType);
+    if (!streamType) return;
+
+    const subscriptionId = `timeline-${tabId}`;
+    void window.api.subscribeStream({
+      serverUrl: accountServerUrl,
+      username: accountUsername,
+      streamType,
+      subscriptionId,
+    });
+
+    const removeListener = window.api.onStreamEvent((event) => {
+      if (event.subscriptionId !== subscriptionId) return;
+      if (event.event === 'update') {
+        const post = event.payload as Post;
+        setPosts((prev) => (prev.some((p) => p.id === post.id) ? prev : [post, ...prev]));
+      } else if (event.event === 'delete') {
+        setPosts((prev) => prev.filter((p) => p.id !== event.payload));
+      }
+    });
+
+    return () => {
+      removeListener();
+      void window.api.unsubscribeStream(subscriptionId);
+    };
+  }, [accountServerUrl, accountUsername, setPosts, tabId, timelineType]);
 }
 
 function TimelineTabContent({
@@ -508,20 +645,23 @@ function TimelineTabContent({
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(true);
 
+  const accountByKey = new Map(
+    accounts.map((account) => [getAccountKey(account.serverUrl, account.username), account]),
+  );
+  const account = accountByKey.get(getAccountKey(tab.accountServerUrl, tab.accountUsername));
+  const accountServerUrl = account?.serverUrl;
+  const accountUsername = account?.username;
+
   useEffect(() => {
     postsRef.current = posts;
   }, [posts]);
 
-  const account = accounts.find(
-    (a) => a.serverUrl === tab.accountServerUrl && a.username === tab.accountUsername,
-  );
-
-  const handlePollChange = useCallback((postId: string, poll: PostPoll): void => {
+  const handlePollChange = (postId: string, poll: PostPoll): void => {
     setPosts((prev) => prev.map((post) => (post.id === postId ? { ...post, poll } : post)));
-  }, []);
+  };
 
   const loadTimeline = useCallback(async () => {
-    if (!account) return;
+    if (!accountServerUrl || !accountUsername) return;
     setLoading(true);
     hasMoreRef.current = true;
     try {
@@ -530,8 +670,8 @@ function TimelineTabContent({
           throw new Error('アカウントIDが設定されていません');
         }
         const profile = await window.api.fetchAccountProfile({
-          serverUrl: account.serverUrl,
-          username: account.username,
+          serverUrl: accountServerUrl,
+          username: accountUsername,
           accountId: tab.targetAccountId,
         });
         setAccountProfile(profile);
@@ -539,8 +679,8 @@ function TimelineTabContent({
         setAccountProfile(null);
       }
       const result = await window.api.fetchTimeline({
-        serverUrl: account.serverUrl,
-        username: account.username,
+        serverUrl: accountServerUrl,
+        username: accountUsername,
         type: tab.timelineType,
         accountId: tab.targetAccountId,
       });
@@ -552,7 +692,7 @@ function TimelineTabContent({
     } finally {
       setLoading(false);
     }
-  }, [account, tab.timelineType, tab.targetAccountId, message]);
+  }, [accountServerUrl, accountUsername, tab.timelineType, tab.targetAccountId, message]);
 
   const handleRefresh = useCallback(() => {
     setPosts([]);
@@ -560,7 +700,7 @@ function TimelineTabContent({
   }, [loadTimeline]);
 
   const handleToggleFollow = useCallback(async (): Promise<void> => {
-    if (!account || !accountProfile) return;
+    if (!accountServerUrl || !accountUsername || !accountProfile) return;
     if (!tab.targetAccountId) return;
 
     setFollowBusy(true);
@@ -568,13 +708,13 @@ function TimelineTabContent({
       const result =
         accountProfile.following || accountProfile.requested
           ? await window.api.unfollowAccount({
-              serverUrl: account.serverUrl,
-              username: account.username,
+              serverUrl: accountServerUrl,
+              username: accountUsername,
               accountId: tab.targetAccountId,
             })
           : await window.api.followAccount({
-              serverUrl: account.serverUrl,
-              username: account.username,
+              serverUrl: accountServerUrl,
+              username: accountUsername,
               accountId: tab.targetAccountId,
             });
 
@@ -592,7 +732,7 @@ function TimelineTabContent({
     } finally {
       setFollowBusy(false);
     }
-  }, [account, accountProfile, message, tab.targetAccountId]);
+  }, [accountServerUrl, accountUsername, accountProfile, message, tab.targetAccountId]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
@@ -608,7 +748,8 @@ function TimelineTabContent({
   }, [handleRefresh]);
 
   const loadMore = useCallback(async () => {
-    if (!account || loadingMoreRef.current || !hasMoreRef.current) return;
+    if (!accountServerUrl || !accountUsername || loadingMoreRef.current || !hasMoreRef.current)
+      return;
     const currentPosts = postsRef.current;
     if (currentPosts.length === 0) return;
     const lastPost = currentPosts[currentPosts.length - 1];
@@ -617,8 +758,8 @@ function TimelineTabContent({
     setLoadingMore(true);
     try {
       const result = await window.api.fetchTimeline({
-        serverUrl: account.serverUrl,
-        username: account.username,
+        serverUrl: accountServerUrl,
+        username: accountUsername,
         type: tab.timelineType,
         accountId: tab.targetAccountId,
         maxId: lastPost.id,
@@ -636,102 +777,27 @@ function TimelineTabContent({
       loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [account, tab.timelineType, tab.targetAccountId, message]);
+  }, [accountServerUrl, accountUsername, tab.timelineType, tab.targetAccountId, message]);
 
   useEffect(() => {
     void loadTimeline();
   }, [loadTimeline]);
 
-  useEffect(() => {
-    if (!account) return;
-
-    const timers = posts.flatMap((post) => {
-      const poll = post.poll;
-      if (!poll || poll.expired || poll.expiresAt === null) {
-        return [];
-      }
-
-      const delay = new Date(poll.expiresAt).getTime() - Date.now();
-      if (delay <= 0 || delay > MAX_POLL_EXPIRATION_TIMER_MS) {
-        return [];
-      }
-
-      const timer = window.setTimeout(() => {
-        void window.api
-          .refreshPoll({
-            serverUrl: account.serverUrl,
-            username: account.username,
-            pollId: poll.id,
-          })
-          .then((updatedPoll) => {
-            handlePollChange(post.id, updatedPoll);
-            void window.api.showNotification({
-              title: '投票が終了しました',
-              body: createStatusPreview(post.content),
-              iconUrl: post.account.avatarUrl,
-            });
-          })
-          .catch((error: unknown) => {
-            message.error(
-              `投票結果の再取得に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
-            );
-          });
-      }, delay);
-
-      return [timer];
-    });
-
-    return () => {
-      for (const timer of timers) {
-        window.clearTimeout(timer);
-      }
-    };
-  }, [account, handlePollChange, message, posts]);
-
-  useEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
-    const checkAndLoad = (): void => {
-      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
-        void loadMore();
-      }
-    };
-    checkAndLoad();
-    el.addEventListener('scroll', checkAndLoad, { passive: true });
-    return () => {
-      el.removeEventListener('scroll', checkAndLoad);
-    };
-  }, [loadMore, posts.length]);
-
-  // Subscribe to streaming for real-time updates
-  useEffect(() => {
-    if (!account) return;
-    const streamType = getStreamType(tab.timelineType);
-    if (!streamType) return;
-
-    const subscriptionId = `timeline-${tab.id}`;
-    void window.api.subscribeStream({
-      serverUrl: account.serverUrl,
-      username: account.username,
-      streamType,
-      subscriptionId,
-    });
-
-    const removeListener = window.api.onStreamEvent((event) => {
-      if (event.subscriptionId !== subscriptionId) return;
-      if (event.event === 'update') {
-        const post = event.payload as Post;
-        setPosts((prev) => (prev.some((p) => p.id === post.id) ? prev : [post, ...prev]));
-      } else if (event.event === 'delete') {
-        setPosts((prev) => prev.filter((p) => p.id !== event.payload));
-      }
-    });
-
-    return () => {
-      removeListener();
-      void window.api.unsubscribeStream(subscriptionId);
-    };
-  }, [account, tab.id, tab.timelineType]);
+  useTimelinePollExpirationNotifications({
+    accountServerUrl,
+    accountUsername,
+    posts,
+    setPosts,
+    message,
+  });
+  useScrollLoadMore({ listRef, loadMore, itemCount: posts.length });
+  useTimelineStream({
+    accountServerUrl,
+    accountUsername,
+    tabId: tab.id,
+    timelineType: tab.timelineType,
+    setPosts,
+  });
 
   if (!account) {
     return <EmptyMessage>アカウントが見つかりません</EmptyMessage>;
@@ -751,7 +817,7 @@ function TimelineTabContent({
 
   return (
     <TimelineList ref={listRef}>
-      {accountProfile && (
+      {accountProfile ? (
         <AccountProfileHeader
           profile={accountProfile}
           onToggleFollow={() => {
@@ -759,8 +825,8 @@ function TimelineTabContent({
           }}
           followBusy={followBusy}
         />
-      )}
-      {posts.length === 0 && <EmptyMessage>投稿がありません</EmptyMessage>}
+      ) : null}
+      {posts.length === 0 ? <EmptyMessage>投稿がありません</EmptyMessage> : null}
       {posts.map((post) =>
         settings.disableCompactDisplay || expandedPostId === post.id ? (
           <PostItem
@@ -799,11 +865,11 @@ function TimelineTabContent({
           />
         ),
       )}
-      {loadingMore && (
+      {loadingMore ? (
         <SpinContainer>
           <Spin size="small" />
         </SpinContainer>
-      )}
+      ) : null}
     </TimelineList>
   );
 }
@@ -827,22 +893,25 @@ function NotificationTabContent({
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(true);
 
+  const accountByKey = new Map(
+    accounts.map((account) => [getAccountKey(account.serverUrl, account.username), account]),
+  );
+  const account = accountByKey.get(getAccountKey(tab.accountServerUrl, tab.accountUsername));
+  const accountServerUrl = account?.serverUrl;
+  const accountUsername = account?.username;
+
   useEffect(() => {
     notificationsRef.current = notifications;
   }, [notifications]);
 
-  const account = accounts.find(
-    (a) => a.serverUrl === tab.accountServerUrl && a.username === tab.accountUsername,
-  );
-
   const loadNotifications = useCallback(async () => {
-    if (!account) return;
+    if (!accountServerUrl || !accountUsername) return;
     setLoading(true);
     hasMoreRef.current = true;
     try {
       const result = await window.api.fetchNotifications({
-        serverUrl: account.serverUrl,
-        username: account.username,
+        serverUrl: accountServerUrl,
+        username: accountUsername,
       });
       setNotifications(result);
     } catch (e) {
@@ -850,10 +919,11 @@ function NotificationTabContent({
     } finally {
       setLoading(false);
     }
-  }, [account, message]);
+  }, [accountServerUrl, accountUsername, message]);
 
   const loadMoreNotifications = useCallback(async () => {
-    if (!account || loadingMoreRef.current || !hasMoreRef.current) return;
+    if (!accountServerUrl || !accountUsername || loadingMoreRef.current || !hasMoreRef.current)
+      return;
     const currentNotifications = notificationsRef.current;
     if (currentNotifications.length === 0) return;
     const lastNotification = currentNotifications[currentNotifications.length - 1];
@@ -862,8 +932,8 @@ function NotificationTabContent({
     setLoadingMore(true);
     try {
       const result = await window.api.fetchNotifications({
-        serverUrl: account.serverUrl,
-        username: account.username,
+        serverUrl: accountServerUrl,
+        username: accountUsername,
         maxId: lastNotification.id,
       });
       if (result.length > 0) {
@@ -877,7 +947,7 @@ function NotificationTabContent({
       loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [account, message]);
+  }, [accountServerUrl, accountUsername, message]);
 
   useEffect(() => {
     void loadNotifications();
@@ -902,12 +972,12 @@ function NotificationTabContent({
 
   // Subscribe to user stream for real-time notification updates
   useEffect(() => {
-    if (!account) return;
+    if (!accountServerUrl || !accountUsername) return;
 
     const subscriptionId = `notifications-${tab.id}`;
     void window.api.subscribeStream({
-      serverUrl: account.serverUrl,
-      username: account.username,
+      serverUrl: accountServerUrl,
+      username: accountUsername,
       streamType: 'user',
       subscriptionId,
     });
@@ -954,7 +1024,7 @@ function NotificationTabContent({
       removeListener();
       void window.api.unsubscribeStream(subscriptionId);
     };
-  }, [account, tab.id]);
+  }, [accountServerUrl, accountUsername, tab.id]);
 
   if (!account) {
     return <EmptyMessage>アカウントが見つかりません</EmptyMessage>;
@@ -983,11 +1053,11 @@ function NotificationTabContent({
           }}
         />
       ))}
-      {loadingMore && (
+      {loadingMore ? (
         <SpinContainer>
           <Spin size="small" />
         </SpinContainer>
-      )}
+      ) : null}
     </TimelineList>
   );
 }
@@ -1082,9 +1152,14 @@ function Pane({
     return removeListener;
   }, []);
 
-  const paneTabs = pane.tabIds
-    .map((id) => tabs.find((t) => t.id === id))
-    .filter((t): t is TabDefinition => t !== undefined);
+  const tabById = new Map(tabs.map((tab) => [tab.id, tab]));
+  const paneTabs: TabDefinition[] = [];
+  for (const tabId of pane.tabIds) {
+    const tab = tabById.get(tabId);
+    if (tab) {
+      paneTabs.push(tab);
+    }
+  }
 
   const tabItems = paneTabs.map((tab) => {
     const menuItems: { key: string; label: string; disabled?: boolean }[] = [
@@ -1461,9 +1536,9 @@ export function TimelinePage({
     });
   }, []);
 
-  const accountOptions = accounts.map((a) => ({
-    value: `${a.serverUrl}|${a.username}`,
-    label: `@${a.username}@${new URL(a.serverUrl).host}`,
+  const accountOptions = accounts.map((account) => ({
+    value: getAccountKey(account.serverUrl, account.username),
+    label: `@${account.username}@${new URL(account.serverUrl).host}`,
   }));
 
   const handleReply = useCallback((tab: TabDefinition, post: Post): void => {
@@ -1525,7 +1600,7 @@ export function TimelinePage({
     setStatusDraft(null);
   };
 
-  const widthRatios = panes.map((p) => p.widthRatio);
+  const widthRatios = panes.map((pane) => pane.widthRatio);
 
   return (
     <PageContainer>

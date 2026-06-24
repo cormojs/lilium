@@ -207,9 +207,9 @@ export function CompactPostItem({
       </AcctCellButton>
       <BodyCell $visibility={post.visibility} $hasSpoiler={hasSpoiler}>
         <BodyText $fontSize={compactFontSize} dangerouslySetInnerHTML={{ __html: bodyHtml }} />
-        {hasMedia && <MediaIcon $fontSize={compactFontSize} />}
-        {hasQuote && <QuoteIcon $fontSize={compactFontSize} />}
-        {hasPoll && <PollIcon $fontSize={compactFontSize} />}
+        {hasMedia ? <MediaIcon $fontSize={compactFontSize} /> : null}
+        {hasQuote ? <QuoteIcon $fontSize={compactFontSize} /> : null}
+        {hasPoll ? <PollIcon $fontSize={compactFontSize} /> : null}
       </BodyCell>
     </Row>
   );
