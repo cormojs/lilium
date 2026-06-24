@@ -1,8 +1,9 @@
-import { useMemo, useRef, useState } from 'react';
-import { App, Avatar, Button, Dropdown, Input, Select, Switch, Typography } from 'antd';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { App, Avatar, Button, Dropdown, Input, Select, Spin, Switch, Typography } from 'antd';
 import styled from 'styled-components';
 import type {
   Account,
+  AccountSuggestion,
   MediaAttachmentType,
   PostVisibility,
   UploadedMedia,
@@ -68,6 +69,63 @@ const InputColumn = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
+`;
+
+const TextAreaWrapper = styled.div`
+  position: relative;
+  display: flex;
+`;
+
+const SuggestionPanel = styled.div`
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgb(0 0 0 / 12%);
+  overflow: hidden;
+`;
+
+const SuggestionLoading = styled.div`
+  padding: 10px;
+  text-align: center;
+`;
+
+const SuggestionButton = styled.button<{ $active: boolean }>`
+  width: 100%;
+  border: 0;
+  background: ${(props) => (props.$active ? '#e6f4ff' : '#fff')};
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: #e6f4ff;
+  }
+`;
+
+const SuggestionName = styled.div`
+  color: #111827;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const SuggestionAcct = styled.div`
+  color: #6b7280;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 const MediaGrid = styled.div`
@@ -182,6 +240,46 @@ function getPosterUrl(media: UploadedMedia): string | undefined {
   return media.previewUrl !== media.url ? media.previewUrl : undefined;
 }
 
+interface ActiveMention {
+  start: number;
+  end: number;
+  query: string;
+}
+
+interface SuggestionState {
+  items: AccountSuggestion[];
+  loading: boolean;
+  activeIndex: number;
+}
+
+function findActiveMention(value: string, caretPosition: number | null): ActiveMention | null {
+  if (caretPosition === null) {
+    return null;
+  }
+
+  const beforeCaret = value.slice(0, caretPosition);
+  const mentionStart = beforeCaret.lastIndexOf('@');
+  if (mentionStart === -1) {
+    return null;
+  }
+
+  const previousCharacter = mentionStart > 0 ? beforeCaret[mentionStart - 1] : '';
+  if (previousCharacter && !/\s/.test(previousCharacter)) {
+    return null;
+  }
+
+  const query = beforeCaret.slice(mentionStart + 1);
+  if (/\s/.test(query)) {
+    return null;
+  }
+
+  return {
+    start: mentionStart,
+    end: caretPosition,
+    query,
+  };
+}
+
 export function Composer({
   accounts,
   statusDraft,
@@ -197,7 +295,15 @@ export function Composer({
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadingCount, setUploadingCount] = useState(0);
   const [mediaAttachments, setMediaAttachments] = useState<UploadedMedia[]>([]);
+  const [activeMention, setActiveMention] = useState<ActiveMention | null>(null);
+  const [suggestionState, setSuggestionState] = useState<SuggestionState>({
+    items: [],
+    loading: false,
+    activeIndex: 0,
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textAreaRef = useRef<React.ComponentRef<typeof TextArea>>(null);
+  const suggestionRequestIdRef = useRef(0);
 
   const draftAccount = statusDraft
     ? accounts.find(
@@ -219,6 +325,74 @@ export function Composer({
       })),
     [accounts],
   );
+
+  function updateActiveMention(value: string, caretPosition: number | null): void {
+    const nextMention = findActiveMention(value, caretPosition);
+    setActiveMention(nextMention);
+    setSuggestionState({
+      items: [],
+      loading: nextMention !== null,
+      activeIndex: 0,
+    });
+  }
+
+  useEffect(() => {
+    if (!selectedAccount || !activeMention) {
+      suggestionRequestIdRef.current += 1;
+      return;
+    }
+
+    const requestId = suggestionRequestIdRef.current + 1;
+    suggestionRequestIdRef.current = requestId;
+
+    const timeoutId = window.setTimeout(() => {
+      void window.api
+        .fetchAccountSuggestions({
+          serverUrl: selectedAccount.serverUrl,
+          username: selectedAccount.username,
+          query: activeMention.query,
+        })
+        .then((nextSuggestions) => {
+          if (suggestionRequestIdRef.current !== requestId) {
+            return;
+          }
+          setSuggestionState({ items: nextSuggestions, loading: false, activeIndex: 0 });
+        })
+        .catch((e: unknown) => {
+          if (suggestionRequestIdRef.current !== requestId) {
+            return;
+          }
+          setSuggestionState({ items: [], loading: false, activeIndex: 0 });
+          message.error(
+            `acct補完候補の取得に失敗しました: ${e instanceof Error ? e.message : String(e)}`,
+          );
+        });
+    }, 200);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [activeMention, message, selectedAccount]);
+
+  function insertSuggestion(suggestion: AccountSuggestion): void {
+    if (!activeMention) {
+      return;
+    }
+
+    const replacement = `@${suggestion.acct} `;
+    const nextText =
+      text.slice(0, activeMention.start) + replacement + text.slice(activeMention.end);
+    const nextCaretPosition = activeMention.start + replacement.length;
+    setText(nextText);
+    setActiveMention(null);
+    setSuggestionState({ items: [], loading: false, activeIndex: 0 });
+
+    window.setTimeout(() => {
+      textAreaRef.current?.focus();
+      const textArea = textAreaRef.current?.resizableTextArea?.textArea;
+      textArea?.setSelectionRange(nextCaretPosition, nextCaretPosition);
+    }, 0);
+  }
 
   const uploadFiles = async (files: File[]): Promise<void> => {
     if (!selectedAccount || files.length === 0) {
@@ -330,6 +504,9 @@ export function Composer({
     }
   };
 
+  const suggestionPanelOpen =
+    activeMention !== null && (suggestionState.loading || suggestionState.items.length > 0);
+
   return (
     <Container
       $dragOver={isDragOver}
@@ -366,6 +543,8 @@ export function Composer({
               if (nextAccount) {
                 setSelectedAccountKey(accountKey(nextAccount));
                 setMediaAttachments([]);
+                setActiveMention(null);
+                setSuggestionState({ items: [], loading: false, activeIndex: 0 });
               }
             },
           }}
@@ -390,30 +569,114 @@ export function Composer({
               maxLength={100}
               style={{ display: useContentWarning ? 'block' : 'none' }}
             />
-            <TextArea
-              value={text}
-              onChange={(event) => {
-                setText(event.target.value);
-              }}
-              onPaste={(event) => {
-                const clipboardFiles = Array.from(event.clipboardData.files);
-                if (clipboardFiles.length === 0) {
-                  return;
-                }
-                event.preventDefault();
-                void uploadFiles(clipboardFiles);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+            <TextAreaWrapper>
+              <TextArea
+                ref={textAreaRef}
+                value={text}
+                onChange={(event) => {
+                  const nextText = event.target.value;
+                  setText(nextText);
+                  updateActiveMention(nextText, event.target.selectionStart);
+                }}
+                onClick={(event) => {
+                  updateActiveMention(text, event.currentTarget.selectionStart);
+                }}
+                onPaste={(event) => {
+                  const clipboardFiles = Array.from(event.clipboardData.files);
+                  if (clipboardFiles.length === 0) {
+                    return;
+                  }
                   event.preventDefault();
-                  void handleSubmit();
-                }
-              }}
-              placeholder="いまどうしてる？"
-              autoSize={{ minRows: 2, maxRows: 6 }}
-              maxLength={500}
-              style={{ flex: 1 }}
-            />
+                  void uploadFiles(clipboardFiles);
+                }}
+                onKeyDown={(event) => {
+                  if (suggestionPanelOpen && suggestionState.items.length > 0) {
+                    if (event.key === 'ArrowDown') {
+                      event.preventDefault();
+                      setSuggestionState((current) => ({
+                        ...current,
+                        activeIndex: (current.activeIndex + 1) % current.items.length,
+                      }));
+                      return;
+                    }
+                    if (event.key === 'ArrowUp') {
+                      event.preventDefault();
+                      setSuggestionState((current) => ({
+                        ...current,
+                        activeIndex:
+                          (current.activeIndex - 1 + current.items.length) % current.items.length,
+                      }));
+                      return;
+                    }
+                    if (
+                      (event.key === 'Enter' || event.key === 'Tab') &&
+                      suggestionState.items.length > 0
+                    ) {
+                      event.preventDefault();
+                      const suggestion = suggestionState.items[suggestionState.activeIndex];
+                      if (suggestion) {
+                        insertSuggestion(suggestion);
+                      }
+                      return;
+                    }
+                    if (event.key === 'Escape') {
+                      event.preventDefault();
+                      setActiveMention(null);
+                      setSuggestionState({ items: [], loading: false, activeIndex: 0 });
+                      return;
+                    }
+                  }
+                  if (suggestionPanelOpen && event.key === 'Escape') {
+                    event.preventDefault();
+                    setActiveMention(null);
+                    setSuggestionState({ items: [], loading: false, activeIndex: 0 });
+                    return;
+                  }
+
+                  if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+                    event.preventDefault();
+                    void handleSubmit();
+                  }
+                }}
+                placeholder="いまどうしてる？"
+                autoSize={{ minRows: 2, maxRows: 6 }}
+                maxLength={500}
+                style={{ flex: 1 }}
+              />
+              {suggestionPanelOpen && (
+                <SuggestionPanel>
+                  {suggestionState.loading && suggestionState.items.length === 0 ? (
+                    <SuggestionLoading>
+                      <Spin size="small" />
+                    </SuggestionLoading>
+                  ) : (
+                    suggestionState.items.map((suggestion, index) => {
+                      const displayName =
+                        suggestion.displayName.trim().length > 0
+                          ? suggestion.displayName
+                          : suggestion.acct;
+                      return (
+                        <SuggestionButton
+                          key={suggestion.id}
+                          $active={index === suggestionState.activeIndex}
+                          type="button"
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            insertSuggestion(suggestion);
+                          }}
+                        >
+                          <Avatar src={suggestion.avatarUrl} size={28} shape="square" />
+                          <div>
+                            <SuggestionName>{displayName}</SuggestionName>
+                            <SuggestionAcct>@{suggestion.acct}</SuggestionAcct>
+                          </div>
+                        </SuggestionButton>
+                      );
+                    })
+                  )}
+                </SuggestionPanel>
+              )}
+            </TextAreaWrapper>
 
             {mediaAttachments.length > 0 && (
               <MediaGrid>

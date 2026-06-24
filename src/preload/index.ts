@@ -6,6 +6,8 @@ import type {
   AccountProfileFetchParams,
   AccountRelationshipParams,
   AccountRelationshipSummary,
+  AccountSuggestion,
+  AccountSuggestionsFetchParams,
   AppSettings,
   MastoNotification,
   MediaUploadParams,
@@ -56,6 +58,10 @@ const api = {
   /** Fetch an account relationship */
   fetchAccountRelationship(params: AccountRelationshipParams): Promise<AccountRelationshipSummary> {
     return ipcRenderer.invoke(IpcChannels.AccountRelationshipFetch, params);
+  },
+  /** Fetch account suggestions for acct completion */
+  fetchAccountSuggestions(params: AccountSuggestionsFetchParams): Promise<AccountSuggestion[]> {
+    return ipcRenderer.invoke(IpcChannels.AccountSuggestionsFetch, params);
   },
   /** Follow an account */
   followAccount(params: AccountRelationshipParams): Promise<AccountRelationshipSummary> {
