@@ -178,6 +178,19 @@ export interface StatusActionParams {
   statusId: string;
 }
 
+export interface PollVoteParams {
+  username: string;
+  serverUrl: string;
+  pollId: string;
+  choices: number[];
+}
+
+export interface PollRefreshParams {
+  username: string;
+  serverUrl: string;
+  pollId: string;
+}
+
 /** Result of starting the OAuth login flow */
 export interface OAuthStartLoginResult {
   authorizeUrl: string;
@@ -253,6 +266,24 @@ export interface PostQuote {
   quotedPost?: QuotedPost;
 }
 
+export interface PostPollOption {
+  title: string;
+  votesCount: number | null;
+  emojis: PostCustomEmoji[];
+}
+
+export interface PostPoll {
+  id: string;
+  expiresAt: string | null;
+  expired: boolean;
+  multiple: boolean;
+  votesCount: number;
+  votersCount: number | null;
+  voted: boolean;
+  ownVotes: number[];
+  options: PostPollOption[];
+}
+
 /** A post (status) to render in the timeline */
 export interface Post {
   id: string;
@@ -281,6 +312,7 @@ export interface Post {
     avatarUrl: string;
   };
   quote?: PostQuote;
+  poll?: PostPoll;
 }
 
 /** Parameters for fetching a timeline */
@@ -359,7 +391,7 @@ export interface StreamEventData {
   payload: Post | MastoNotification | string;
 }
 
-export type NotificationType = 'follow' | 'follow_request' | 'favourite' | 'reblog';
+export type NotificationType = 'follow' | 'follow_request' | 'favourite' | 'reblog' | 'poll';
 
 export interface MastoNotification {
   id: string;

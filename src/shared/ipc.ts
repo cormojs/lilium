@@ -48,6 +48,10 @@ export const IpcChannels = {
   StatusBookmark: 'statuses:bookmark',
   /** Unbookmark a status */
   StatusUnbookmark: 'statuses:unbookmark',
+  /** Vote on a poll */
+  PollVote: 'polls:vote',
+  /** Refresh poll results */
+  PollRefresh: 'polls:refresh',
   /** Load application settings */
   SettingsLoad: 'settings:load',
   /** Save application settings */

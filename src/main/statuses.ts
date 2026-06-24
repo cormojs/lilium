@@ -1,5 +1,6 @@
 import { createRestAPIClient } from 'masto';
-import type { PostVisibility, UploadedMedia } from '../shared/types.ts';
+import type { PostPoll, PostVisibility, UploadedMedia } from '../shared/types.ts';
+import { convertPoll } from './mastodonConverters.ts';
 
 function resolveMediaUrl(
   preferred: string | null | undefined,
@@ -117,4 +118,25 @@ export async function unbookmarkStatus(
 ): Promise<void> {
   const client = createRestAPIClient({ url: serverUrl, accessToken });
   await client.v1.statuses.$select(statusId).unbookmark();
+}
+
+export async function votePoll(
+  serverUrl: string,
+  accessToken: string,
+  pollId: string,
+  choices: number[],
+): Promise<PostPoll> {
+  const client = createRestAPIClient({ url: serverUrl, accessToken });
+  const poll = await client.v1.polls.$select(pollId).votes.create({ choices });
+  return convertPoll(poll);
+}
+
+export async function refreshPoll(
+  serverUrl: string,
+  accessToken: string,
+  pollId: string,
+): Promise<PostPoll> {
+  const client = createRestAPIClient({ url: serverUrl, accessToken });
+  const poll = await client.v1.polls.$select(pollId).fetch();
+  return convertPoll(poll);
 }

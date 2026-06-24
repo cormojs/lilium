@@ -107,4 +107,65 @@ describe('convertStatus', () => {
 
     expect(convertStatus(status).content).toBe('<p>本文</p>');
   });
+
+  test('converts attached poll data', () => {
+    const status = createStatus({
+      poll: {
+        id: 'poll-1',
+        expiresAt: '2026-06-19T00:00:00.000Z',
+        expired: false,
+        multiple: true,
+        votesCount: 3,
+        votersCount: 2,
+        voted: true,
+        ownVotes: [0, 1],
+        options: [
+          {
+            title: 'Option A',
+            votesCount: 2,
+            emojis: [],
+          },
+          {
+            title: 'Option B',
+            emojis: [
+              {
+                shortcode: 'blobcat',
+                url: 'https://example.com/blobcat.png',
+                staticUrl: 'https://example.com/blobcat-static.png',
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(convertStatus(status).poll).toEqual({
+      id: 'poll-1',
+      expiresAt: '2026-06-19T00:00:00.000Z',
+      expired: false,
+      multiple: true,
+      votesCount: 3,
+      votersCount: 2,
+      voted: true,
+      ownVotes: [0, 1],
+      options: [
+        {
+          title: 'Option A',
+          votesCount: 2,
+          emojis: [],
+        },
+        {
+          title: 'Option B',
+          votesCount: null,
+          emojis: [
+            {
+              shortcode: 'blobcat',
+              url: 'https://example.com/blobcat.png',
+              staticUrl: 'https://example.com/blobcat-static.png',
+            },
+          ],
+        },
+      ],
+    });
+  });
 });

@@ -1,4 +1,4 @@
-import { LinkOutlined, PictureOutlined } from '@ant-design/icons';
+import { BarChartOutlined, LinkOutlined, PictureOutlined } from '@ant-design/icons';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type { Post } from '../../shared/types.ts';
@@ -107,6 +107,13 @@ const QuoteIcon = styled(LinkOutlined)<{ $fontSize: number }>`
   margin-left: 4px;
 `;
 
+const PollIcon = styled(BarChartOutlined)<{ $fontSize: number }>`
+  font-size: ${(props) => props.$fontSize}px;
+  color: #1677ff;
+  flex-shrink: 0;
+  margin-left: 4px;
+`;
+
 function stripHtmlPreservingEmojis(html: string): string {
   const div = document.createElement('div');
   div.innerHTML = html;
@@ -173,6 +180,7 @@ export function CompactPostItem({
     : sanitizeContent(stripHtmlPreservingEmojis(replaceCustomEmojis(post.content, post.emojis)));
   const hasMedia = post.mediaAttachments.length > 0;
   const hasQuote = post.quote !== undefined;
+  const hasPoll = post.poll !== undefined;
 
   return (
     <Row $rowHeight={rowHeight} onClick={onClick}>
@@ -201,6 +209,7 @@ export function CompactPostItem({
         <BodyText $fontSize={compactFontSize} dangerouslySetInnerHTML={{ __html: bodyHtml }} />
         {hasMedia && <MediaIcon $fontSize={compactFontSize} />}
         {hasQuote && <QuoteIcon $fontSize={compactFontSize} />}
+        {hasPoll && <PollIcon $fontSize={compactFontSize} />}
       </BodyCell>
     </Row>
   );
