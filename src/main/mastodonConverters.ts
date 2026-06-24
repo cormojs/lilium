@@ -8,6 +8,7 @@ import type {
   MastoNotification,
   NotificationType,
   Post,
+  PostPoll,
   PostQuote,
   PostVisibility,
   QuotedPost,
@@ -22,6 +23,7 @@ export function isSupportedNotificationType(type: string): type is NotificationT
     case 'follow_request':
     case 'favourite':
     case 'reblog':
+    case 'poll':
       return true;
     default:
       return false;
@@ -44,6 +46,24 @@ function convertEmojis(emojis: mastodon.v1.CustomEmoji[]): Post['emojis'] {
     url: emoji.url,
     staticUrl: emoji.staticUrl,
   }));
+}
+
+export function convertPoll(poll: mastodon.v1.Poll): PostPoll {
+  return {
+    id: poll.id,
+    expiresAt: poll.expiresAt ?? null,
+    expired: poll.expired,
+    multiple: poll.multiple,
+    votesCount: poll.votesCount,
+    votersCount: poll.votersCount ?? null,
+    voted: poll.voted ?? false,
+    ownVotes: poll.ownVotes ?? [],
+    options: poll.options.map((option) => ({
+      title: option.title,
+      votesCount: option.votesCount ?? null,
+      emojis: convertEmojis(option.emojis),
+    })),
+  };
 }
 
 function convertFields(fields: mastodon.v1.AccountField[]): AccountProfileField[] {
@@ -281,6 +301,7 @@ export function convertStatus(status: mastodon.v1.Status): Post {
     bookmarked: status.bookmarked ?? false,
     rebloggedBy,
     quote: convertQuote(original.quote, content) ?? convertFallbackQuote(content),
+    poll: original.poll ? convertPoll(original.poll) : undefined,
   };
 }
 

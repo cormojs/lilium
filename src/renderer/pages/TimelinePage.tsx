@@ -28,6 +28,7 @@ import type {
   MastoNotification,
   PaneDefinition,
   Post,
+  PostPoll,
   StreamConnectionStatus,
   StreamType,
   TabDefinition,
@@ -42,6 +43,7 @@ import { useSettings } from '../hooks/useSettings.ts';
 import { replaceCustomEmojis } from '../components/customEmojis.ts';
 
 const { Text } = Typography;
+const MAX_POLL_EXPIRATION_TIMER_MS = 2_147_483_647;
 
 interface AccountTimelineTarget {
   id: string;
@@ -336,6 +338,15 @@ function buildTabLabel(tab: TabDefinition, accounts: Account[]): string {
   return `${TIMELINE_TYPE_LABELS[tab.timelineType]} ${acct}`;
 }
 
+function createStatusPreview(content: string): string | undefined {
+  const preview = content
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return preview.length > 0 ? preview : undefined;
+}
+
 function sanitizeProfileHtml(html: string): string {
   return sanitizeHtml(html, {
     allowedTags: ['a', 'br', 'p', 'span', 'em', 'strong', 'b', 'i', 'u', 'code', 'img'],
@@ -505,6 +516,10 @@ function TimelineTabContent({
     (a) => a.serverUrl === tab.accountServerUrl && a.username === tab.accountUsername,
   );
 
+  const handlePollChange = useCallback((postId: string, poll: PostPoll): void => {
+    setPosts((prev) => prev.map((post) => (post.id === postId ? { ...post, poll } : post)));
+  }, []);
+
   const loadTimeline = useCallback(async () => {
     if (!account) return;
     setLoading(true);
@@ -628,6 +643,52 @@ function TimelineTabContent({
   }, [loadTimeline]);
 
   useEffect(() => {
+    if (!account) return;
+
+    const timers = posts.flatMap((post) => {
+      const poll = post.poll;
+      if (!poll || poll.expired || poll.expiresAt === null) {
+        return [];
+      }
+
+      const delay = new Date(poll.expiresAt).getTime() - Date.now();
+      if (delay <= 0 || delay > MAX_POLL_EXPIRATION_TIMER_MS) {
+        return [];
+      }
+
+      const timer = window.setTimeout(() => {
+        void window.api
+          .refreshPoll({
+            serverUrl: account.serverUrl,
+            username: account.username,
+            pollId: poll.id,
+          })
+          .then((updatedPoll) => {
+            handlePollChange(post.id, updatedPoll);
+            void window.api.showNotification({
+              title: '投票が終了しました',
+              body: createStatusPreview(post.content),
+              iconUrl: post.account.avatarUrl,
+            });
+          })
+          .catch((error: unknown) => {
+            message.error(
+              `投票結果の再取得に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          });
+      }, delay);
+
+      return [timer];
+    });
+
+    return () => {
+      for (const timer of timers) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [account, handlePollChange, message, posts]);
+
+  useEffect(() => {
     const el = listRef.current;
     if (!el) return;
     const checkAndLoad = (): void => {
@@ -716,6 +777,7 @@ function TimelineTabContent({
             onOpenAccountTimeline={(targetAccount) => {
               onOpenAccountTimeline(tab, targetAccount);
             }}
+            onPollChange={handlePollChange}
             onCollapse={
               settings.disableCompactDisplay
                 ? undefined
@@ -869,12 +931,10 @@ function NotificationTabContent({
               follow_request: 'からフォローリクエストが届きました',
               favourite: 'があなたの投稿をお気に入りに追加しました',
               reblog: 'があなたの投稿をブーストしました',
+              poll: 'の投票が終了しました',
             };
             const statusPreview = notification.status
-              ? notification.status.content
-                  .replace(/<[^>]*>/g, ' ')
-                  .replace(/\s+/g, ' ')
-                  .trim()
+              ? createStatusPreview(notification.status.content)
               : undefined;
             const body = statusPreview;
 

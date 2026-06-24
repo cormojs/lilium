@@ -10,6 +10,8 @@ import type {
   NotificationFetchParams,
   OAuthExchangeTokenParams,
   PaneLayout,
+  PollRefreshParams,
+  PollVoteParams,
   StatusActionParams,
   MediaUploadParams,
   ShowNotificationParams,
@@ -42,6 +44,8 @@ import {
   unreblogStatus,
   bookmarkStatus,
   unbookmarkStatus,
+  votePoll,
+  refreshPoll,
 } from './statuses.ts';
 import { createMainWindowOptions, restoreMaximizeState, saveWindowState } from './windowState.ts';
 import { rateLimitedCall } from './rateLimiter.ts';
@@ -289,6 +293,20 @@ function registerIpcHandlers(): void {
     const account = getAccountCredentials(params.serverUrl, params.username);
     await rateLimitedCall(() =>
       unbookmarkStatus(account.serverUrl, account.accessToken, params.statusId),
+    );
+  });
+
+  ipcMain.handle(IpcChannels.PollVote, async (_event, params: PollVoteParams) => {
+    const account = getAccountCredentials(params.serverUrl, params.username);
+    return rateLimitedCall(() =>
+      votePoll(account.serverUrl, account.accessToken, params.pollId, params.choices),
+    );
+  });
+
+  ipcMain.handle(IpcChannels.PollRefresh, async (_event, params: PollRefreshParams) => {
+    const account = getAccountCredentials(params.serverUrl, params.username);
+    return rateLimitedCall(() =>
+      refreshPoll(account.serverUrl, account.accessToken, params.pollId),
     );
   });
 

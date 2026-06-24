@@ -15,6 +15,9 @@ import type {
   OAuthStartLoginResult,
   OAuthExchangeTokenParams,
   PaneLayout,
+  PollRefreshParams,
+  PollVoteParams,
+  PostPoll,
   StatusActionParams,
   ShowNotificationParams,
   StatusCreateParams,
@@ -119,6 +122,14 @@ const api = {
   /** Unbookmark a status */
   unbookmarkStatus(params: StatusActionParams): Promise<void> {
     return ipcRenderer.invoke(IpcChannels.StatusUnbookmark, params);
+  },
+  /** Vote on a poll */
+  votePoll(params: PollVoteParams): Promise<PostPoll> {
+    return ipcRenderer.invoke(IpcChannels.PollVote, params);
+  },
+  /** Refresh poll results */
+  refreshPoll(params: PollRefreshParams): Promise<PostPoll> {
+    return ipcRenderer.invoke(IpcChannels.PollRefresh, params);
   },
   /** Load application settings */
   loadSettings(): Promise<AppSettings> {

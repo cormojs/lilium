@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   RetweetOutlined,
   HeartOutlined,
@@ -9,9 +9,10 @@ import {
   LinkOutlined,
   DownOutlined,
 } from '@ant-design/icons';
+import { Button, Checkbox, Progress, Radio } from 'antd';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
-import type { Post } from '../../shared/types.ts';
+import type { Post, PostPoll } from '../../shared/types.ts';
 import { useSettings } from '../hooks/useSettings.ts';
 import { MediaGallery } from './MediaGallery.tsx';
 import { replaceCustomEmojis } from './customEmojis.ts';
@@ -24,6 +25,7 @@ interface PostItemProps {
   onQuote?: (post: Post) => void;
   onOpenAccountTimeline?: (account: Post['account']) => void;
   onCollapse?: () => void;
+  onPollChange?: (postId: string, poll: PostPoll) => void;
 }
 
 const PostContainer = styled.div`
@@ -325,6 +327,66 @@ const ContentWarningIcon = styled(DownOutlined)`
   font-size: 0.8em;
 `;
 
+const PollContainer = styled.div<{ $fontSize: number }>`
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: #fafafa;
+  font-size: ${(props) => props.$fontSize}px;
+`;
+
+const PollOptionList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const PollOptionRow = styled.label`
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+`;
+
+const PollOptionTitle = styled.span`
+  color: #262626;
+  word-break: break-word;
+
+  .custom-emoji {
+    height: 1em;
+    width: auto;
+    vertical-align: -0.1em;
+  }
+`;
+
+const PollResult = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const PollCount = styled.span`
+  min-width: 44px;
+  color: #8c8c8c;
+  text-align: right;
+`;
+
+const PollMeta = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: #8c8c8c;
+`;
+
+const PollActions = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+`;
+
 const FooterLine = styled.div`
   display: flex;
   align-items: center;
@@ -429,6 +491,164 @@ function quoteStateLabel(state: NonNullable<Post['quote']>['state']): string {
   }
 }
 
+function formatPollExpiration(expiresAt: string | null): string {
+  if (!expiresAt) {
+    return '終了時刻なし';
+  }
+
+  return `${formatTimestamp(expiresAt)} まで`;
+}
+
+function pollStatusText(poll: PostPoll): string {
+  const participantCount = poll.votersCount ?? poll.votesCount;
+  const participantLabel = poll.multiple ? '投票者' : '票';
+  const expirationLabel = poll.expired ? '終了済み' : formatPollExpiration(poll.expiresAt);
+  return `${participantCount.toLocaleString()} ${participantLabel}・${expirationLabel}`;
+}
+
+function PollCard({
+  poll,
+  postId,
+  serverUrl,
+  username,
+  fontSize,
+  onPollChange,
+}: {
+  poll: PostPoll;
+  postId: string;
+  serverUrl: string;
+  username: string;
+  fontSize: number;
+  onPollChange?: (postId: string, poll: PostPoll) => void;
+}): React.JSX.Element {
+  const [selectedChoices, setSelectedChoices] = useState<number[]>(poll.ownVotes);
+  const [busy, setBusy] = useState(false);
+  const showResults =
+    poll.voted || poll.expired || poll.options.some((option) => option.votesCount !== null);
+  const canVote = !poll.expired && !poll.voted;
+  const totalVotes = Math.max(poll.votesCount, 0);
+
+  useEffect(() => {
+    setSelectedChoices(poll.ownVotes);
+  }, [poll.ownVotes]);
+
+  const updatePoll = (updatedPoll: PostPoll): void => {
+    onPollChange?.(postId, updatedPoll);
+  };
+
+  const handleVote = async (): Promise<void> => {
+    if (selectedChoices.length === 0) {
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const updatedPoll = await window.api.votePoll({
+        serverUrl,
+        username,
+        pollId: poll.id,
+        choices: selectedChoices,
+      });
+      updatePoll(updatedPoll);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRefresh = async (): Promise<void> => {
+    setBusy(true);
+    try {
+      const updatedPoll = await window.api.refreshPoll({ serverUrl, username, pollId: poll.id });
+      updatePoll(updatedPoll);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <PollContainer $fontSize={fontSize}>
+      <PollOptionList>
+        {poll.options.map((option, index) => {
+          const votesCount = option.votesCount;
+          const percent =
+            votesCount !== null && totalVotes > 0 ? Math.round((votesCount / totalVotes) * 100) : 0;
+          const checked = selectedChoices.includes(index);
+
+          return (
+            <PollOptionRow key={`${poll.id}-${String(index)}`}>
+              {poll.multiple ? (
+                <Checkbox
+                  checked={checked}
+                  disabled={!canVote || busy}
+                  onChange={(event) => {
+                    setSelectedChoices((prev) =>
+                      event.target.checked
+                        ? [...prev, index]
+                        : prev.filter((choice) => choice !== index),
+                    );
+                  }}
+                />
+              ) : (
+                <Radio
+                  checked={checked}
+                  disabled={!canVote || busy}
+                  onChange={() => {
+                    setSelectedChoices([index]);
+                  }}
+                />
+              )}
+              <PollOptionTitle
+                dangerouslySetInnerHTML={{
+                  __html: sanitizeContent(
+                    replaceCustomEmojis(escapeHtml(option.title), option.emojis),
+                  ),
+                }}
+              />
+              {showResults && (
+                <PollCount>{votesCount === null ? '-' : votesCount.toLocaleString()}</PollCount>
+              )}
+              {showResults && (
+                <PollResult style={{ gridColumn: '2 / 4' }}>
+                  <Progress percent={percent} size="small" showInfo={false} />
+                  <span>{percent}%</span>
+                </PollResult>
+              )}
+            </PollOptionRow>
+          );
+        })}
+      </PollOptionList>
+      <PollMeta>
+        <span>{poll.multiple ? '複数選択' : '単一選択'}</span>
+        <span>{pollStatusText(poll)}</span>
+      </PollMeta>
+      <PollActions>
+        {canVote && (
+          <Button
+            type="primary"
+            size="small"
+            loading={busy}
+            disabled={selectedChoices.length === 0}
+            onClick={() => {
+              void handleVote();
+            }}
+          >
+            投票
+          </Button>
+        )}
+        <Button
+          size="small"
+          loading={busy}
+          onClick={() => {
+            void handleRefresh();
+          }}
+        >
+          結果を再取得
+        </Button>
+      </PollActions>
+    </PollContainer>
+  );
+}
+
 function QuoteCard({
   quote,
   fontSize,
@@ -511,16 +731,27 @@ export function PostItem({
   onQuote,
   onOpenAccountTimeline,
   onCollapse,
+  onPollChange,
 }: PostItemProps): React.JSX.Element {
   const { settings } = useSettings();
   const [favourited, setFavourited] = useState(post.favourited);
   const [reblogged, setReblogged] = useState(post.reblogged);
   const [bookmarked, setBookmarked] = useState(post.bookmarked);
+  const [poll, setPoll] = useState(post.poll);
   const hasContentWarning = post.spoilerText.trim().length > 0;
   const [expanded, setExpanded] = useState(!hasContentWarning && !post.sensitive);
 
   const actionParams = { serverUrl, username, statusId: post.id };
   const reblogDisabled = post.visibility === 'private' || post.visibility === 'direct';
+
+  useEffect(() => {
+    setPoll(post.poll);
+  }, [post.poll]);
+
+  const handlePollChange = (postId: string, updatedPoll: PostPoll): void => {
+    setPoll(updatedPoll);
+    onPollChange?.(postId, updatedPoll);
+  };
 
   const handleFavourite = async (): Promise<void> => {
     if (favourited) {
@@ -662,6 +893,16 @@ export function PostItem({
             quote={post.quote}
             fontSize={smallFontSize}
             onOpenAccountTimeline={onOpenAccountTimeline}
+          />
+        )}
+        {poll && !shouldHideContent && (
+          <PollCard
+            poll={poll}
+            postId={post.id}
+            serverUrl={serverUrl}
+            username={username}
+            fontSize={smallFontSize}
+            onPollChange={handlePollChange}
           />
         )}
         <FooterLine>

@@ -3,6 +3,7 @@ import {
   RetweetOutlined,
   UserAddOutlined,
   QuestionCircleOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
@@ -128,6 +129,7 @@ const NOTIFICATION_ICON: Record<NotificationType, React.ReactNode> = {
   follow_request: <QuestionCircleOutlined style={{ color: '#faad14' }} />,
   favourite: <HeartFilled style={{ color: '#eb2f96' }} />,
   reblog: <RetweetOutlined style={{ color: '#52c41a' }} />,
+  poll: <BarChartOutlined style={{ color: '#1677ff' }} />,
 };
 
 const NOTIFICATION_LABEL: Record<NotificationType, string> = {
@@ -135,6 +137,7 @@ const NOTIFICATION_LABEL: Record<NotificationType, string> = {
   follow_request: 'からフォローリクエスト',
   favourite: 'がお気に入りに追加',
   reblog: 'がブースト',
+  poll: 'の投票が終了しました',
 };
 
 function formatTimestamp(isoString: string): string {
