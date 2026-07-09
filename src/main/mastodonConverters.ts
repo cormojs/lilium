@@ -40,8 +40,8 @@ function toPostVisibility(visibility: mastodon.v1.Status['visibility']): PostVis
   }
 }
 
-function convertEmojis(emojis: mastodon.v1.CustomEmoji[]): Post['emojis'] {
-  return emojis.map((emoji) => ({
+function convertEmojis(emojis: mastodon.v1.CustomEmoji[] | null | undefined): Post['emojis'] {
+  return (emojis ?? []).map((emoji) => ({
     shortcode: emoji.shortcode,
     url: emoji.url,
     staticUrl: emoji.staticUrl,
@@ -58,7 +58,7 @@ export function convertPoll(poll: mastodon.v1.Poll): PostPoll {
     votersCount: poll.votersCount ?? null,
     voted: poll.voted ?? false,
     ownVotes: poll.ownVotes ?? [],
-    options: poll.options.map((option) => ({
+    options: (Array.isArray(poll.options) ? poll.options : []).map((option) => ({
       title: option.title,
       votesCount: option.votesCount ?? null,
       emojis: convertEmojis(option.emojis),
@@ -66,8 +66,10 @@ export function convertPoll(poll: mastodon.v1.Poll): PostPoll {
   };
 }
 
-function convertFields(fields: mastodon.v1.AccountField[]): AccountProfileField[] {
-  return fields.map((field) => ({
+function convertFields(
+  fields: mastodon.v1.AccountField[] | null | undefined,
+): AccountProfileField[] {
+  return (fields ?? []).map((field) => ({
     name: field.name,
     value: field.value,
     verifiedAt: field.verifiedAt ?? null,
@@ -75,9 +77,9 @@ function convertFields(fields: mastodon.v1.AccountField[]): AccountProfileField[
 }
 
 function convertMediaAttachments(
-  mediaAttachments: mastodon.v1.MediaAttachment[],
+  mediaAttachments: mastodon.v1.MediaAttachment[] | null | undefined,
 ): Post['mediaAttachments'] {
-  return mediaAttachments.flatMap((media) => {
+  return (mediaAttachments ?? []).flatMap((media) => {
     if (media.url == null) {
       return [];
     }

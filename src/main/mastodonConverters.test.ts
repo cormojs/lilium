@@ -168,4 +168,47 @@ describe('convertStatus', () => {
       ],
     });
   });
+
+  test('does not throw when a poll is missing its options array', () => {
+    const status = createStatus({
+      poll: {
+        id: 'poll-1',
+        expired: false,
+        multiple: false,
+        votesCount: 0,
+      } as unknown as mastodon.v1.Poll,
+    });
+
+    expect(convertStatus(status).poll).toEqual({
+      id: 'poll-1',
+      expiresAt: null,
+      expired: false,
+      multiple: false,
+      votesCount: 0,
+      votersCount: null,
+      voted: false,
+      ownVotes: [],
+      options: [],
+    });
+  });
+
+  test('does not throw when emojis, fields, or media attachments are missing', () => {
+    const status = createStatus({
+      account: {
+        id: 'account-1',
+        acct: 'alice',
+        displayName: 'Alice',
+        avatar: 'https://example.com/avatar.png',
+        emojis: undefined,
+      } as unknown as mastodon.v1.Status['account'],
+      mediaAttachments: undefined as unknown as mastodon.v1.MediaAttachment[],
+      emojis: undefined as unknown as mastodon.v1.CustomEmoji[],
+    });
+
+    const post = convertStatus(status);
+
+    expect(post.emojis).toEqual([]);
+    expect(post.mediaAttachments).toEqual([]);
+    expect(post.account.emojis).toEqual([]);
+  });
 });
