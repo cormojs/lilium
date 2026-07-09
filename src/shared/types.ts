@@ -365,6 +365,20 @@ export interface AccountRelationshipParams {
   accountId: string;
 }
 
+export interface AccountSuggestionsFetchParams {
+  username: string;
+  serverUrl: string;
+  query: string;
+}
+
+export interface AccountSuggestion {
+  id: string;
+  acct: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string;
+}
+
 export interface PaneDefinition {
   id: string;
   tabIds: string[];
