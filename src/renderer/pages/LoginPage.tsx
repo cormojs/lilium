@@ -40,6 +40,7 @@ export function LoginPage({
   const [oauthData, setOauthData] = useState<OAuthStartLoginResult | null>(null);
   const [authCode, setAuthCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const authorizingOauthData = step === 'authorizing' ? oauthData : null;
 
   const loadAccounts = useCallback(async () => {
     const list = await window.api.listAccounts();
@@ -118,7 +119,7 @@ export function LoginPage({
 
   return (
     <PageContainer>
-      {onNavigateToTimeline && (
+      {onNavigateToTimeline ? (
         <Button
           type="text"
           icon={<ArrowLeftOutlined />}
@@ -127,11 +128,11 @@ export function LoginPage({
         >
           タイムラインに戻る
         </Button>
-      )}
+      ) : null}
       <Title level={3}>ログイン</Title>
 
       {/* Account list */}
-      {accounts.length > 0 && (
+      {accounts.length > 0 ? (
         <Section>
           <Title level={5}>ログイン済みアカウント</Title>
           <List
@@ -165,13 +166,13 @@ export function LoginPage({
             )}
           />
         </Section>
-      )}
+      ) : null}
 
       {/* Login form */}
       <Section>
         <Title level={5}>アカウントを追加</Title>
 
-        {step === 'idle' && (
+        {step === 'idle' ? (
           <Flex gap={8}>
             <Input
               placeholder="mastodon.social"
@@ -197,9 +198,9 @@ export function LoginPage({
               ログイン開始
             </Button>
           </Flex>
-        )}
+        ) : null}
 
-        {step === 'authorizing' && oauthData && (
+        {authorizingOauthData ? (
           <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
             <Text>以下のリンクをブラウザで開いて、アプリを認可してください。</Text>
             <Flex gap={8}>
@@ -243,9 +244,9 @@ export function LoginPage({
               キャンセル
             </Button>
           </Space>
-        )}
+        ) : null}
 
-        {step === 'exchanging' && <Text>認証中...</Text>}
+        {step === 'exchanging' ? <Text>認証中...</Text> : null}
       </Section>
     </PageContainer>
   );

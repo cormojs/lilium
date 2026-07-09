@@ -315,6 +315,7 @@ export function Composer({
     ? accounts.find((account) => accountKey(account) === selectedAccountKey)
     : undefined;
   const selectedAccount = draftAccount ?? manuallySelectedAccount ?? accounts[0];
+  const hasMediaAttachments = mediaAttachments.length > 0;
 
   const accountMenuItems = useMemo(
     () =>
@@ -399,9 +400,13 @@ export function Composer({
       return;
     }
 
-    const supportedFiles = files
-      .map((file) => ({ file, type: getMediaTypeFromMimeType(file.type) }))
-      .filter((item): item is { file: File; type: MediaAttachmentType } => item.type !== null);
+    const supportedFiles: { file: File; type: MediaAttachmentType }[] = [];
+    for (const file of files) {
+      const type = getMediaTypeFromMimeType(file.type);
+      if (type !== null) {
+        supportedFiles.push({ file, type });
+      }
+    }
     if (supportedFiles.length === 0) {
       message.warning('画像・動画・音声ファイルを添付できます');
       return;
@@ -523,7 +528,7 @@ export function Composer({
         void uploadFiles(Array.from(event.dataTransfer.files));
       }}
     >
-      {statusDraft && (
+      {statusDraft ? (
         <ReplyBanner>
           <Text>
             @{statusDraft.acct}
@@ -533,7 +538,7 @@ export function Composer({
             {statusDraft.type === 'reply' ? '返信を解除' : '引用を解除'}
           </Button>
         </ReplyBanner>
-      )}
+      ) : null}
       <ComposerBody>
         <Dropdown
           menu={{
@@ -678,7 +683,7 @@ export function Composer({
               )}
             </TextAreaWrapper>
 
-            {mediaAttachments.length > 0 && (
+            {hasMediaAttachments ? (
               <MediaGrid>
                 {mediaAttachments.map((media) => (
                   <MediaThumb key={media.id}>
@@ -711,7 +716,7 @@ export function Composer({
                   </MediaThumb>
                 ))}
               </MediaGrid>
-            )}
+            ) : null}
           </InputColumn>
 
           <ActionColumn>

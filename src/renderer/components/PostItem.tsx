@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useReducer, useState } from 'react';
 import {
   RetweetOutlined,
   HeartOutlined,
@@ -9,7 +9,7 @@ import {
   LinkOutlined,
   DownOutlined,
 } from '@ant-design/icons';
-import { Button, Checkbox, Progress, Radio } from 'antd';
+import { App, Button, Checkbox, Progress, Radio } from 'antd';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type { Post, PostPoll } from '../../shared/types.ts';
@@ -521,16 +521,18 @@ function PollCard({
   fontSize: number;
   onPollChange?: (postId: string, poll: PostPoll) => void;
 }): React.JSX.Element {
-  const [selectedChoices, setSelectedChoices] = useState<number[]>(poll.ownVotes);
+  const { message } = App.useApp();
+  const [choiceOverride, setChoiceOverride] = useState<{
+    pollId: string;
+    choices: number[];
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const showResults =
     poll.voted || poll.expired || poll.options.some((option) => option.votesCount !== null);
   const canVote = !poll.expired && !poll.voted;
+  const selectedChoices =
+    choiceOverride?.pollId === poll.id ? choiceOverride.choices : poll.ownVotes;
   const totalVotes = Math.max(poll.votesCount, 0);
-
-  useEffect(() => {
-    setSelectedChoices(poll.ownVotes);
-  }, [poll.ownVotes]);
 
   const updatePoll = (updatedPoll: PostPoll): void => {
     onPollChange?.(postId, updatedPoll);
@@ -542,27 +544,38 @@ function PollCard({
     }
 
     setBusy(true);
-    try {
-      const updatedPoll = await window.api.votePoll({
+    const updatedPoll = await window.api
+      .votePoll({
         serverUrl,
         username,
         pollId: poll.id,
         choices: selectedChoices,
+      })
+      .catch((e: unknown) => {
+        message.error(`投票に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+        return null;
       });
+    if (updatedPoll) {
+      setChoiceOverride(null);
       updatePoll(updatedPoll);
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   };
 
   const handleRefresh = async (): Promise<void> => {
     setBusy(true);
-    try {
-      const updatedPoll = await window.api.refreshPoll({ serverUrl, username, pollId: poll.id });
+    const updatedPoll = await window.api
+      .refreshPoll({ serverUrl, username, pollId: poll.id })
+      .catch((e: unknown) => {
+        message.error(
+          `投票結果の再取得に失敗しました: ${e instanceof Error ? e.message : String(e)}`,
+        );
+        return null;
+      });
+    if (updatedPoll) {
       updatePoll(updatedPoll);
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   };
 
   return (
@@ -581,11 +594,14 @@ function PollCard({
                   checked={checked}
                   disabled={!canVote || busy}
                   onChange={(event) => {
-                    setSelectedChoices((prev) =>
-                      event.target.checked
-                        ? [...prev, index]
-                        : prev.filter((choice) => choice !== index),
-                    );
+                    setChoiceOverride((prev) => {
+                      const currentChoices =
+                        prev?.pollId === poll.id ? prev.choices : poll.ownVotes;
+                      const choices = event.target.checked
+                        ? [...currentChoices, index]
+                        : currentChoices.filter((choice) => choice !== index);
+                      return { pollId: poll.id, choices };
+                    });
                   }}
                 />
               ) : (
@@ -593,7 +609,7 @@ function PollCard({
                   checked={checked}
                   disabled={!canVote || busy}
                   onChange={() => {
-                    setSelectedChoices([index]);
+                    setChoiceOverride({ pollId: poll.id, choices: [index] });
                   }}
                 />
               )}
@@ -604,15 +620,15 @@ function PollCard({
                   ),
                 }}
               />
-              {showResults && (
+              {showResults ? (
                 <PollCount>{votesCount === null ? '-' : votesCount.toLocaleString()}</PollCount>
-              )}
-              {showResults && (
+              ) : null}
+              {showResults ? (
                 <PollResult style={{ gridColumn: '2 / 4' }}>
                   <Progress percent={percent} size="small" showInfo={false} />
                   <span>{percent}%</span>
                 </PollResult>
-              )}
+              ) : null}
             </PollOptionRow>
           );
         })}
@@ -622,7 +638,7 @@ function PollCard({
         <span>{pollStatusText(poll)}</span>
       </PollMeta>
       <PollActions>
-        {canVote && (
+        {canVote ? (
           <Button
             type="primary"
             size="small"
@@ -634,7 +650,7 @@ function PollCard({
           >
             投票
           </Button>
-        )}
+        ) : null}
         <Button
           size="small"
           loading={busy}
@@ -669,11 +685,11 @@ function QuoteCard({
               __html: sanitizeContent(quote.quotedInlineContent),
             }}
           />
-          {quote.quotedUrl && (
+          {quote.quotedUrl ? (
             <QuotePlaceholder>
               引用元の投稿: <QuotePlaceholderLink href={quote.quotedUrl}>開く</QuotePlaceholderLink>
             </QuotePlaceholder>
-          )}
+          ) : null}
         </QuotePreview>
       );
     }
@@ -723,6 +739,36 @@ function QuoteCard({
   );
 }
 
+interface PostItemState {
+  favourited: boolean;
+  reblogged: boolean;
+  bookmarked: boolean;
+  pollOverride: PostPoll | null;
+  expanded: boolean;
+}
+
+type PostItemAction =
+  | { type: 'setFavourited'; value: boolean }
+  | { type: 'setReblogged'; value: boolean }
+  | { type: 'setBookmarked'; value: boolean }
+  | { type: 'setPollOverride'; value: PostPoll }
+  | { type: 'toggleExpanded' };
+
+function postItemReducer(state: PostItemState, action: PostItemAction): PostItemState {
+  switch (action.type) {
+    case 'setFavourited':
+      return { ...state, favourited: action.value };
+    case 'setReblogged':
+      return { ...state, reblogged: action.value };
+    case 'setBookmarked':
+      return { ...state, bookmarked: action.value };
+    case 'setPollOverride':
+      return { ...state, pollOverride: action.value };
+    case 'toggleExpanded':
+      return { ...state, expanded: !state.expanded };
+  }
+}
+
 export function PostItem({
   post,
   serverUrl,
@@ -734,51 +780,51 @@ export function PostItem({
   onPollChange,
 }: PostItemProps): React.JSX.Element {
   const { settings } = useSettings();
-  const [favourited, setFavourited] = useState(post.favourited);
-  const [reblogged, setReblogged] = useState(post.reblogged);
-  const [bookmarked, setBookmarked] = useState(post.bookmarked);
-  const [poll, setPoll] = useState(post.poll);
   const hasContentWarning = post.spoilerText.trim().length > 0;
-  const [expanded, setExpanded] = useState(!hasContentWarning && !post.sensitive);
+  const [state, dispatch] = useReducer(postItemReducer, {
+    favourited: post.favourited,
+    reblogged: post.reblogged,
+    bookmarked: post.bookmarked,
+    pollOverride: null,
+    expanded: !hasContentWarning && !post.sensitive,
+  });
+  const { favourited, reblogged, bookmarked, pollOverride, expanded } = state;
 
   const actionParams = { serverUrl, username, statusId: post.id };
   const reblogDisabled = post.visibility === 'private' || post.visibility === 'direct';
-
-  useEffect(() => {
-    setPoll(post.poll);
-  }, [post.poll]);
+  const poll = pollOverride?.id === post.poll?.id ? pollOverride : post.poll;
 
   const handlePollChange = (postId: string, updatedPoll: PostPoll): void => {
-    setPoll(updatedPoll);
+    dispatch({ type: 'setPollOverride', value: updatedPoll });
     onPollChange?.(postId, updatedPoll);
   };
 
   const handleFavourite = async (): Promise<void> => {
     if (favourited) {
-      setFavourited(false);
+      dispatch({ type: 'setFavourited', value: false });
       await window.api.unfavouriteStatus(actionParams);
     } else {
-      setFavourited(true);
+      dispatch({ type: 'setFavourited', value: true });
       await window.api.favouriteStatus(actionParams);
     }
   };
 
   const handleReblog = async (): Promise<void> => {
     if (reblogged) {
-      setReblogged(false);
+      dispatch({ type: 'setReblogged', value: false });
       await window.api.unreblogStatus(actionParams);
     } else {
-      setReblogged(true);
+      dispatch({ type: 'setReblogged', value: true });
       await window.api.reblogStatus(actionParams);
     }
   };
 
   const handleBookmark = async (): Promise<void> => {
     if (bookmarked) {
-      setBookmarked(false);
+      dispatch({ type: 'setBookmarked', value: false });
       await window.api.unbookmarkStatus(actionParams);
     } else {
-      setBookmarked(true);
+      dispatch({ type: 'setBookmarked', value: true });
       await window.api.bookmarkStatus(actionParams);
     }
   };
@@ -799,6 +845,10 @@ export function PostItem({
   const isSensitiveWithoutContentWarning = post.sensitive && !hasContentWarning;
   const shouldHideContent = hasContentWarning && !expanded;
   const shouldHideMedia = (hasContentWarning || post.sensitive) && !expanded;
+  const shouldShowSensitiveWarning = isSensitiveWithoutContentWarning && hasMediaAttachments;
+  const shouldShowMedia = hasMediaAttachments && !shouldHideMedia;
+  const visibleQuote = shouldHideContent ? undefined : post.quote;
+  const visiblePoll = shouldHideContent ? undefined : poll;
 
   return (
     <PostContainer>
@@ -810,7 +860,7 @@ export function PostItem({
           onClick={handleAvatarClick}
           style={onCollapse ? { cursor: 'pointer' } : undefined}
         />
-        {post.rebloggedBy && (
+        {post.rebloggedBy ? (
           <BoosterBadge>
             <BoosterAvatar
               $size={settings.boostAvatarSize}
@@ -819,7 +869,7 @@ export function PostItem({
             />
             <BoostIcon $fontSize={smallFontSize} />
           </BoosterBadge>
-        )}
+        ) : null}
       </AvatarColumn>
       <Content>
         <HeaderLine $mastodonLike={settings.mastodonLikeExpandedDisplay}>
@@ -828,7 +878,7 @@ export function PostItem({
             $mastodonLike={settings.mastodonLikeExpandedDisplay}
             onClick={() => onOpenAccountTimeline?.(post.account)}
           >
-            {settings.mastodonLikeExpandedDisplay && (
+            {settings.mastodonLikeExpandedDisplay ? (
               <DisplayName
                 className="profile-name"
                 $fontSize={settings.uiFontSize}
@@ -838,11 +888,11 @@ export function PostItem({
                   ),
                 }}
               />
-            )}
+            ) : null}
             <Acct className="profile-acct" $fontSize={settings.uiFontSize}>
               @{post.account.acct}
             </Acct>
-            {!settings.mastodonLikeExpandedDisplay && (
+            {!settings.mastodonLikeExpandedDisplay ? (
               <DisplayName
                 className="profile-name"
                 $fontSize={settings.uiFontSize}
@@ -852,59 +902,58 @@ export function PostItem({
                   ),
                 }}
               />
-            )}
+            ) : null}
           </ProfileIdentityButton>
         </HeaderLine>
-        {hasContentWarning && (
+        {hasContentWarning ? (
           <ContentWarning
             $fontSize={settings.postFontSize}
             onClick={() => {
-              setExpanded(!expanded);
+              dispatch({ type: 'toggleExpanded' });
             }}
           >
             {post.spoilerText}
             {expanded ? '（クリックで隠す）' : <ContentWarningIcon aria-hidden="true" />}
           </ContentWarning>
-        )}
-        {!shouldHideContent && (
+        ) : null}
+        {!shouldHideContent ? (
           <PostBody
             $fontSize={settings.postFontSize}
             dangerouslySetInnerHTML={{
               __html: sanitizeContent(replaceCustomEmojis(post.content, post.emojis)),
             }}
           />
-        )}
-        {isSensitiveWithoutContentWarning && hasMediaAttachments && (
+        ) : null}
+        {shouldShowSensitiveWarning ? (
           <ContentWarning
             $fontSize={settings.postFontSize}
             onClick={() => {
-              setExpanded(!expanded);
+              dispatch({ type: 'toggleExpanded' });
             }}
           >
             NSFW
             {expanded ? '（クリックで隠す）' : <ContentWarningIcon aria-hidden="true" />}
           </ContentWarning>
-        )}
-        {hasMediaAttachments && !shouldHideMedia && (
-          <MediaGallery attachments={post.mediaAttachments} />
-        )}
-        {post.quote && !shouldHideContent && (
+        ) : null}
+        {shouldShowMedia ? <MediaGallery attachments={post.mediaAttachments} /> : null}
+        {visibleQuote ? (
           <QuoteCard
-            quote={post.quote}
+            quote={visibleQuote}
             fontSize={smallFontSize}
             onOpenAccountTimeline={onOpenAccountTimeline}
           />
-        )}
-        {poll && !shouldHideContent && (
+        ) : null}
+        {visiblePoll ? (
           <PollCard
-            poll={poll}
+            key={visiblePoll.id}
+            poll={visiblePoll}
             postId={post.id}
             serverUrl={serverUrl}
             username={username}
             fontSize={smallFontSize}
             onPollChange={handlePollChange}
           />
-        )}
+        ) : null}
         <FooterLine>
           {post.url ? (
             <Timestamp $fontSize={smallFontSize} href={post.url} onClick={handleTimestampClick}>
@@ -968,12 +1017,12 @@ export function PostItem({
             {bookmarked ? <BookFilled /> : <BookOutlined />}
           </ActionButton>
         </FooterLine>
-        {post.rebloggedBy && (
+        {post.rebloggedBy ? (
           <BoostInfo $fontSize={smallFontSize}>
             <RetweetOutlined />
             <span>@{post.rebloggedBy.acct} boost this</span>
           </BoostInfo>
-        )}
+        ) : null}
       </Content>
     </PostContainer>
   );
