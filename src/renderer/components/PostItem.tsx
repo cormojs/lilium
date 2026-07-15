@@ -1,4 +1,4 @@
-import { useReducer, useState } from 'react';
+import { memo, useReducer, useState } from 'react';
 import {
   RetweetOutlined,
   HeartOutlined,
@@ -769,7 +769,9 @@ function postItemReducer(state: PostItemState, action: PostItemAction): PostItem
   }
 }
 
-export function PostItem({
+// タイムラインは 1 件の投稿追加で全行が再レンダーされるため、memo で
+// props が変わらない行の再レンダーをスキップする
+export const PostItem = memo(function PostItem({
   post,
   serverUrl,
   username,
@@ -1026,4 +1028,4 @@ export function PostItem({
       </Content>
     </PostContainer>
   );
-}
+});

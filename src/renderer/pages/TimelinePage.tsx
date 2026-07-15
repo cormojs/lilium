@@ -39,11 +39,14 @@ import { NotificationItem } from '../components/NotificationItem.tsx';
 import { Composer, type ComposerStatusDraft } from '../components/Composer.tsx';
 import { CompactPostItem } from '../components/CompactPostItem.tsx';
 import { PaneContainer } from '../components/PaneContainer.tsx';
+import { VirtualizedPostList } from '../components/VirtualizedPostList.tsx';
 import { useSettings } from '../hooks/useSettings.ts';
 import { replaceCustomEmojis } from '../components/customEmojis.ts';
 
 const { Text } = Typography;
 const MAX_POLL_EXPIRATION_TIMER_MS = 2_147_483_647;
+// ストリーミング受信で保持する投稿・通知の上限。超過分は末尾 (古い側) から破棄する
+const MAX_TIMELINE_ITEMS = 400;
 
 interface AccountTimelineTarget {
   id: string;
@@ -486,6 +489,14 @@ function AccountProfileHeader({
   );
 }
 
+interface PollExpirationTarget {
+  postId: string;
+  pollId: string;
+  expiresAt: string;
+  statusPreview?: string;
+  iconUrl: string;
+}
+
 function useTimelinePollExpirationNotifications({
   accountServerUrl,
   accountUsername,
@@ -499,17 +510,31 @@ function useTimelinePollExpirationNotifications({
   setPosts: React.Dispatch<React.SetStateAction<Post[]>>;
   message: ReturnType<typeof App.useApp>['message'];
 }): void {
+  // posts はストリーミング受信のたびに新しい配列になるため、posts をそのまま依存に
+  // するとタイマーが毎回張り直される。タイマー設定に必要な情報だけを文字列化し、
+  // 未終了の投票の集合が実際に変わったときのみ効果を再実行する
+  const targets: PollExpirationTarget[] = [];
+  for (const post of posts) {
+    const poll = post.poll;
+    if (!poll || poll.expired || poll.expiresAt === null) {
+      continue;
+    }
+    targets.push({
+      postId: post.id,
+      pollId: poll.id,
+      expiresAt: poll.expiresAt,
+      statusPreview: createStatusPreview(post.content),
+      iconUrl: post.account.avatarUrl,
+    });
+  }
+  const targetsJson = JSON.stringify(targets);
+
   useEffect(() => {
     if (!accountServerUrl || !accountUsername) return;
 
     const timers: number[] = [];
-    for (const post of posts) {
-      const poll = post.poll;
-      if (!poll || poll.expired || poll.expiresAt === null) {
-        continue;
-      }
-
-      const delay = new Date(poll.expiresAt).getTime() - Date.now();
+    for (const target of JSON.parse(targetsJson) as PollExpirationTarget[]) {
+      const delay = new Date(target.expiresAt).getTime() - Date.now();
       if (delay <= 0 || delay > MAX_POLL_EXPIRATION_TIMER_MS) {
         continue;
       }
@@ -519,18 +544,20 @@ function useTimelinePollExpirationNotifications({
           .refreshPoll({
             serverUrl: accountServerUrl,
             username: accountUsername,
-            pollId: poll.id,
+            pollId: target.pollId,
           })
           .then((updatedPoll) => {
             setPosts((prev) =>
               prev.map((currentPost) =>
-                currentPost.id === post.id ? { ...currentPost, poll: updatedPoll } : currentPost,
+                currentPost.id === target.postId
+                  ? { ...currentPost, poll: updatedPoll }
+                  : currentPost,
               ),
             );
             void window.api.showNotification({
               title: '投票が終了しました',
-              body: createStatusPreview(post.content),
-              iconUrl: post.account.avatarUrl,
+              body: target.statusPreview,
+              iconUrl: target.iconUrl,
             });
           })
           .catch((error: unknown) => {
@@ -548,7 +575,7 @@ function useTimelinePollExpirationNotifications({
         window.clearTimeout(timer);
       }
     };
-  }, [accountServerUrl, accountUsername, message, posts, setPosts]);
+  }, [accountServerUrl, accountUsername, message, setPosts, targetsJson]);
 }
 
 function useScrollLoadMore({
@@ -606,7 +633,10 @@ function useTimelineStream({
       if (event.subscriptionId !== subscriptionId) return;
       if (event.event === 'update') {
         const post = event.payload as Post;
-        setPosts((prev) => (prev.some((p) => p.id === post.id) ? prev : [post, ...prev]));
+        setPosts((prev) => {
+          if (prev.some((p) => p.id === post.id)) return prev;
+          return [post, ...prev].slice(0, MAX_TIMELINE_ITEMS);
+        });
       } else if (event.event === 'delete') {
         setPosts((prev) => prev.filter((p) => p.id !== event.payload));
       }
@@ -656,9 +686,40 @@ function TimelineTabContent({
     postsRef.current = posts;
   }, [posts]);
 
-  const handlePollChange = (postId: string, poll: PostPoll): void => {
+  const handlePollChange = useCallback((postId: string, poll: PostPoll): void => {
     setPosts((prev) => prev.map((post) => (post.id === postId ? { ...post, poll } : post)));
-  };
+  }, []);
+
+  // 行コンポーネント (PostItem / CompactPostItem) は React.memo でメモ化しているため、
+  // 投稿ごとのインラインクロージャではなく安定した参照のコールバックを渡す
+  const handleReplyPost = useCallback(
+    (targetPost: Post): void => {
+      onReply(tab, targetPost);
+    },
+    [onReply, tab],
+  );
+
+  const handleQuotePost = useCallback(
+    (targetPost: Post): void => {
+      onQuote(tab, targetPost);
+    },
+    [onQuote, tab],
+  );
+
+  const handleOpenAccountTimeline = useCallback(
+    (target: AccountTimelineTarget): void => {
+      onOpenAccountTimeline(tab, target);
+    },
+    [onOpenAccountTimeline, tab],
+  );
+
+  const handleCollapsePost = useCallback((): void => {
+    setExpandedPostId(null);
+  }, []);
+
+  const handleExpandPost = useCallback((postId: string): void => {
+    setExpandedPostId(postId);
+  }, []);
 
   const loadTimeline = useCallback(async () => {
     if (!accountServerUrl || !accountUsername) return;
@@ -815,62 +876,55 @@ function TimelineTabContent({
     return <EmptyMessage>投稿がありません</EmptyMessage>;
   }
 
+  const compactRowHeight = Math.max(Math.max(settings.compactFontSize, 8) + 10, 20);
+  const estimateRowHeight = settings.disableCompactDisplay ? 150 : compactRowHeight;
+
+  const renderPost = (post: Post): React.ReactNode =>
+    settings.disableCompactDisplay || expandedPostId === post.id ? (
+      <PostItem
+        post={post}
+        serverUrl={account.serverUrl}
+        username={account.username}
+        onReply={handleReplyPost}
+        onQuote={handleQuotePost}
+        onOpenAccountTimeline={handleOpenAccountTimeline}
+        onPollChange={handlePollChange}
+        onCollapse={settings.disableCompactDisplay ? undefined : handleCollapsePost}
+      />
+    ) : (
+      <CompactPostItem
+        post={post}
+        onClick={handleExpandPost}
+        onOpenAccountTimeline={handleOpenAccountTimeline}
+      />
+    );
+
   return (
-    <TimelineList ref={listRef}>
-      {accountProfile ? (
-        <AccountProfileHeader
-          profile={accountProfile}
-          onToggleFollow={() => {
-            void handleToggleFollow();
-          }}
-          followBusy={followBusy}
-        />
-      ) : null}
-      {posts.length === 0 ? <EmptyMessage>投稿がありません</EmptyMessage> : null}
-      {posts.map((post) =>
-        settings.disableCompactDisplay || expandedPostId === post.id ? (
-          <PostItem
-            key={post.id}
-            post={post}
-            serverUrl={account.serverUrl}
-            username={account.username}
-            onReply={(targetPost) => {
-              onReply(tab, targetPost);
+    <VirtualizedPostList
+      posts={posts}
+      estimateRowHeight={estimateRowHeight}
+      listRef={listRef}
+      renderPost={renderPost}
+      header={
+        accountProfile ? (
+          <AccountProfileHeader
+            profile={accountProfile}
+            onToggleFollow={() => {
+              void handleToggleFollow();
             }}
-            onQuote={(targetPost) => {
-              onQuote(tab, targetPost);
-            }}
-            onOpenAccountTimeline={(targetAccount) => {
-              onOpenAccountTimeline(tab, targetAccount);
-            }}
-            onPollChange={handlePollChange}
-            onCollapse={
-              settings.disableCompactDisplay
-                ? undefined
-                : () => {
-                    setExpandedPostId(null);
-                  }
-            }
+            followBusy={followBusy}
           />
-        ) : (
-          <CompactPostItem
-            key={post.id}
-            post={post}
-            onClick={() => {
-              setExpandedPostId(post.id);
-            }}
-            onOpenAccountTimeline={(targetAccount) => {
-              onOpenAccountTimeline(tab, targetAccount);
-            }}
-          />
-        ),
-      )}
-      {loadingMore ? (
-        <SpinContainer>
-          <Spin size="small" />
-        </SpinContainer>
-      ) : null}
-    </TimelineList>
+        ) : undefined
+      }
+      empty={<EmptyMessage>投稿がありません</EmptyMessage>}
+      footer={
+        loadingMore ? (
+          <SpinContainer>
+            <Spin size="small" />
+          </SpinContainer>
+        ) : null
+      }
+    />
   );
 }
 
@@ -953,6 +1007,14 @@ function NotificationTabContent({
     void loadNotifications();
   }, [loadNotifications]);
 
+  // NotificationItem は React.memo でメモ化しているため、安定した参照のコールバックを渡す
+  const handleOpenAccountTimeline = useCallback(
+    (target: AccountTimelineTarget): void => {
+      onOpenAccountTimeline(tab, target);
+    },
+    [onOpenAccountTimeline, tab],
+  );
+
   // System notifications are handled via Electron's Notification module in the main process
 
   useEffect(() => {
@@ -1015,7 +1077,7 @@ function NotificationTabContent({
             });
           }
 
-          return [notification, ...prev];
+          return [notification, ...prev].slice(0, MAX_TIMELINE_ITEMS);
         });
       }
     });
@@ -1048,9 +1110,7 @@ function NotificationTabContent({
         <NotificationItem
           key={notification.id}
           notification={notification}
-          onOpenAccountTimeline={(target) => {
-            onOpenAccountTimeline(tab, target);
-          }}
+          onOpenAccountTimeline={handleOpenAccountTimeline}
         />
       ))}
       {loadingMore ? (

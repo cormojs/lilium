@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import {
   HeartFilled,
   RetweetOutlined,
@@ -158,7 +159,9 @@ function sanitizeContent(html: string): string {
   });
 }
 
-export function NotificationItem({
+// 通知リストは 1 件の通知追加で全行が再レンダーされるため、memo で
+// props が変わらない行の再レンダーをスキップする
+export const NotificationItem = memo(function NotificationItem({
   notification,
   onOpenAccountTimeline,
 }: NotificationItemProps): React.JSX.Element {
@@ -199,4 +202,4 @@ export function NotificationItem({
       </Content>
     </NotificationContainer>
   );
-}
+});
