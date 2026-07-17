@@ -1,4 +1,4 @@
-import { memo, useReducer, useState } from 'react';
+import { memo, useReducer } from 'react';
 import {
   RetweetOutlined,
   StarOutlined,
@@ -9,12 +9,12 @@ import {
   LinkOutlined,
   DownOutlined,
 } from '@ant-design/icons';
-import { App, Button, Checkbox, Progress, Radio } from 'antd';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type { Post, PostPoll } from '../../shared/types.ts';
 import { useSettings } from '../hooks/useSettings.ts';
 import { MediaGallery } from './MediaGallery.tsx';
+import { PollCard } from './PollCard.tsx';
 import { replaceCustomEmojis } from './customEmojis.ts';
 
 interface PostItemProps {
@@ -327,66 +327,6 @@ const ContentWarningIcon = styled(DownOutlined)`
   font-size: 0.8em;
 `;
 
-const PollContainer = styled.div<{ $fontSize: number }>`
-  margin-top: 10px;
-  padding: 10px 12px;
-  border: 1px solid #d9d9d9;
-  border-radius: 6px;
-  background: #fafafa;
-  font-size: ${(props) => props.$fontSize}px;
-`;
-
-const PollOptionList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const PollOptionRow = styled.label`
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 8px;
-`;
-
-const PollOptionTitle = styled.span`
-  color: #262626;
-  word-break: break-word;
-
-  .custom-emoji {
-    height: 1em;
-    width: auto;
-    vertical-align: -0.1em;
-  }
-`;
-
-const PollResult = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const PollCount = styled.span`
-  min-width: 44px;
-  color: #8c8c8c;
-  text-align: right;
-`;
-
-const PollMeta = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-  color: #8c8c8c;
-`;
-
-const PollActions = styled.div`
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-`;
-
 const FooterLine = styled.div`
   display: flex;
   align-items: center;
@@ -489,180 +429,6 @@ function quoteStateLabel(state: NonNullable<Post['quote']>['state']): string {
     case 'accepted':
       return '引用元の投稿を読み込めません';
   }
-}
-
-function formatPollExpiration(expiresAt: string | null): string {
-  if (!expiresAt) {
-    return '終了時刻なし';
-  }
-
-  return `${formatTimestamp(expiresAt)} まで`;
-}
-
-function pollStatusText(poll: PostPoll): string {
-  const participantCount = poll.votersCount ?? poll.votesCount;
-  const participantLabel = poll.multiple ? '投票者' : '票';
-  const expirationLabel = poll.expired ? '終了済み' : formatPollExpiration(poll.expiresAt);
-  return `${participantCount.toLocaleString()} ${participantLabel}・${expirationLabel}`;
-}
-
-function PollCard({
-  poll,
-  postId,
-  serverUrl,
-  username,
-  fontSize,
-  onPollChange,
-}: {
-  poll: PostPoll;
-  postId: string;
-  serverUrl: string;
-  username: string;
-  fontSize: number;
-  onPollChange?: (postId: string, poll: PostPoll) => void;
-}): React.JSX.Element {
-  const { message } = App.useApp();
-  const [choiceOverride, setChoiceOverride] = useState<{
-    pollId: string;
-    choices: number[];
-  } | null>(null);
-  const [busy, setBusy] = useState(false);
-  const showResults =
-    poll.voted || poll.expired || poll.options.some((option) => option.votesCount !== null);
-  const canVote = !poll.expired && !poll.voted;
-  const selectedChoices =
-    choiceOverride?.pollId === poll.id ? choiceOverride.choices : poll.ownVotes;
-  const totalVotes = Math.max(poll.votesCount, 0);
-
-  const updatePoll = (updatedPoll: PostPoll): void => {
-    onPollChange?.(postId, updatedPoll);
-  };
-
-  const handleVote = async (): Promise<void> => {
-    if (selectedChoices.length === 0) {
-      return;
-    }
-
-    setBusy(true);
-    const updatedPoll = await window.api
-      .votePoll({
-        serverUrl,
-        username,
-        pollId: poll.id,
-        choices: selectedChoices,
-      })
-      .catch((e: unknown) => {
-        message.error(`投票に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
-        return null;
-      });
-    if (updatedPoll) {
-      setChoiceOverride(null);
-      updatePoll(updatedPoll);
-    }
-    setBusy(false);
-  };
-
-  const handleRefresh = async (): Promise<void> => {
-    setBusy(true);
-    const updatedPoll = await window.api
-      .refreshPoll({ serverUrl, username, pollId: poll.id })
-      .catch((e: unknown) => {
-        message.error(
-          `投票結果の再取得に失敗しました: ${e instanceof Error ? e.message : String(e)}`,
-        );
-        return null;
-      });
-    if (updatedPoll) {
-      updatePoll(updatedPoll);
-    }
-    setBusy(false);
-  };
-
-  return (
-    <PollContainer $fontSize={fontSize}>
-      <PollOptionList>
-        {poll.options.map((option, index) => {
-          const votesCount = option.votesCount;
-          const percent =
-            votesCount !== null && totalVotes > 0 ? Math.round((votesCount / totalVotes) * 100) : 0;
-          const checked = selectedChoices.includes(index);
-
-          return (
-            <PollOptionRow key={`${poll.id}-${String(index)}`}>
-              {poll.multiple ? (
-                <Checkbox
-                  checked={checked}
-                  disabled={!canVote || busy}
-                  onChange={(event) => {
-                    setChoiceOverride((prev) => {
-                      const currentChoices =
-                        prev?.pollId === poll.id ? prev.choices : poll.ownVotes;
-                      const choices = event.target.checked
-                        ? [...currentChoices, index]
-                        : currentChoices.filter((choice) => choice !== index);
-                      return { pollId: poll.id, choices };
-                    });
-                  }}
-                />
-              ) : (
-                <Radio
-                  checked={checked}
-                  disabled={!canVote || busy}
-                  onChange={() => {
-                    setChoiceOverride({ pollId: poll.id, choices: [index] });
-                  }}
-                />
-              )}
-              <PollOptionTitle
-                dangerouslySetInnerHTML={{
-                  __html: sanitizeContent(
-                    replaceCustomEmojis(escapeHtml(option.title), option.emojis),
-                  ),
-                }}
-              />
-              {showResults ? (
-                <PollCount>{votesCount === null ? '-' : votesCount.toLocaleString()}</PollCount>
-              ) : null}
-              {showResults ? (
-                <PollResult style={{ gridColumn: '2 / 4' }}>
-                  <Progress percent={percent} size="small" showInfo={false} />
-                  <span>{percent}%</span>
-                </PollResult>
-              ) : null}
-            </PollOptionRow>
-          );
-        })}
-      </PollOptionList>
-      <PollMeta>
-        <span>{poll.multiple ? '複数選択' : '単一選択'}</span>
-        <span>{pollStatusText(poll)}</span>
-      </PollMeta>
-      <PollActions>
-        {canVote ? (
-          <Button
-            type="primary"
-            size="small"
-            loading={busy}
-            disabled={selectedChoices.length === 0}
-            onClick={() => {
-              void handleVote();
-            }}
-          >
-            投票
-          </Button>
-        ) : null}
-        <Button
-          size="small"
-          loading={busy}
-          onClick={() => {
-            void handleRefresh();
-          }}
-        >
-          結果を再取得
-        </Button>
-      </PollActions>
-    </PollContainer>
-  );
 }
 
 function QuoteCard({
@@ -949,11 +715,8 @@ export const PostItem = memo(function PostItem({
           <PollCard
             key={visiblePoll.id}
             poll={visiblePoll}
-            postId={post.id}
-            serverUrl={serverUrl}
-            username={username}
             fontSize={smallFontSize}
-            onPollChange={handlePollChange}
+            interaction={{ postId: post.id, serverUrl, username, onPollChange: handlePollChange }}
           />
         ) : null}
         <FooterLine>

@@ -10,6 +10,7 @@ import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type { MastoNotification, NotificationType } from '../../shared/types.ts';
 import { useSettings } from '../hooks/useSettings.ts';
+import { PollCard } from './PollCard.tsx';
 import { replaceCustomEmojis } from './customEmojis.ts';
 
 interface NotificationItemProps {
@@ -195,6 +196,9 @@ export const NotificationItem = memo(function NotificationItem({
               ),
             }}
           />
+        ) : null}
+        {notification.type === 'poll' && notification.status?.poll ? (
+          <PollCard poll={notification.status.poll} fontSize={settings.postFontSize - 1} />
         ) : null}
         <Timestamp $fontSize={settings.uiFontSize - 2}>
           {formatTimestamp(notification.createdAt)}
