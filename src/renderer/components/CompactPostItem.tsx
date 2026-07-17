@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { BarChartOutlined, LinkOutlined, PictureOutlined } from '@ant-design/icons';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
@@ -7,7 +8,7 @@ import { replaceCustomEmojis } from './customEmojis.ts';
 
 interface CompactPostItemProps {
   post: Post;
-  onClick: () => void;
+  onClick: (postId: string) => void;
   onOpenAccountTimeline?: (account: Post['account']) => void;
 }
 
@@ -166,7 +167,9 @@ function escapeHtml(text: string): string {
   return div.innerHTML;
 }
 
-export function CompactPostItem({
+// タイムラインは 1 件の投稿追加で全行が再レンダーされるため、memo で
+// props が変わらない行の再レンダーをスキップする
+export const CompactPostItem = memo(function CompactPostItem({
   post,
   onClick,
   onOpenAccountTimeline,
@@ -183,7 +186,12 @@ export function CompactPostItem({
   const hasPoll = post.poll !== undefined;
 
   return (
-    <Row $rowHeight={rowHeight} onClick={onClick}>
+    <Row
+      $rowHeight={rowHeight}
+      onClick={() => {
+        onClick(post.id);
+      }}
+    >
       <IconCell>
         <CompactAvatar
           $rowHeight={rowHeight}
@@ -213,4 +221,4 @@ export function CompactPostItem({
       </BodyCell>
     </Row>
   );
-}
+});
