@@ -1,8 +1,8 @@
 import { useReducer, useState } from 'react';
 import {
   RetweetOutlined,
-  HeartOutlined,
-  HeartFilled,
+  StarOutlined,
+  StarFilled,
   BookOutlined,
   BookFilled,
   MessageOutlined,
@@ -973,7 +973,7 @@ export function PostItem({
             }}
             title="お気に入り"
           >
-            {favourited ? <HeartFilled /> : <HeartOutlined />}
+            {favourited ? <StarFilled /> : <StarOutlined />}
           </ActionButton>
           <ActionButton
             $active={reblogged}
