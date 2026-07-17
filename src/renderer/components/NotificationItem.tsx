@@ -6,11 +6,11 @@ import {
   QuestionCircleOutlined,
   BarChartOutlined,
 } from '@ant-design/icons';
-import { Progress } from 'antd';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
-import type { MastoNotification, NotificationType, PostPoll } from '../../shared/types.ts';
+import type { MastoNotification, NotificationType } from '../../shared/types.ts';
 import { useSettings } from '../hooks/useSettings.ts';
+import { PollCard } from './PollCard.tsx';
 import { replaceCustomEmojis } from './customEmojis.ts';
 
 interface NotificationItemProps {
@@ -119,57 +119,6 @@ const StatusPreview = styled.div<{ $fontSize: number }>`
   }
 `;
 
-const PollResultContainer = styled.div<{ $fontSize: number }>`
-  margin-top: 8px;
-  padding: 8px 12px;
-  border: 1px solid #d9d9d9;
-  border-radius: 6px;
-  background: #fafafa;
-  font-size: ${(props) => props.$fontSize}px;
-`;
-
-const PollOptionList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const PollOptionRow = styled.div`
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 8px;
-`;
-
-const PollOptionTitle = styled.span`
-  color: #262626;
-  word-break: break-word;
-
-  .custom-emoji {
-    height: 1em;
-    width: auto;
-    vertical-align: -0.1em;
-  }
-`;
-
-const PollResult = styled.div`
-  grid-column: 1 / 3;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const PollCount = styled.span`
-  min-width: 44px;
-  color: #8c8c8c;
-  text-align: right;
-`;
-
-const PollMeta = styled.div`
-  margin-top: 10px;
-  color: #8c8c8c;
-`;
-
 const Timestamp = styled.span<{ $fontSize: number }>`
   display: inline-block;
   margin-top: 4px;
@@ -211,58 +160,6 @@ function sanitizeContent(html: string): string {
   });
 }
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function PollResultView({
-  poll,
-  fontSize,
-}: {
-  poll: PostPoll;
-  fontSize: number;
-}): React.JSX.Element {
-  const totalVotes = Math.max(poll.votesCount, 0);
-  const participantCount = poll.votersCount ?? poll.votesCount;
-  const participantLabel = poll.multiple ? '投票者' : '票';
-
-  return (
-    <PollResultContainer $fontSize={fontSize}>
-      <PollOptionList>
-        {poll.options.map((option, index) => {
-          const votesCount = option.votesCount;
-          const percent =
-            votesCount !== null && totalVotes > 0 ? Math.round((votesCount / totalVotes) * 100) : 0;
-
-          return (
-            <PollOptionRow key={`${poll.id}-${String(index)}`}>
-              <PollOptionTitle
-                dangerouslySetInnerHTML={{
-                  __html: sanitizeContent(
-                    replaceCustomEmojis(escapeHtml(option.title), option.emojis),
-                  ),
-                }}
-              />
-              <PollCount>{votesCount === null ? '-' : votesCount.toLocaleString()}</PollCount>
-              <PollResult>
-                <Progress percent={percent} size="small" showInfo={false} />
-                <span>{percent}%</span>
-              </PollResult>
-            </PollOptionRow>
-          );
-        })}
-      </PollOptionList>
-      <PollMeta>
-        {participantCount.toLocaleString()} {participantLabel}
-      </PollMeta>
-    </PollResultContainer>
-  );
-}
-
 // 通知リストは 1 件の通知追加で全行が再レンダーされるため、memo で
 // props が変わらない行の再レンダーをスキップする
 export const NotificationItem = memo(function NotificationItem({
@@ -301,7 +198,7 @@ export const NotificationItem = memo(function NotificationItem({
           />
         ) : null}
         {notification.type === 'poll' && notification.status?.poll ? (
-          <PollResultView poll={notification.status.poll} fontSize={settings.postFontSize - 1} />
+          <PollCard poll={notification.status.poll} fontSize={settings.postFontSize - 1} />
         ) : null}
         <Timestamp $fontSize={settings.uiFontSize - 2}>
           {formatTimestamp(notification.createdAt)}
