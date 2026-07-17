@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import {
-  HeartFilled,
+  StarFilled,
   RetweetOutlined,
   UserAddOutlined,
   QuestionCircleOutlined,
@@ -128,7 +128,7 @@ const Timestamp = styled.span<{ $fontSize: number }>`
 const NOTIFICATION_ICON: Record<NotificationType, React.ReactNode> = {
   follow: <UserAddOutlined style={{ color: '#1677ff' }} />,
   follow_request: <QuestionCircleOutlined style={{ color: '#faad14' }} />,
-  favourite: <HeartFilled style={{ color: '#eb2f96' }} />,
+  favourite: <StarFilled style={{ color: '#eb2f96' }} />,
   reblog: <RetweetOutlined style={{ color: '#52c41a' }} />,
   poll: <BarChartOutlined style={{ color: '#1677ff' }} />,
 };

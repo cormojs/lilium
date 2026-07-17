@@ -1,8 +1,8 @@
 import { memo, useReducer, useState } from 'react';
 import {
   RetweetOutlined,
-  HeartOutlined,
-  HeartFilled,
+  StarOutlined,
+  StarFilled,
   BookOutlined,
   BookFilled,
   MessageOutlined,
@@ -975,7 +975,7 @@ export const PostItem = memo(function PostItem({
             }}
             title="お気に入り"
           >
-            {favourited ? <HeartFilled /> : <HeartOutlined />}
+            {favourited ? <StarFilled /> : <StarOutlined />}
           </ActionButton>
           <ActionButton
             $active={reblogged}
