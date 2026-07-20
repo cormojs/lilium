@@ -13,9 +13,18 @@ const tabDefinitionSchema: z.ZodType<TabDefinition> = z.object({
   id: z.string(),
   accountServerUrl: z.string(),
   accountUsername: z.string(),
-  timelineType: z.enum(['home', 'public', 'local', 'favourites', 'notifications', 'account']),
+  timelineType: z.enum([
+    'home',
+    'public',
+    'local',
+    'favourites',
+    'notifications',
+    'account',
+    'context',
+  ]),
   targetAccountId: z.string().optional(),
   targetAccountAcct: z.string().optional(),
+  targetStatusId: z.string().optional(),
   customName: z.string().optional(),
 });
 
