@@ -18,6 +18,7 @@ export async function fetchTimeline(
   accessToken: string,
   type: TimelineType,
   accountId?: string,
+  statusId?: string,
   maxId?: string,
 ): Promise<Post[]> {
   const client = createRestAPIClient({ url: serverUrl, accessToken });
@@ -44,6 +45,16 @@ export async function fetchTimeline(
       }
       statuses = await client.v1.accounts.$select(accountId).statuses.list(params);
       break;
+    case 'context': {
+      if (!statusId) {
+        throw new Error('返信ツリーの取得には投稿IDが必要です');
+      }
+      const [status, context] = await Promise.all([
+        client.v1.statuses.$select(statusId).fetch(),
+        client.v1.statuses.$select(statusId).context.fetch(),
+      ]);
+      return [...context.ancestors, status, ...context.descendants].map(convertStatus);
+    }
     case 'notifications':
       return [];
   }

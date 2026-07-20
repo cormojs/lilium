@@ -5,6 +5,7 @@ import {
   UserAddOutlined,
   QuestionCircleOutlined,
   BarChartOutlined,
+  ApartmentOutlined,
 } from '@ant-design/icons';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
@@ -16,6 +17,7 @@ import { replaceCustomEmojis } from './customEmojis.ts';
 interface NotificationItemProps {
   notification: MastoNotification;
   onOpenAccountTimeline?: (account: MastoNotification['account']) => void;
+  onOpenReplyTree?: (post: NonNullable<MastoNotification['status']>) => void;
 }
 
 const NotificationContainer = styled.div`
@@ -126,6 +128,22 @@ const Timestamp = styled.span<{ $fontSize: number }>`
   color: #8c8c8c;
 `;
 
+const ReplyTreeButton = styled.button<{ $fontSize: number }>`
+  margin-top: 8px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: #8c8c8c;
+  cursor: pointer;
+  font-size: ${(props) => props.$fontSize}px;
+
+  &:hover {
+    background: #f5f5f5;
+    color: #1677ff;
+  }
+`;
+
 const NOTIFICATION_ICON: Record<NotificationType, React.ReactNode> = {
   follow: <UserAddOutlined style={{ color: '#1677ff' }} />,
   follow_request: <QuestionCircleOutlined style={{ color: '#faad14' }} />,
@@ -165,6 +183,7 @@ function sanitizeContent(html: string): string {
 export const NotificationItem = memo(function NotificationItem({
   notification,
   onOpenAccountTimeline,
+  onOpenReplyTree,
 }: NotificationItemProps): React.JSX.Element {
   const { settings } = useSettings();
 
@@ -199,6 +218,20 @@ export const NotificationItem = memo(function NotificationItem({
         ) : null}
         {notification.type === 'poll' && notification.status?.poll ? (
           <PollCard poll={notification.status.poll} fontSize={settings.postFontSize - 1} />
+        ) : null}
+        {notification.status?.inReplyToId ? (
+          <ReplyTreeButton
+            type="button"
+            $fontSize={settings.uiFontSize - 2}
+            onClick={() => {
+              if (notification.status) {
+                onOpenReplyTree?.(notification.status);
+              }
+            }}
+            title="返信ツリーを開く"
+          >
+            <ApartmentOutlined /> 返信ツリー
+          </ReplyTreeButton>
         ) : null}
         <Timestamp $fontSize={settings.uiFontSize - 2}>
           {formatTimestamp(notification.createdAt)}

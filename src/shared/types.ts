@@ -19,6 +19,7 @@ export interface TabDefinition {
   timelineType: TimelineType;
   targetAccountId?: string;
   targetAccountAcct?: string;
+  targetStatusId?: string;
   customName?: string;
 }
 
@@ -207,7 +208,14 @@ export interface OAuthExchangeTokenParams {
 }
 
 /** Timeline type */
-export type TimelineType = 'home' | 'public' | 'local' | 'favourites' | 'notifications' | 'account';
+export type TimelineType =
+  | 'home'
+  | 'public'
+  | 'local'
+  | 'favourites'
+  | 'notifications'
+  | 'account'
+  | 'context';
 
 /** Media attachment type */
 export type MediaAttachmentType = 'image' | 'video' | 'gifv' | 'audio' | 'unknown';
@@ -313,6 +321,7 @@ export interface Post {
   };
   quote?: PostQuote;
   poll?: PostPoll;
+  inReplyToId: string | null;
 }
 
 /** Parameters for fetching a timeline */
@@ -321,6 +330,7 @@ export interface TimelineFetchParams {
   serverUrl: string;
   type: TimelineType;
   accountId?: string;
+  statusId?: string;
   maxId?: string;
 }
 
