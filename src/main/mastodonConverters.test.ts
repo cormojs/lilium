@@ -31,6 +31,12 @@ function createStatus(overrides: Partial<mastodon.v1.Status> = {}): mastodon.v1.
 }
 
 describe('convertStatus', () => {
+  test('preserves the reply target ID', () => {
+    const status = createStatus({ inReplyToId: 'status-parent' });
+
+    expect(convertStatus(status).inReplyToId).toBe('status-parent');
+  });
+
   test('appends quote-inline content from the quoted status URL when it is missing', () => {
     const quotedStatus = createStatus({
       id: 'status-2',

@@ -158,6 +158,7 @@ function registerIpcHandlers(): void {
         account.accessToken,
         params.type,
         params.accountId,
+        params.statusId,
         params.maxId,
       ),
     );

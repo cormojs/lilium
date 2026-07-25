@@ -7,6 +7,7 @@ import {
   BookFilled,
   MessageOutlined,
   LinkOutlined,
+  ApartmentOutlined,
   DownOutlined,
 } from '@ant-design/icons';
 import sanitizeHtml from 'sanitize-html';
@@ -24,6 +25,7 @@ interface PostItemProps {
   onReply?: (post: Post) => void;
   onQuote?: (post: Post) => void;
   onOpenAccountTimeline?: (account: Post['account']) => void;
+  onOpenReplyTree?: (post: Post) => void;
   onCollapse?: () => void;
   onPollChange?: (postId: string, poll: PostPoll) => void;
 }
@@ -544,6 +546,7 @@ export const PostItem = memo(function PostItem({
   onReply,
   onQuote,
   onOpenAccountTimeline,
+  onOpenReplyTree,
   onCollapse,
   onPollChange,
 }: PostItemProps): React.JSX.Element {
@@ -761,6 +764,17 @@ export const PostItem = memo(function PostItem({
           >
             <MessageOutlined />
           </ActionButton>
+          {post.inReplyToId ? (
+            <ActionButton
+              $active={false}
+              $activeColor="#1677ff"
+              $fontSize={smallFontSize}
+              onClick={() => onOpenReplyTree?.(post)}
+              title="返信ツリーを開く"
+            >
+              <ApartmentOutlined />
+            </ActionButton>
+          ) : null}
           <ActionButton
             $active={false}
             $activeColor="#1677ff"

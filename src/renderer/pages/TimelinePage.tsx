@@ -300,6 +300,7 @@ const TIMELINE_TYPE_LABELS: Record<TimelineType, string> = {
   favourites: 'Favourites',
   notifications: 'Notifications',
   account: 'Account',
+  context: '返信ツリー',
 };
 
 const TIMELINE_TYPE_OPTIONS: { value: TimelineType; label: string }[] = [
@@ -333,6 +334,9 @@ function buildTabLabel(tab: TabDefinition, accounts: Account[]): string {
   }
   if (tab.timelineType === 'account' && tab.targetAccountAcct) {
     return `@${tab.targetAccountAcct}`;
+  }
+  if (tab.timelineType === 'context') {
+    return '返信ツリー';
   }
   const account = accounts.find(
     (a) => a.serverUrl === tab.accountServerUrl && a.username === tab.accountUsername,
@@ -655,12 +659,14 @@ function TimelineTabContent({
   onReply,
   onQuote,
   onOpenAccountTimeline,
+  onOpenReplyTree,
 }: {
   tab: TabDefinition;
   accounts: Account[];
   onReply: (tab: TabDefinition, post: Post) => void;
   onQuote: (tab: TabDefinition, post: Post) => void;
   onOpenAccountTimeline: (tab: TabDefinition, target: AccountTimelineTarget) => void;
+  onOpenReplyTree: (tab: TabDefinition, post: Post) => void;
 }): React.JSX.Element {
   const { message } = App.useApp();
   const [posts, setPosts] = useState<Post[]>([]);
@@ -713,6 +719,13 @@ function TimelineTabContent({
     [onOpenAccountTimeline, tab],
   );
 
+  const handleOpenReplyTree = useCallback(
+    (targetPost: Post): void => {
+      onOpenReplyTree(tab, targetPost);
+    },
+    [onOpenReplyTree, tab],
+  );
+
   const handleCollapsePost = useCallback((): void => {
     setExpandedPostId(null);
   }, []);
@@ -744,6 +757,7 @@ function TimelineTabContent({
         username: accountUsername,
         type: tab.timelineType,
         accountId: tab.targetAccountId,
+        statusId: tab.targetStatusId,
       });
       setPosts(result);
     } catch (e) {
@@ -753,7 +767,14 @@ function TimelineTabContent({
     } finally {
       setLoading(false);
     }
-  }, [accountServerUrl, accountUsername, tab.timelineType, tab.targetAccountId, message]);
+  }, [
+    accountServerUrl,
+    accountUsername,
+    tab.timelineType,
+    tab.targetAccountId,
+    tab.targetStatusId,
+    message,
+  ]);
 
   const handleRefresh = useCallback(() => {
     setPosts([]);
@@ -809,6 +830,7 @@ function TimelineTabContent({
   }, [handleRefresh]);
 
   const loadMore = useCallback(async () => {
+    if (tab.timelineType === 'context') return;
     if (!accountServerUrl || !accountUsername || loadingMoreRef.current || !hasMoreRef.current)
       return;
     const currentPosts = postsRef.current;
@@ -823,6 +845,7 @@ function TimelineTabContent({
         username: accountUsername,
         type: tab.timelineType,
         accountId: tab.targetAccountId,
+        statusId: tab.targetStatusId,
         maxId: lastPost.id,
       });
       if (result.length > 0) {
@@ -838,7 +861,14 @@ function TimelineTabContent({
       loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [accountServerUrl, accountUsername, tab.timelineType, tab.targetAccountId, message]);
+  }, [
+    accountServerUrl,
+    accountUsername,
+    tab.timelineType,
+    tab.targetAccountId,
+    tab.targetStatusId,
+    message,
+  ]);
 
   useEffect(() => {
     void loadTimeline();
@@ -888,6 +918,7 @@ function TimelineTabContent({
         onReply={handleReplyPost}
         onQuote={handleQuotePost}
         onOpenAccountTimeline={handleOpenAccountTimeline}
+        onOpenReplyTree={handleOpenReplyTree}
         onPollChange={handlePollChange}
         onCollapse={settings.disableCompactDisplay ? undefined : handleCollapsePost}
       />
@@ -932,10 +963,12 @@ function NotificationTabContent({
   tab,
   accounts,
   onOpenAccountTimeline,
+  onOpenReplyTree,
 }: {
   tab: TabDefinition;
   accounts: Account[];
   onOpenAccountTimeline: (tab: TabDefinition, target: AccountTimelineTarget) => void;
+  onOpenReplyTree: (tab: TabDefinition, post: Post) => void;
 }): React.JSX.Element {
   const { message } = App.useApp();
   const [notifications, setNotifications] = useState<MastoNotification[]>([]);
@@ -1013,6 +1046,13 @@ function NotificationTabContent({
       onOpenAccountTimeline(tab, target);
     },
     [onOpenAccountTimeline, tab],
+  );
+
+  const handleOpenReplyTree = useCallback(
+    (post: Post): void => {
+      onOpenReplyTree(tab, post);
+    },
+    [onOpenReplyTree, tab],
   );
 
   // System notifications are handled via Electron's Notification module in the main process
@@ -1111,6 +1151,7 @@ function NotificationTabContent({
           key={notification.id}
           notification={notification}
           onOpenAccountTimeline={handleOpenAccountTimeline}
+          onOpenReplyTree={handleOpenReplyTree}
         />
       ))}
       {loadingMore ? (
@@ -1128,12 +1169,14 @@ function TabContent({
   onReply,
   onQuote,
   onOpenAccountTimeline,
+  onOpenReplyTree,
 }: {
   tab: TabDefinition;
   accounts: Account[];
   onReply: (tab: TabDefinition, post: Post) => void;
   onQuote: (tab: TabDefinition, post: Post) => void;
   onOpenAccountTimeline: (tab: TabDefinition, target: AccountTimelineTarget) => void;
+  onOpenReplyTree: (tab: TabDefinition, post: Post) => void;
 }): React.JSX.Element {
   if (tab.timelineType === 'notifications') {
     return (
@@ -1141,6 +1184,7 @@ function TabContent({
         tab={tab}
         accounts={accounts}
         onOpenAccountTimeline={onOpenAccountTimeline}
+        onOpenReplyTree={onOpenReplyTree}
       />
     );
   }
@@ -1151,6 +1195,7 @@ function TabContent({
       onReply={onReply}
       onQuote={onQuote}
       onOpenAccountTimeline={onOpenAccountTimeline}
+      onOpenReplyTree={onOpenReplyTree}
     />
   );
 }
@@ -1169,6 +1214,7 @@ interface PaneProps {
   onReply: (tab: TabDefinition, post: Post) => void;
   onQuote: (tab: TabDefinition, post: Post) => void;
   onOpenAccountTimeline: (tab: TabDefinition, target: AccountTimelineTarget) => void;
+  onOpenReplyTree: (tab: TabDefinition, post: Post) => void;
 }
 
 function getSubscriptionIds(tab: TabDefinition): string[] {
@@ -1194,6 +1240,7 @@ function Pane({
   onReply,
   onQuote,
   onOpenAccountTimeline,
+  onOpenReplyTree,
 }: PaneProps): React.JSX.Element {
   const [connectionStatuses, setConnectionStatuses] = useState<
     Record<string, StreamConnectionStatus>
@@ -1280,6 +1327,7 @@ function Pane({
           onReply={onReply}
           onQuote={onQuote}
           onOpenAccountTimeline={onOpenAccountTimeline}
+          onOpenReplyTree={onOpenReplyTree}
         />
       ),
       closable: paneTabs.length > 1 || totalPanes > 1,
@@ -1656,6 +1704,36 @@ export function TimelinePage({
     [panes, persistLayout],
   );
 
+  const handleOpenReplyTree = useCallback(
+    (sourceTab: TabDefinition, post: Post): void => {
+      const targetPane = panes.find((pane) => pane.tabIds.includes(sourceTab.id)) ?? panes[0];
+      if (!targetPane) return;
+
+      const contextTab: TabDefinition = {
+        id: generateId(),
+        accountServerUrl: sourceTab.accountServerUrl,
+        accountUsername: sourceTab.accountUsername,
+        timelineType: 'context',
+        targetStatusId: post.id,
+      };
+
+      setTabs((prevTabs) => {
+        const nextTabs = [...prevTabs, contextTab];
+        setPanes((prevPanes) => {
+          const nextPanes = prevPanes.map((pane) =>
+            pane.id === targetPane.id
+              ? { ...pane, tabIds: [...pane.tabIds, contextTab.id], activeTabId: contextTab.id }
+              : pane,
+          );
+          persistLayout(nextTabs, nextPanes);
+          return nextPanes;
+        });
+        return nextTabs;
+      });
+    },
+    [panes, persistLayout],
+  );
+
   const handleClearStatusDraft = (): void => {
     setStatusDraft(null);
   };
@@ -1711,6 +1789,7 @@ export function TimelinePage({
             onReply={handleReply}
             onQuote={handleQuote}
             onOpenAccountTimeline={handleOpenAccountTimeline}
+            onOpenReplyTree={handleOpenReplyTree}
           />
         ))}
       </PaneContainer>

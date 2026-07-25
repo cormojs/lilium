@@ -304,6 +304,7 @@ export function convertStatus(status: mastodon.v1.Status): Post {
     rebloggedBy,
     quote: convertQuote(original.quote, content) ?? convertFallbackQuote(content),
     poll: original.poll ? convertPoll(original.poll) : undefined,
+    inReplyToId: original.inReplyToId ?? null,
   };
 }
 
