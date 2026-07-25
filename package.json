@@ -12,11 +12,11 @@
     "package": "electron-vite build && electron-builder",
     "package:win": "electron-vite build && electron-builder --win",
     "package:mac": "electron-vite build && electron-builder --mac",
-    "format": "prettier --write \"src/**/*.{ts,tsx}\" --no-error-on-unmatched-pattern",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx}\" --no-error-on-unmatched-pattern",
-    "lint": "eslint src/",
+    "format": "biome format --write src",
+    "format:check": "biome format src",
+    "lint": "biome lint src && eslint src/",
     "postinstall": "electron-builder install-app-deps",
-    "lint:fix": "eslint src/ --fix",
+    "lint:fix": "biome check --write src && eslint src/ --fix",
     "typecheck": "tsc -b"
   },
   "dependencies": {
@@ -34,6 +34,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@biomejs/biome": "^2.5.5",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/sanitize-html": "^2.16.0",
@@ -44,12 +45,10 @@
     "electron-builder": "^26.8.1",
     "electron-vite": "^5.0.0",
     "eslint": "^10.0.2",
-    "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-compiler": "^19.1.0-rc.2",
     "eslint-plugin-react-hooks": "^7.0.1",
     "globals": "^17.3.0",
-    "prettier": "^3.8.1",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^7.3.1"

@@ -57,15 +57,15 @@ lilium/
 
 ---
 
-## ESLint / Prettier
+## ESLint / Biome
 
-### Prettier
+### Biome
 
-コードフォーマットは Prettier に委ねます。手動での整形は行いません。
+コードフォーマットと基本的な静的解析は Biome に委ねます。手動での整形は行いません。
 
 ```sh
-bun run format       # prettier --write "src/**/*.{ts,tsx}"
-bun run format:check # prettier --check "src/**/*.{ts,tsx}"
+bun run format       # biome format --write src
+bun run format:check # biome format src
 ```
 
 主な設定方針:
@@ -74,14 +74,14 @@ bun run format:check # prettier --check "src/**/*.{ts,tsx}"
 - trailing comma: `all`
 - printWidth: `100`
 
-### ESLint
+### Lint
 
 ```sh
-bun run lint         # eslint src/
-bun run lint:fix     # eslint src/ --fix
+bun run lint         # biome lint src && eslint src/
+bun run lint:fix     # biome check --write src && eslint src/ --fix
 ```
 
-- ESLint エラーを残したままコミットしない
+- Biome / ESLint エラーを残したままコミットしない
 - `eslint-disable` コメントは最小限にとどめ、理由を明記する
 
 ---

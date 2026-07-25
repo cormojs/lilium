@@ -1,22 +1,22 @@
-import { memo, useReducer } from 'react';
 import {
-  RetweetOutlined,
-  StarOutlined,
-  StarFilled,
-  BookOutlined,
-  BookFilled,
-  MessageOutlined,
-  LinkOutlined,
   ApartmentOutlined,
+  BookFilled,
+  BookOutlined,
   DownOutlined,
+  LinkOutlined,
+  MessageOutlined,
+  RetweetOutlined,
+  StarFilled,
+  StarOutlined,
 } from '@ant-design/icons';
+import { memo, useReducer } from 'react';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type { Post, PostPoll } from '../../shared/types.ts';
 import { useSettings } from '../hooks/useSettings.ts';
+import { replaceCustomEmojis } from './customEmojis.ts';
 import { MediaGallery } from './MediaGallery.tsx';
 import { PollCard } from './PollCard.tsx';
-import { replaceCustomEmojis } from './customEmojis.ts';
 
 interface PostItemProps {
   post: Post;

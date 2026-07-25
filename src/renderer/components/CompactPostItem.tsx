@@ -1,5 +1,5 @@
-import { memo } from 'react';
 import { BarChartOutlined, LinkOutlined, PictureOutlined } from '@ant-design/icons';
+import { memo } from 'react';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type { Post } from '../../shared/types.ts';

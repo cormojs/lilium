@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
 import { App as AntApp, ConfigProvider } from 'antd';
+import { useCallback, useEffect, useState } from 'react';
 import type { Account, AppSettings } from '../shared/types.ts';
+import { DEFAULT_SETTINGS, SettingsContext } from './hooks/useSettings.ts';
 import { LoginPage } from './pages/LoginPage.tsx';
-import { TimelinePage } from './pages/TimelinePage.tsx';
 import { SettingsPage } from './pages/SettingsPage.tsx';
-import { SettingsContext, DEFAULT_SETTINGS } from './hooks/useSettings.ts';
+import { TimelinePage } from './pages/TimelinePage.tsx';
 
 type Page = 'login' | 'timeline' | 'settings';
 

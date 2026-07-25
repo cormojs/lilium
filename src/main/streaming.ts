@@ -1,19 +1,19 @@
-import { createRestAPIClient, createStreamingAPIClient } from 'masto';
-import type { mastodon } from 'masto';
 import type { WebContents } from 'electron';
+import type { mastodon } from 'masto';
+import { createRestAPIClient, createStreamingAPIClient } from 'masto';
+import { IpcChannels } from '../shared/ipc.ts';
 import type {
   StreamConnectionStatus,
   StreamEventData,
   StreamSubscribeParams,
   StreamType,
 } from '../shared/types.ts';
-import { IpcChannels } from '../shared/ipc.ts';
-import { rateLimitedCall } from './rateLimiter.ts';
 import {
   convertNotification,
   convertStatus,
   isSupportedNotificationType,
 } from './mastodonConverters.ts';
+import { rateLimitedCall } from './rateLimiter.ts';
 
 const POLLING_INTERVAL_MS = 60_000;
 const STREAM_RETRY_INTERVAL_MS = 30_000;

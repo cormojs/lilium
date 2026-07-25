@@ -1,11 +1,11 @@
-import { createRestAPIClient } from 'masto';
 import type { mastodon } from 'masto';
+import { createRestAPIClient } from 'masto';
 import type {
   AccountProfile,
   AccountRelationshipSummary,
   AccountSuggestion,
-  TimelineType,
   Post,
+  TimelineType,
 } from '../shared/types.ts';
 import { convertAccount, convertStatus } from './mastodonConverters.ts';
 
@@ -25,7 +25,7 @@ export async function fetchTimeline(
 
   const params = { maxId, limit: 20 };
 
-  let statuses;
+  let statuses: mastodon.v1.Status[];
   switch (type) {
     case 'home':
       statuses = await client.v1.timelines.home.list(params);

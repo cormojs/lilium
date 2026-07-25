@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Button, Input, List, Typography, Space, App, Flex } from 'antd';
 import {
   ArrowLeftOutlined,
   CopyOutlined,
+  DeleteOutlined,
   LinkOutlined,
   LoginOutlined,
-  DeleteOutlined,
 } from '@ant-design/icons';
+import { App, Button, Flex, Input, List, Space, Typography } from 'antd';
+import { useCallback, useEffect, useState } from 'react';
 import styled from 'styled-components';
 import type { Account, OAuthStartLoginResult } from '../../shared/types.ts';
 

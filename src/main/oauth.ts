@@ -1,4 +1,4 @@
-import { createRestAPIClient, createOAuthAPIClient } from 'masto';
+import { createOAuthAPIClient, createRestAPIClient } from 'masto';
 import type { OAuthStartLoginResult } from '../shared/types.ts';
 import type { AccountCredentials } from './accounts.ts';
 

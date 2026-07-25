@@ -1,27 +1,45 @@
-import { app, BrowserWindow, ipcMain, nativeImage, Notification, shell } from 'electron';
 import path from 'node:path';
+import { app, BrowserWindow, ipcMain, Notification, nativeImage, shell } from 'electron';
 import { IpcChannels } from '../shared/ipc.ts';
 import type {
   Account,
-  AppSettings,
   AccountProfileFetchParams,
   AccountRelationshipParams,
   AccountSuggestionsFetchParams,
+  AppSettings,
+  MediaUploadParams,
   NotificationFetchParams,
   OAuthExchangeTokenParams,
   PaneLayout,
   PollRefreshParams,
   PollVoteParams,
-  StatusActionParams,
-  MediaUploadParams,
   ShowNotificationParams,
+  StatusActionParams,
   StatusCreateParams,
   StreamSubscribeParams,
   TabDefinition,
   TimelineFetchParams,
 } from '../shared/types.ts';
-import { startLogin, exchangeToken } from './oauth.ts';
-import { listAccounts, addAccount, removeAccount, getAccountCredentials } from './accounts.ts';
+import { addAccount, getAccountCredentials, listAccounts, removeAccount } from './accounts.ts';
+import { fetchNotifications } from './notifications.ts';
+import { exchangeToken, startLogin } from './oauth.ts';
+import { loadPaneLayout, savePaneLayout } from './panes.ts';
+import { rateLimitedCall } from './rateLimiter.ts';
+import { loadSettings, saveSettings } from './settings.ts';
+import {
+  bookmarkStatus,
+  createStatus,
+  favouriteStatus,
+  reblogStatus,
+  refreshPoll,
+  unbookmarkStatus,
+  unfavouriteStatus,
+  unreblogStatus,
+  uploadMedia,
+  votePoll,
+} from './statuses.ts';
+import { subscribeStream, unsubscribeAllStreams, unsubscribeStream } from './streaming.ts';
+import { listTabs, saveTabs } from './tabs.ts';
 import {
   fetchAccountProfile,
   fetchAccountRelationship,
@@ -30,25 +48,7 @@ import {
   followAccount,
   unfollowAccount,
 } from './timeline.ts';
-import { fetchNotifications } from './notifications.ts';
-import { listTabs, saveTabs } from './tabs.ts';
-import { loadSettings, saveSettings } from './settings.ts';
-import { loadPaneLayout, savePaneLayout } from './panes.ts';
-import { subscribeStream, unsubscribeStream, unsubscribeAllStreams } from './streaming.ts';
-import {
-  createStatus,
-  uploadMedia,
-  favouriteStatus,
-  unfavouriteStatus,
-  reblogStatus,
-  unreblogStatus,
-  bookmarkStatus,
-  unbookmarkStatus,
-  votePoll,
-  refreshPoll,
-} from './statuses.ts';
 import { createMainWindowOptions, restoreMaximizeState, saveWindowState } from './windowState.ts';
-import { rateLimitedCall } from './rateLimiter.ts';
 
 function isHttpUrl(url: string): boolean {
   try {

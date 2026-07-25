@@ -1,6 +1,6 @@
+import render from 'dom-serializer';
 import log from 'electron-log/main';
 import { DomUtils, parseDocument } from 'htmlparser2';
-import render from 'dom-serializer';
 import type { mastodon } from 'masto';
 import type {
   AccountProfile,
