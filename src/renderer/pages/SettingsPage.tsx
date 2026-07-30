@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { Button, Flex, InputNumber, Switch, Typography, App } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
+import { App, Button, Flex, InputNumber, Switch, Typography } from 'antd';
+import { useState } from 'react';
 import styled from 'styled-components';
 import type { AppSettings } from '../../shared/types.ts';
-import { useSettings, DEFAULT_SETTINGS } from '../hooks/useSettings.ts';
+import { DEFAULT_SETTINGS, useSettings } from '../hooks/useSettings.ts';
 
 const { Title, Text } = Typography;
 

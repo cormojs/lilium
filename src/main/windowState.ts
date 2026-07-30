@@ -1,5 +1,5 @@
-import { app, type BrowserWindow, type BrowserWindowConstructorOptions } from 'electron';
 import path from 'node:path';
+import { app, type BrowserWindow, type BrowserWindowConstructorOptions } from 'electron';
 import { z } from 'zod';
 import { readJsonFile, writeJsonFile } from './jsonStorage.ts';
 

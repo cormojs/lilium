@@ -1,18 +1,18 @@
-import { memo } from 'react';
 import {
-  StarFilled,
-  RetweetOutlined,
-  UserAddOutlined,
-  QuestionCircleOutlined,
-  BarChartOutlined,
   ApartmentOutlined,
+  BarChartOutlined,
+  QuestionCircleOutlined,
+  RetweetOutlined,
+  StarFilled,
+  UserAddOutlined,
 } from '@ant-design/icons';
+import { memo } from 'react';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type { MastoNotification, NotificationType } from '../../shared/types.ts';
 import { useSettings } from '../hooks/useSettings.ts';
-import { PollCard } from './PollCard.tsx';
 import { replaceCustomEmojis } from './customEmojis.ts';
+import { PollCard } from './PollCard.tsx';
 
 interface NotificationItemProps {
   notification: MastoNotification;

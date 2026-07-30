@@ -3,7 +3,6 @@ import tseslint from 'typescript-eslint';
 import reactPlugin from 'eslint-plugin-react';
 import reactHooksPlugin from 'eslint-plugin-react-hooks';
 import reactCompilerPlugin from 'eslint-plugin-react-compiler';
-import prettierConfig from 'eslint-config-prettier';
 import globals from 'globals';
 
 export default [
@@ -46,7 +45,6 @@ export default [
       '@typescript-eslint/no-explicit-any': 'warn',
     },
   },
-  prettierConfig,
   {
     ignores: ['node_modules/', 'dist/', 'out/'],
   },

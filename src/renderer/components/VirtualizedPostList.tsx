@@ -1,5 +1,5 @@
-import { useLayoutEffect, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { useLayoutEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import type { Post } from '../../shared/types.ts';
 

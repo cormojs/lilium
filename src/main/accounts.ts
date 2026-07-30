@@ -1,5 +1,5 @@
-import { app, safeStorage } from 'electron';
 import path from 'node:path';
+import { app, safeStorage } from 'electron';
 import { z } from 'zod';
 import type { Account } from '../shared/types.ts';
 import { readJsonFile, writeJsonFile } from './jsonStorage.ts';

@@ -1,24 +1,24 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Tabs,
-  Modal,
-  Select,
-  Button,
-  App,
-  Flex,
-  Typography,
-  Spin,
-  Dropdown,
-  Tooltip,
-  Input,
-} from 'antd';
-import {
-  SettingOutlined,
-  UserOutlined,
   MoreOutlined,
+  SettingOutlined,
   UserAddOutlined,
   UserDeleteOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
+import {
+  App,
+  Button,
+  Dropdown,
+  Flex,
+  Input,
+  Modal,
+  Select,
+  Spin,
+  Tabs,
+  Tooltip,
+  Typography,
+} from 'antd';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type {
@@ -34,14 +34,14 @@ import type {
   TabDefinition,
   TimelineType,
 } from '../../shared/types.ts';
-import { PostItem } from '../components/PostItem.tsx';
-import { NotificationItem } from '../components/NotificationItem.tsx';
-import { Composer, type ComposerStatusDraft } from '../components/Composer.tsx';
 import { CompactPostItem } from '../components/CompactPostItem.tsx';
+import { Composer, type ComposerStatusDraft } from '../components/Composer.tsx';
+import { replaceCustomEmojis } from '../components/customEmojis.ts';
+import { NotificationItem } from '../components/NotificationItem.tsx';
 import { PaneContainer } from '../components/PaneContainer.tsx';
+import { PostItem } from '../components/PostItem.tsx';
 import { VirtualizedPostList } from '../components/VirtualizedPostList.tsx';
 import { useSettings } from '../hooks/useSettings.ts';
-import { replaceCustomEmojis } from '../components/customEmojis.ts';
 
 const { Text } = Typography;
 const MAX_POLL_EXPIRATION_TIMER_MS = 2_147_483_647;
