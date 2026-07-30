@@ -159,6 +159,7 @@ function registerIpcHandlers(): void {
         params.type,
         params.accountId,
         params.statusId,
+        params.hashtag,
         params.maxId,
       ),
     );

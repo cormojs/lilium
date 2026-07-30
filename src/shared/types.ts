@@ -20,6 +20,7 @@ export interface TabDefinition {
   targetAccountId?: string;
   targetAccountAcct?: string;
   targetStatusId?: string;
+  targetHashtag?: string;
   customName?: string;
 }
 
@@ -215,7 +216,8 @@ export type TimelineType =
   | 'favourites'
   | 'notifications'
   | 'account'
-  | 'context';
+  | 'context'
+  | 'hashtag';
 
 /** Media attachment type */
 export type MediaAttachmentType = 'image' | 'video' | 'gifv' | 'audio' | 'unknown';
@@ -331,6 +333,7 @@ export interface TimelineFetchParams {
   type: TimelineType;
   accountId?: string;
   statusId?: string;
+  hashtag?: string;
   maxId?: string;
 }
 
@@ -400,12 +403,13 @@ export interface PaneLayout {
   panes: PaneDefinition[];
 }
 
-export type StreamType = 'user' | 'public' | 'publicLocal';
+export type StreamType = 'user' | 'public' | 'publicLocal' | 'hashtag';
 
 export interface StreamSubscribeParams {
   username: string;
   serverUrl: string;
   streamType: StreamType;
+  hashtag?: string;
   subscriptionId: string;
 }
 

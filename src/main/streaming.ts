@@ -95,6 +95,7 @@ async function getStreamingApiUrl(serverUrl: string, accessToken: string): Promi
 function subscribe(
   streamingClient: mastodon.streaming.Client,
   streamType: StreamType,
+  hashtag?: string,
 ): mastodon.streaming.Subscription {
   switch (streamType) {
     case 'user':
@@ -103,6 +104,11 @@ function subscribe(
       return streamingClient.public.subscribe();
     case 'publicLocal':
       return streamingClient.public.local.subscribe();
+    case 'hashtag':
+      if (!hashtag) {
+        throw new Error('ハッシュタグストリームにはタグ名が必要です');
+      }
+      return streamingClient.hashtag.subscribe({ tag: hashtag });
   }
 }
 
@@ -219,6 +225,40 @@ async function pollPublicStream(active: ActiveSubscription, local = false): Prom
   }
 }
 
+async function pollHashtagStream(active: ActiveSubscription): Promise<void> {
+  const hashtag = active.params.hashtag;
+  if (!hashtag) {
+    throw new Error('ハッシュタグストリームにはタグ名が必要です');
+  }
+  if (!active.pollingClient) {
+    active.pollingClient = createRestAPIClient({
+      url: active.params.serverUrl,
+      accessToken: active.accessToken,
+    });
+  }
+  const pollingClient = active.pollingClient;
+
+  const statuses = await rateLimitedCall(async () =>
+    pollingClient.v1.timelines.tag.$select(hashtag).list({
+      sinceId: active.cursor.statusSinceId,
+      limit: 20,
+    }),
+  );
+
+  const statusSinceId = maxMastodonId(statuses.map((status) => status.id));
+  if (statusSinceId) {
+    active.cursor.statusSinceId = statusSinceId;
+  }
+
+  for (const status of [...statuses].reverse()) {
+    sendStreamEvent(active, {
+      subscriptionId: active.params.subscriptionId,
+      event: 'update',
+      payload: convertStatus(status),
+    });
+  }
+}
+
 async function pollOnce(active: ActiveSubscription): Promise<void> {
   if (!isActive(active)) {
     return;
@@ -229,6 +269,8 @@ async function pollOnce(active: ActiveSubscription): Promise<void> {
       await pollUserStream(active);
     } else if (active.params.streamType === 'publicLocal') {
       await pollPublicStream(active, true);
+    } else if (active.params.streamType === 'hashtag') {
+      await pollHashtagStream(active);
     } else {
       await pollPublicStream(active);
     }
@@ -286,7 +328,11 @@ async function startStreaming(active: ActiveSubscription): Promise<void> {
       retry: true,
     });
 
-    const subscription = subscribe(streamingClient, active.params.streamType);
+    const subscription = subscribe(
+      streamingClient,
+      active.params.streamType,
+      active.params.hashtag,
+    );
     active.streaming = {
       subscription,
       client: streamingClient,

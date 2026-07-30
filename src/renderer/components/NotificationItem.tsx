@@ -6,17 +6,19 @@ import {
   StarFilled,
   UserAddOutlined,
 } from '@ant-design/icons';
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type { MastoNotification, NotificationType } from '../../shared/types.ts';
 import { useSettings } from '../hooks/useSettings.ts';
 import { replaceCustomEmojis } from './customEmojis.ts';
+import { getHashtagName } from './hashtag.ts';
 import { PollCard } from './PollCard.tsx';
 
 interface NotificationItemProps {
   notification: MastoNotification;
   onOpenAccountTimeline?: (account: MastoNotification['account']) => void;
+  onOpenHashtagTimeline?: (hashtag: string) => void;
   onOpenReplyTree?: (post: NonNullable<MastoNotification['status']>) => void;
 }
 
@@ -178,14 +180,43 @@ function sanitizeContent(html: string): string {
   });
 }
 
+function handleHashtagClick(
+  event: React.MouseEvent<HTMLDivElement>,
+  onOpenHashtagTimeline: ((hashtag: string) => void) | undefined,
+): void {
+  if (!onOpenHashtagTimeline || !(event.target instanceof Element)) {
+    return;
+  }
+
+  const link = event.target.closest('a.hashtag');
+  if (!(link instanceof HTMLAnchorElement)) {
+    return;
+  }
+
+  const hashtag = getHashtagName(link.textContent);
+  if (!hashtag) {
+    return;
+  }
+
+  event.preventDefault();
+  onOpenHashtagTimeline(hashtag);
+}
+
 // 通知リストは 1 件の通知追加で全行が再レンダーされるため、memo で
 // props が変わらない行の再レンダーをスキップする
 export const NotificationItem = memo(function NotificationItem({
   notification,
   onOpenAccountTimeline,
+  onOpenHashtagTimeline,
   onOpenReplyTree,
 }: NotificationItemProps): React.JSX.Element {
   const { settings } = useSettings();
+  const handleStatusHashtagClick = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>): void => {
+      handleHashtagClick(event, onOpenHashtagTimeline);
+    },
+    [onOpenHashtagTimeline],
+  );
 
   return (
     <NotificationContainer>
@@ -209,6 +240,7 @@ export const NotificationItem = memo(function NotificationItem({
         {notification.status ? (
           <StatusPreview
             $fontSize={settings.postFontSize - 1}
+            onClick={handleStatusHashtagClick}
             dangerouslySetInnerHTML={{
               __html: sanitizeContent(
                 replaceCustomEmojis(notification.status.content, notification.status.emojis),
