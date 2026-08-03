@@ -12,7 +12,7 @@ import styled from 'styled-components';
 import type { MastoNotification, NotificationType } from '../../shared/types.ts';
 import { useSettings } from '../hooks/useSettings.ts';
 import { replaceCustomEmojis } from './customEmojis.ts';
-import { getHashtagName } from './hashtag.ts';
+import { getHashtagNameFromLink } from './hashtag.ts';
 import { PollCard } from './PollCard.tsx';
 
 interface NotificationItemProps {
@@ -193,7 +193,7 @@ function handleHashtagClick(
     return;
   }
 
-  const hashtag = getHashtagName(link.textContent);
+  const hashtag = getHashtagNameFromLink(link.textContent, link.href, link.className);
   if (!hashtag) {
     return;
   }

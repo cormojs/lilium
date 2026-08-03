@@ -15,7 +15,7 @@ import styled from 'styled-components';
 import type { Post, PostPoll } from '../../shared/types.ts';
 import { useSettings } from '../hooks/useSettings.ts';
 import { replaceCustomEmojis } from './customEmojis.ts';
-import { getHashtagName } from './hashtag.ts';
+import { getHashtagNameFromLink } from './hashtag.ts';
 import { MediaGallery } from './MediaGallery.tsx';
 import { PollCard } from './PollCard.tsx';
 
@@ -532,7 +532,7 @@ function handleHashtagClick(
     return;
   }
 
-  const hashtag = getHashtagName(link.textContent);
+  const hashtag = getHashtagNameFromLink(link.textContent, link.href, link.className);
   if (!hashtag) {
     return;
   }
