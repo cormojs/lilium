@@ -9,12 +9,13 @@ import {
   StarFilled,
   StarOutlined,
 } from '@ant-design/icons';
-import { memo, useReducer } from 'react';
+import { memo, useCallback, useReducer } from 'react';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type { Post, PostPoll } from '../../shared/types.ts';
 import { useSettings } from '../hooks/useSettings.ts';
 import { replaceCustomEmojis } from './customEmojis.ts';
+import { getHashtagNameFromLink } from './hashtag.ts';
 import { MediaGallery } from './MediaGallery.tsx';
 import { PollCard } from './PollCard.tsx';
 
@@ -25,6 +26,7 @@ interface PostItemProps {
   onReply?: (post: Post) => void;
   onQuote?: (post: Post) => void;
   onOpenAccountTimeline?: (account: Post['account']) => void;
+  onOpenHashtagTimeline?: (hashtag: string) => void;
   onOpenReplyTree?: (post: Post) => void;
   onCollapse?: () => void;
   onPollChange?: (postId: string, poll: PostPoll) => void;
@@ -437,18 +439,27 @@ function QuoteCard({
   quote,
   fontSize,
   onOpenAccountTimeline,
+  onOpenHashtagTimeline,
 }: {
   quote: NonNullable<Post['quote']>;
   fontSize: number;
   onOpenAccountTimeline?: (account: Post['account']) => void;
+  onOpenHashtagTimeline?: (hashtag: string) => void;
 }): React.JSX.Element {
   const quotedPost = quote.quotedPost;
+  const handleQuoteHashtagClick = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>): void => {
+      handleHashtagClick(event, onOpenHashtagTimeline);
+    },
+    [onOpenHashtagTimeline],
+  );
 
   if (!quotedPost) {
     if (quote.quotedInlineContent) {
       return (
         <QuotePreview $fontSize={fontSize}>
           <QuoteBody
+            onClick={handleQuoteHashtagClick}
             dangerouslySetInnerHTML={{
               __html: sanitizeContent(quote.quotedInlineContent),
             }}
@@ -499,12 +510,35 @@ function QuoteCard({
         </QuoteIdentity>
       </QuoteHeader>
       <QuoteBody
+        onClick={handleQuoteHashtagClick}
         dangerouslySetInnerHTML={{
           __html: sanitizeContent(replaceCustomEmojis(quotedPost.content, quotedPost.emojis)),
         }}
       />
     </QuotePreview>
   );
+}
+
+function handleHashtagClick(
+  event: React.MouseEvent<HTMLDivElement>,
+  onOpenHashtagTimeline: ((hashtag: string) => void) | undefined,
+): void {
+  if (!onOpenHashtagTimeline || !(event.target instanceof Element)) {
+    return;
+  }
+
+  const link = event.target.closest('a.hashtag');
+  if (!(link instanceof HTMLAnchorElement)) {
+    return;
+  }
+
+  const hashtag = getHashtagNameFromLink(link.textContent, link.href, link.className);
+  if (!hashtag) {
+    return;
+  }
+
+  event.preventDefault();
+  onOpenHashtagTimeline(hashtag);
 }
 
 interface PostItemState {
@@ -546,6 +580,7 @@ export const PostItem = memo(function PostItem({
   onReply,
   onQuote,
   onOpenAccountTimeline,
+  onOpenHashtagTimeline,
   onOpenReplyTree,
   onCollapse,
   onPollChange,
@@ -569,6 +604,13 @@ export const PostItem = memo(function PostItem({
     dispatch({ type: 'setPollOverride', value: updatedPoll });
     onPollChange?.(postId, updatedPoll);
   };
+
+  const handlePostHashtagClick = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>): void => {
+      handleHashtagClick(event, onOpenHashtagTimeline);
+    },
+    [onOpenHashtagTimeline],
+  );
 
   const handleFavourite = async (): Promise<void> => {
     if (favourited) {
@@ -690,6 +732,7 @@ export const PostItem = memo(function PostItem({
         {!shouldHideContent ? (
           <PostBody
             $fontSize={settings.postFontSize}
+            onClick={handlePostHashtagClick}
             dangerouslySetInnerHTML={{
               __html: sanitizeContent(replaceCustomEmojis(post.content, post.emojis)),
             }}
@@ -712,6 +755,7 @@ export const PostItem = memo(function PostItem({
             quote={visibleQuote}
             fontSize={smallFontSize}
             onOpenAccountTimeline={onOpenAccountTimeline}
+            onOpenHashtagTimeline={onOpenHashtagTimeline}
           />
         ) : null}
         {visiblePoll ? (

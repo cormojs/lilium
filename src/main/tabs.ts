@@ -21,10 +21,12 @@ const tabDefinitionSchema: z.ZodType<TabDefinition> = z.object({
     'notifications',
     'account',
     'context',
+    'hashtag',
   ]),
   targetAccountId: z.string().optional(),
   targetAccountAcct: z.string().optional(),
   targetStatusId: z.string().optional(),
+  targetHashtag: z.string().optional(),
   customName: z.string().optional(),
 });
 

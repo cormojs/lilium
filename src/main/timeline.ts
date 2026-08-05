@@ -19,6 +19,7 @@ export async function fetchTimeline(
   type: TimelineType,
   accountId?: string,
   statusId?: string,
+  hashtag?: string,
   maxId?: string,
 ): Promise<Post[]> {
   const client = createRestAPIClient({ url: serverUrl, accessToken });
@@ -55,6 +56,12 @@ export async function fetchTimeline(
       ]);
       return [...context.ancestors, status, ...context.descendants].map(convertStatus);
     }
+    case 'hashtag':
+      if (!hashtag) {
+        throw new Error('ハッシュタグTLの取得にはタグ名が必要です');
+      }
+      statuses = await client.v1.timelines.tag.$select(hashtag).list(params);
+      break;
     case 'notifications':
       return [];
   }
