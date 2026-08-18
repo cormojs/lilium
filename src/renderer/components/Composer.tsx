@@ -368,7 +368,7 @@ export function Composer({
             `acct補完候補の取得に失敗しました: ${e instanceof Error ? e.message : String(e)}`,
           );
         });
-    }, 200);
+    }, 500);
 
     return () => {
       window.clearTimeout(timeoutId);

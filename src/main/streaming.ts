@@ -88,7 +88,7 @@ function maxMastodonId(ids: string[]): string | undefined {
 
 async function getStreamingApiUrl(serverUrl: string, accessToken: string): Promise<string> {
   const rest = createRestAPIClient({ url: serverUrl, accessToken });
-  const instance = await rateLimitedCall(() => rest.v2.instance.fetch());
+  const instance = await rateLimitedCall(serverUrl, () => rest.v2.instance.fetch());
   return instance.configuration.urls.streaming;
 }
 
@@ -148,13 +148,13 @@ async function pollUserStream(active: ActiveSubscription): Promise<void> {
   const pollingClient = active.pollingClient;
 
   const [statuses, notifications] = await Promise.all([
-    rateLimitedCall(async () =>
+    rateLimitedCall(active.params.serverUrl, async () =>
       pollingClient.v1.timelines.home.list({
         sinceId: active.cursor.statusSinceId,
         limit: 20,
       }),
     ),
-    rateLimitedCall(async () =>
+    rateLimitedCall(active.params.serverUrl, async () =>
       pollingClient.v1.notifications.list({
         sinceId: active.cursor.notificationSinceId,
         limit: 20,
@@ -203,7 +203,7 @@ async function pollPublicStream(active: ActiveSubscription, local = false): Prom
   }
   const pollingClient = active.pollingClient;
 
-  const statuses = await rateLimitedCall(async () =>
+  const statuses = await rateLimitedCall(active.params.serverUrl, async () =>
     pollingClient.v1.timelines.public.list({
       sinceId: active.cursor.statusSinceId,
       limit: 20,
@@ -238,7 +238,7 @@ async function pollHashtagStream(active: ActiveSubscription): Promise<void> {
   }
   const pollingClient = active.pollingClient;
 
-  const statuses = await rateLimitedCall(async () =>
+  const statuses = await rateLimitedCall(active.params.serverUrl, async () =>
     pollingClient.v1.timelines.tag.$select(hashtag).list({
       sinceId: active.cursor.statusSinceId,
       limit: 20,
