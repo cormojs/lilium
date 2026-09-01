@@ -619,7 +619,8 @@ function useTimelineStream({
   tabId,
   timelineType,
   hashtag,
-  pauseNewPostUpdates,
+  listRef,
+  preserveScrollPositionOnNewPosts,
   setPosts,
 }: {
   accountServerUrl: string | undefined;
@@ -627,24 +628,30 @@ function useTimelineStream({
   tabId: string;
   timelineType: TimelineType;
   hashtag?: string;
-  pauseNewPostUpdates: boolean;
+  listRef: React.RefObject<HTMLDivElement | null>;
+  preserveScrollPositionOnNewPosts: boolean;
   setPosts: React.Dispatch<React.SetStateAction<Post[]>>;
 }): void {
-  const pendingPostsRef = useRef<Post[]>([]);
-  const pauseNewPostUpdatesRef = useRef(pauseNewPostUpdates);
+  const scrollHeightBeforeNewPostsRef = useRef<number | null>(null);
+  const preserveScrollPositionOnNewPostsRef = useRef(preserveScrollPositionOnNewPosts);
 
   useEffect(() => {
-    pauseNewPostUpdatesRef.current = pauseNewPostUpdates;
-    if (pauseNewPostUpdates || pendingPostsRef.current.length === 0) return;
+    preserveScrollPositionOnNewPostsRef.current = preserveScrollPositionOnNewPosts;
+  }, [preserveScrollPositionOnNewPosts]);
 
-    const pendingPosts = pendingPostsRef.current;
-    pendingPostsRef.current = [];
-    setPosts((prev) => {
-      const existingPostIds = new Set(prev.map((post) => post.id));
-      const newPosts = pendingPosts.filter((post) => !existingPostIds.has(post.id));
-      return [...newPosts, ...prev].slice(0, MAX_TIMELINE_ITEMS);
+  const preserveScrollPosition = useCallback((): void => {
+    const el = listRef.current;
+    if (!el || scrollHeightBeforeNewPostsRef.current !== null) return;
+
+    scrollHeightBeforeNewPostsRef.current = el.scrollHeight;
+    window.requestAnimationFrame(() => {
+      const previousScrollHeight = scrollHeightBeforeNewPostsRef.current;
+      scrollHeightBeforeNewPostsRef.current = null;
+      if (previousScrollHeight !== null) {
+        el.scrollTop += el.scrollHeight - previousScrollHeight;
+      }
     });
-  }, [pauseNewPostUpdates, setPosts]);
+  }, [listRef]);
 
   useEffect(() => {
     if (!accountServerUrl || !accountUsername) return;
@@ -664,23 +671,14 @@ function useTimelineStream({
       if (event.subscriptionId !== subscriptionId) return;
       if (event.event === 'update') {
         const post = event.payload as Post;
-        if (pauseNewPostUpdatesRef.current) {
-          if (!pendingPostsRef.current.some((pendingPost) => pendingPost.id === post.id)) {
-            pendingPostsRef.current = [post, ...pendingPostsRef.current].slice(
-              0,
-              MAX_TIMELINE_ITEMS,
-            );
-          }
-          return;
+        if (preserveScrollPositionOnNewPostsRef.current) {
+          preserveScrollPosition();
         }
         setPosts((prev) => {
           if (prev.some((p) => p.id === post.id)) return prev;
           return [post, ...prev].slice(0, MAX_TIMELINE_ITEMS);
         });
       } else if (event.event === 'delete') {
-        pendingPostsRef.current = pendingPostsRef.current.filter(
-          (post) => post.id !== event.payload,
-        );
         setPosts((prev) => prev.filter((p) => p.id !== event.payload));
       }
     });
@@ -689,7 +687,15 @@ function useTimelineStream({
       removeListener();
       void window.api.unsubscribeStream(subscriptionId);
     };
-  }, [accountServerUrl, accountUsername, hashtag, setPosts, tabId, timelineType]);
+  }, [
+    accountServerUrl,
+    accountUsername,
+    hashtag,
+    preserveScrollPosition,
+    setPosts,
+    tabId,
+    timelineType,
+  ]);
 }
 
 function TimelineTabContent({
@@ -940,7 +946,9 @@ function TimelineTabContent({
     tabId: tab.id,
     timelineType: tab.timelineType,
     hashtag: tab.targetHashtag,
-    pauseNewPostUpdates: settings.disableAutoScrollWhenExpanded && expandedPostId !== null,
+    listRef,
+    preserveScrollPositionOnNewPosts:
+      settings.disableAutoScrollWhenExpanded && expandedPostId !== null,
     setPosts,
   });
 
