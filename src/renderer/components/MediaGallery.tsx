@@ -128,7 +128,13 @@ export function MediaGallery({ attachments }: MediaGalleryProps): React.JSX.Elem
         onCancel={() => {
           setPreviewIndex(null);
         }}
-        footer={null}
+        footer={
+          previewImage ? (
+            <Button href={previewImage.url} target="_blank" rel="noreferrer">
+              ブラウザで開く
+            </Button>
+          ) : null
+        }
         centered
         width="auto"
         styles={{ body: { padding: 0, lineHeight: 0 } }}
