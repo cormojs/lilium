@@ -619,6 +619,7 @@ function useTimelineStream({
   tabId,
   timelineType,
   hashtag,
+  pauseNewPostUpdates,
   setPosts,
 }: {
   accountServerUrl: string | undefined;
@@ -626,8 +627,25 @@ function useTimelineStream({
   tabId: string;
   timelineType: TimelineType;
   hashtag?: string;
+  pauseNewPostUpdates: boolean;
   setPosts: React.Dispatch<React.SetStateAction<Post[]>>;
 }): void {
+  const pendingPostsRef = useRef<Post[]>([]);
+  const pauseNewPostUpdatesRef = useRef(pauseNewPostUpdates);
+
+  useEffect(() => {
+    pauseNewPostUpdatesRef.current = pauseNewPostUpdates;
+    if (pauseNewPostUpdates || pendingPostsRef.current.length === 0) return;
+
+    const pendingPosts = pendingPostsRef.current;
+    pendingPostsRef.current = [];
+    setPosts((prev) => {
+      const existingPostIds = new Set(prev.map((post) => post.id));
+      const newPosts = pendingPosts.filter((post) => !existingPostIds.has(post.id));
+      return [...newPosts, ...prev].slice(0, MAX_TIMELINE_ITEMS);
+    });
+  }, [pauseNewPostUpdates, setPosts]);
+
   useEffect(() => {
     if (!accountServerUrl || !accountUsername) return;
     const streamType = getStreamType(timelineType);
@@ -646,11 +664,23 @@ function useTimelineStream({
       if (event.subscriptionId !== subscriptionId) return;
       if (event.event === 'update') {
         const post = event.payload as Post;
+        if (pauseNewPostUpdatesRef.current) {
+          if (!pendingPostsRef.current.some((pendingPost) => pendingPost.id === post.id)) {
+            pendingPostsRef.current = [post, ...pendingPostsRef.current].slice(
+              0,
+              MAX_TIMELINE_ITEMS,
+            );
+          }
+          return;
+        }
         setPosts((prev) => {
           if (prev.some((p) => p.id === post.id)) return prev;
           return [post, ...prev].slice(0, MAX_TIMELINE_ITEMS);
         });
       } else if (event.event === 'delete') {
+        pendingPostsRef.current = pendingPostsRef.current.filter(
+          (post) => post.id !== event.payload,
+        );
         setPosts((prev) => prev.filter((p) => p.id !== event.payload));
       }
     });
@@ -910,6 +940,7 @@ function TimelineTabContent({
     tabId: tab.id,
     timelineType: tab.timelineType,
     hashtag: tab.targetHashtag,
+    pauseNewPostUpdates: settings.disableAutoScrollWhenExpanded && expandedPostId !== null,
     setPosts,
   });
 
