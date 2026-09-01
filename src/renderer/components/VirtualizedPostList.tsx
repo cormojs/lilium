@@ -12,6 +12,7 @@ interface VirtualizedPostListProps {
   footer?: React.ReactNode;
   listRef: React.RefObject<HTMLDivElement | null>;
   renderPost: (post: Post) => React.ReactNode;
+  disableAutoScroll?: boolean;
 }
 
 const ScrollContainer = styled.div`
@@ -39,12 +40,12 @@ export function VirtualizedPostList({
   footer,
   listRef,
   renderPost,
+  disableAutoScroll = false,
 }: VirtualizedPostListProps): React.JSX.Element {
   // @tanstack/react-virtual は Virtualizer インスタンスを破壊的に更新するため、
   // React Compiler のメモ化と両立しない (インスタンスの参照が変わらず、スクロールしても
   // getVirtualItems() の呼び出しがキャッシュされたままになる)。静的解析では検出できない
   // 実行時の問題のため、lint 上は「不要」と判定されるがこの opt-out は必要
-  // eslint-disable-next-line react-compiler/react-compiler
   'use no memo';
 
   const headerRef = useRef<HTMLDivElement | null>(null);
@@ -76,6 +77,9 @@ export function VirtualizedPostList({
     getItemKey: (index) => posts[index]?.id ?? index,
     scrollMargin: headerHeight,
   });
+
+  // eslint-disable-next-line react-compiler/react-compiler -- Virtualizer の行高変化時の補正設定を更新するため
+  virtualizer.shouldAdjustScrollPositionOnItemSizeChange = () => !disableAutoScroll;
 
   return (
     <ScrollContainer ref={listRef}>

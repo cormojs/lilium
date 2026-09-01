@@ -960,6 +960,7 @@ function TimelineTabContent({
       estimateRowHeight={estimateRowHeight}
       listRef={listRef}
       renderPost={renderPost}
+      disableAutoScroll={settings.disableAutoScrollWhenExpanded && expandedPostId !== null}
       header={
         accountProfile ? (
           <AccountProfileHeader
