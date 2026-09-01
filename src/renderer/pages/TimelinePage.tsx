@@ -619,6 +619,8 @@ function useTimelineStream({
   tabId,
   timelineType,
   hashtag,
+  listRef,
+  preserveScrollPositionOnNewPosts,
   setPosts,
 }: {
   accountServerUrl: string | undefined;
@@ -626,8 +628,31 @@ function useTimelineStream({
   tabId: string;
   timelineType: TimelineType;
   hashtag?: string;
+  listRef: React.RefObject<HTMLDivElement | null>;
+  preserveScrollPositionOnNewPosts: boolean;
   setPosts: React.Dispatch<React.SetStateAction<Post[]>>;
 }): void {
+  const scrollHeightBeforeNewPostsRef = useRef<number | null>(null);
+  const preserveScrollPositionOnNewPostsRef = useRef(preserveScrollPositionOnNewPosts);
+
+  useEffect(() => {
+    preserveScrollPositionOnNewPostsRef.current = preserveScrollPositionOnNewPosts;
+  }, [preserveScrollPositionOnNewPosts]);
+
+  const preserveScrollPosition = useCallback((): void => {
+    const el = listRef.current;
+    if (!el || scrollHeightBeforeNewPostsRef.current !== null) return;
+
+    scrollHeightBeforeNewPostsRef.current = el.scrollHeight;
+    window.requestAnimationFrame(() => {
+      const previousScrollHeight = scrollHeightBeforeNewPostsRef.current;
+      scrollHeightBeforeNewPostsRef.current = null;
+      if (previousScrollHeight !== null) {
+        el.scrollTop += el.scrollHeight - previousScrollHeight;
+      }
+    });
+  }, [listRef]);
+
   useEffect(() => {
     if (!accountServerUrl || !accountUsername) return;
     const streamType = getStreamType(timelineType);
@@ -646,6 +671,9 @@ function useTimelineStream({
       if (event.subscriptionId !== subscriptionId) return;
       if (event.event === 'update') {
         const post = event.payload as Post;
+        if (preserveScrollPositionOnNewPostsRef.current) {
+          preserveScrollPosition();
+        }
         setPosts((prev) => {
           if (prev.some((p) => p.id === post.id)) return prev;
           return [post, ...prev].slice(0, MAX_TIMELINE_ITEMS);
@@ -659,7 +687,15 @@ function useTimelineStream({
       removeListener();
       void window.api.unsubscribeStream(subscriptionId);
     };
-  }, [accountServerUrl, accountUsername, hashtag, setPosts, tabId, timelineType]);
+  }, [
+    accountServerUrl,
+    accountUsername,
+    hashtag,
+    preserveScrollPosition,
+    setPosts,
+    tabId,
+    timelineType,
+  ]);
 }
 
 function TimelineTabContent({
@@ -910,6 +946,9 @@ function TimelineTabContent({
     tabId: tab.id,
     timelineType: tab.timelineType,
     hashtag: tab.targetHashtag,
+    listRef,
+    preserveScrollPositionOnNewPosts:
+      settings.disableAutoScrollWhenExpanded && expandedPostId !== null,
     setPosts,
   });
 
@@ -960,6 +999,7 @@ function TimelineTabContent({
       estimateRowHeight={estimateRowHeight}
       listRef={listRef}
       renderPost={renderPost}
+      disableAutoScroll={settings.disableAutoScrollWhenExpanded && expandedPostId !== null}
       header={
         accountProfile ? (
           <AccountProfileHeader
