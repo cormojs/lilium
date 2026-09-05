@@ -22,6 +22,7 @@ export interface TabDefinition {
   targetStatusId?: string;
   targetHashtag?: string;
   customName?: string;
+  query?: string;
 }
 
 /**

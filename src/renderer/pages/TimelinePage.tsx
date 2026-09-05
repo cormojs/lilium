@@ -21,6 +21,9 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
+import { compileQuery, DEFAULT_QUERY, QUERY_STREAM_TYPES } from '../../shared/query/evaluator.ts';
+import { querySubscriptionId } from '../../shared/query/timeline.ts';
+import { QueryTabContent } from '../components/QueryTabContent.tsx';
 import type {
   Account,
   AccountProfile,
@@ -335,6 +338,7 @@ function buildTabLabel(tab: TabDefinition, accounts: Account[]): string {
   if (tab.customName && tab.customName.trim().length > 0) {
     return tab.customName;
   }
+  if (tab.query !== undefined) return 'クエリ';
   if (tab.timelineType === 'account' && tab.targetAccountAcct) {
     return `@${tab.targetAccountAcct}`;
   }
@@ -1200,6 +1204,7 @@ function NotificationTabContent({
 function TabContent({
   tab,
   accounts,
+  onSaveQuery,
   onReply,
   onQuote,
   onOpenAccountTimeline,
@@ -1208,12 +1213,27 @@ function TabContent({
 }: {
   tab: TabDefinition;
   accounts: Account[];
+  onSaveQuery: (tabId: string, query: string) => Promise<void>;
   onReply: (tab: TabDefinition, post: Post) => void;
   onQuote: (tab: TabDefinition, post: Post) => void;
   onOpenAccountTimeline: (tab: TabDefinition, target: AccountTimelineTarget) => void;
   onOpenHashtagTimeline: (tab: TabDefinition, hashtag: string) => void;
   onOpenReplyTree: (tab: TabDefinition, post: Post) => void;
 }): React.JSX.Element {
+  if (tab.query !== undefined) {
+    return (
+      <QueryTabContent
+        tab={tab}
+        accounts={accounts}
+        onSaveQuery={onSaveQuery}
+        onReply={onReply}
+        onQuote={onQuote}
+        onOpenAccountTimeline={onOpenAccountTimeline}
+        onOpenHashtagTimeline={onOpenHashtagTimeline}
+        onOpenReplyTree={onOpenReplyTree}
+      />
+    );
+  }
   if (tab.timelineType === 'notifications') {
     return (
       <NotificationTabContent
@@ -1249,6 +1269,7 @@ interface PaneProps {
   onRemoveTab: (paneId: string, tabId: string) => void;
   onMoveTab: (tabId: string, fromPaneId: string, direction: 'left' | 'right') => void;
   onRenameTab: (tabId: string, name: string) => void;
+  onSaveQuery: (tabId: string, query: string) => Promise<void>;
   onReply: (tab: TabDefinition, post: Post) => void;
   onQuote: (tab: TabDefinition, post: Post) => void;
   onOpenAccountTimeline: (tab: TabDefinition, target: AccountTimelineTarget) => void;
@@ -1257,6 +1278,15 @@ interface PaneProps {
 }
 
 function getSubscriptionIds(tab: TabDefinition): string[] {
+  if (tab.query !== undefined) {
+    try {
+      return compileQuery(tab.query).sources.flatMap((source) =>
+        QUERY_STREAM_TYPES[source] ? [querySubscriptionId(tab.id, source)] : [],
+      );
+    } catch {
+      return [];
+    }
+  }
   const streamType = getStreamType(tab.timelineType);
   if (!streamType) return [];
   if (tab.timelineType === 'notifications') {
@@ -1276,6 +1306,7 @@ function Pane({
   onRemoveTab,
   onMoveTab,
   onRenameTab,
+  onSaveQuery,
   onReply,
   onQuote,
   onOpenAccountTimeline,
@@ -1362,6 +1393,7 @@ function Pane({
       ),
       children: (
         <TabContent
+          onSaveQuery={onSaveQuery}
           tab={tab}
           accounts={accounts}
           onReply={onReply}
@@ -1450,7 +1482,9 @@ export function TimelinePage({
   const [modalOpen, setModalOpen] = useState(false);
   const [modalPaneId, setModalPaneId] = useState<string>('');
   const [newTabAccount, setNewTabAccount] = useState<string>('');
-  const [newTabType, setNewTabType] = useState<TimelineType>('home');
+  const [newTabType, setNewTabType] = useState<TimelineType | 'query'>('home');
+  const [newTabQuery, setNewTabQuery] = useState(DEFAULT_QUERY);
+  const [queryError, setQueryError] = useState<string | null>(null);
   const [newTabCustomName, setNewTabCustomName] = useState<string>('');
 
   // Load saved data on mount
@@ -1527,6 +1561,15 @@ export function TimelinePage({
 
   const handleConfirmAddTab = useCallback((): void => {
     if (!newTabAccount) return;
+    if (newTabType === 'query') {
+      try {
+        compileQuery(newTabQuery);
+      } catch (error) {
+        setQueryError(error instanceof Error ? error.message : String(error));
+        return;
+      }
+    }
+    setQueryError(null);
     const parts = newTabAccount.split('|');
     const serverUrl = parts[0] ?? '';
     const username = parts[1] ?? '';
@@ -1534,7 +1577,8 @@ export function TimelinePage({
       id: generateId(),
       accountServerUrl: serverUrl,
       accountUsername: username,
-      timelineType: newTabType,
+      timelineType: newTabType === 'query' ? 'home' : newTabType,
+      query: newTabType === 'query' ? newTabQuery : undefined,
       customName: newTabCustomName.trim() || undefined,
     };
 
@@ -1554,7 +1598,7 @@ export function TimelinePage({
     setNewTabAccount('');
     setNewTabType('home');
     setNewTabCustomName('');
-  }, [newTabAccount, newTabType, newTabCustomName, modalPaneId, persistLayout]);
+  }, [newTabAccount, newTabType, newTabQuery, newTabCustomName, modalPaneId, persistLayout]);
 
   const handleRemoveTab = useCallback(
     (paneId: string, tabId: string): void => {
@@ -1674,6 +1718,15 @@ export function TimelinePage({
       return normalizedPanes;
     });
   }, []);
+
+  const handleSaveQuery = useCallback(
+    async (tabId: string, query: string): Promise<void> => {
+      const next = tabs.map((tab) => (tab.id === tabId ? { ...tab, query } : tab));
+      await window.api.saveTabs(next);
+      setTabs(next);
+    },
+    [tabs],
+  );
 
   const handleRenameTab = useCallback((tabId: string, name: string): void => {
     setTabs((prevTabs) => {
@@ -1853,6 +1906,7 @@ export function TimelinePage({
             onRemoveTab={handleRemoveTab}
             onMoveTab={handleMoveTab}
             onRenameTab={handleRenameTab}
+            onSaveQuery={handleSaveQuery}
             onReply={handleReply}
             onQuote={handleQuote}
             onOpenAccountTimeline={handleOpenAccountTimeline}
@@ -1890,10 +1944,30 @@ export function TimelinePage({
               style={{ width: '100%', marginTop: 8 }}
               value={newTabType}
               onChange={setNewTabType}
-              options={TIMELINE_TYPE_OPTIONS}
+              options={[...TIMELINE_TYPE_OPTIONS, { value: 'query', label: 'クエリ' }]}
             />
           </div>
           <div>
+            {newTabType === 'query' ? (
+              <Flex vertical gap={8}>
+                <Text strong>検索クエリ</Text>
+                <Input.TextArea
+                  aria-label="新しいタブの検索クエリ"
+                  value={newTabQuery}
+                  onChange={(event) => {
+                    setNewTabQuery(event.target.value);
+                    setQueryError(null);
+                  }}
+                  autoSize={{ minRows: 3, maxRows: 8 }}
+                  maxLength={10000}
+                />
+                <Text type="secondary">
+                  例: (from (merge (tl :local) (tl :public)) :where (not (null? .media)) :order
+                  (sort .id))
+                </Text>
+                {queryError ? <Text type="danger">{queryError}</Text> : null}
+              </Flex>
+            ) : null}
             <Text strong>タブ名 (任意)</Text>
             <Input
               style={{ marginTop: 8 }}

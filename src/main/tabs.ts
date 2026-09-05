@@ -28,6 +28,7 @@ const tabDefinitionSchema: z.ZodType<TabDefinition> = z.object({
   targetStatusId: z.string().optional(),
   targetHashtag: z.string().optional(),
   customName: z.string().optional(),
+  query: z.string().max(10000).optional(),
 });
 
 const tabDefinitionListSchema = z.array(tabDefinitionSchema);
