@@ -1,6 +1,7 @@
 import { Alert, Button, Flex, Input, Typography } from 'antd';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { compileQuery } from '../../shared/query/evaluator.ts';
+import type { QueryTabDefinition } from '../../shared/tabDefinition.ts';
 import type { Account, Post, TabDefinition } from '../../shared/types.ts';
 import { useQueryTimeline } from '../hooks/useQueryTimeline.ts';
 import { useSettings } from '../hooks/useSettings.ts';
@@ -9,7 +10,7 @@ import { PostItem } from './PostItem.tsx';
 import { VirtualizedPostList } from './VirtualizedPostList.tsx';
 
 interface QueryTabContentProps {
-  tab: TabDefinition;
+  tab: QueryTabDefinition;
   accounts: Account[];
   onSaveQuery: (tabId: string, query: string) => Promise<void>;
   onReply: (tab: TabDefinition, post: Post) => void;
@@ -29,7 +30,7 @@ export function QueryTabContent({
   onOpenHashtagTimeline,
   onOpenReplyTree,
 }: QueryTabContentProps): React.JSX.Element {
-  const [draft, setDraft] = useState(tab.query ?? '');
+  const [draft, setDraft] = useState(tab.query);
   const [inputError, setInputError] = useState<string | null>(null);
   const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -41,7 +42,7 @@ export function QueryTabContent({
   const compiled = useMemo(() => {
     try {
       return {
-        query: available ? compileQuery(tab.query ?? '') : null,
+        query: available ? compileQuery(tab.query) : null,
         error: available ? null : 'アカウントが見つかりません',
       };
     } catch (error) {

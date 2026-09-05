@@ -11,7 +11,8 @@ import {
   updateQueryPage,
   type QueryPage,
 } from '../../shared/query/timeline.ts';
-import type { Post, PostPoll, TabDefinition } from '../../shared/types.ts';
+import type { QueryTabDefinition } from '../../shared/tabDefinition.ts';
+import type { Post, PostPoll } from '../../shared/types.ts';
 
 interface QuerySession {
   pages: Map<QuerySource, QueryPage>;
@@ -61,7 +62,7 @@ async function fetchSessionPages(
   }
 }
 
-export function useQueryTimeline(tab: TabDefinition, query: CompiledQuery | null) {
+export function useQueryTimeline(tab: QueryTabDefinition, query: CompiledQuery | null) {
   const sessionRef = useRef<QuerySession | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(false);

@@ -24,6 +24,7 @@ import styled from 'styled-components';
 import { compileQuery, DEFAULT_QUERY, QUERY_STREAM_TYPES } from '../../shared/query/evaluator.ts';
 import { querySubscriptionId } from '../../shared/query/timeline.ts';
 import { QueryTabContent } from '../components/QueryTabContent.tsx';
+import type { TimelineTabDefinition } from '../../shared/tabDefinition.ts';
 import type {
   Account,
   AccountProfile,
@@ -338,7 +339,7 @@ function buildTabLabel(tab: TabDefinition, accounts: Account[]): string {
   if (tab.customName && tab.customName.trim().length > 0) {
     return tab.customName;
   }
-  if (tab.query !== undefined) return 'クエリ';
+  if (tab.timelineType === 'query') return 'クエリ';
   if (tab.timelineType === 'account' && tab.targetAccountAcct) {
     return `@${tab.targetAccountAcct}`;
   }
@@ -675,7 +676,7 @@ function TimelineTabContent({
   onOpenHashtagTimeline,
   onOpenReplyTree,
 }: {
-  tab: TabDefinition;
+  tab: TimelineTabDefinition;
   accounts: Account[];
   onReply: (tab: TabDefinition, post: Post) => void;
   onQuote: (tab: TabDefinition, post: Post) => void;
@@ -683,6 +684,9 @@ function TimelineTabContent({
   onOpenHashtagTimeline: (tab: TabDefinition, hashtag: string) => void;
   onOpenReplyTree: (tab: TabDefinition, post: Post) => void;
 }): React.JSX.Element {
+  const targetAccountId = tab.timelineType === 'account' ? tab.targetAccountId : undefined;
+  const targetStatusId = tab.timelineType === 'context' ? tab.targetStatusId : undefined;
+  const targetHashtag = tab.timelineType === 'hashtag' ? tab.targetHashtag : undefined;
   const { message } = App.useApp();
   const [posts, setPosts] = useState<Post[]>([]);
   const [accountProfile, setAccountProfile] = useState<AccountProfile | null>(null);
@@ -762,13 +766,13 @@ function TimelineTabContent({
     hasMoreRef.current = true;
     try {
       if (tab.timelineType === 'account') {
-        if (!tab.targetAccountId) {
+        if (!targetAccountId) {
           throw new Error('アカウントIDが設定されていません');
         }
         const profile = await window.api.fetchAccountProfile({
           serverUrl: accountServerUrl,
           username: accountUsername,
-          accountId: tab.targetAccountId,
+          accountId: targetAccountId,
         });
         setAccountProfile(profile);
       } else {
@@ -778,9 +782,9 @@ function TimelineTabContent({
         serverUrl: accountServerUrl,
         username: accountUsername,
         type: tab.timelineType,
-        accountId: tab.targetAccountId,
-        statusId: tab.targetStatusId,
-        hashtag: tab.targetHashtag,
+        accountId: targetAccountId,
+        statusId: targetStatusId,
+        hashtag: targetHashtag,
       });
       setPosts(result);
     } catch (e) {
@@ -794,9 +798,9 @@ function TimelineTabContent({
     accountServerUrl,
     accountUsername,
     tab.timelineType,
-    tab.targetAccountId,
-    tab.targetStatusId,
-    tab.targetHashtag,
+    targetAccountId,
+    targetStatusId,
+    targetHashtag,
     message,
   ]);
 
@@ -807,7 +811,7 @@ function TimelineTabContent({
 
   const handleToggleFollow = useCallback(async (): Promise<void> => {
     if (!accountServerUrl || !accountUsername || !accountProfile) return;
-    if (!tab.targetAccountId) return;
+    if (!targetAccountId) return;
 
     setFollowBusy(true);
     try {
@@ -816,12 +820,12 @@ function TimelineTabContent({
           ? await window.api.unfollowAccount({
               serverUrl: accountServerUrl,
               username: accountUsername,
-              accountId: tab.targetAccountId,
+              accountId: targetAccountId,
             })
           : await window.api.followAccount({
               serverUrl: accountServerUrl,
               username: accountUsername,
-              accountId: tab.targetAccountId,
+              accountId: targetAccountId,
             });
 
       setAccountProfile((prev) =>
@@ -838,7 +842,7 @@ function TimelineTabContent({
     } finally {
       setFollowBusy(false);
     }
-  }, [accountServerUrl, accountUsername, accountProfile, message, tab.targetAccountId]);
+  }, [accountServerUrl, accountUsername, accountProfile, message, targetAccountId]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
@@ -868,9 +872,9 @@ function TimelineTabContent({
         serverUrl: accountServerUrl,
         username: accountUsername,
         type: tab.timelineType,
-        accountId: tab.targetAccountId,
-        statusId: tab.targetStatusId,
-        hashtag: tab.targetHashtag,
+        accountId: targetAccountId,
+        statusId: targetStatusId,
+        hashtag: targetHashtag,
         maxId: lastPost.id,
       });
       if (result.length > 0) {
@@ -890,9 +894,9 @@ function TimelineTabContent({
     accountServerUrl,
     accountUsername,
     tab.timelineType,
-    tab.targetAccountId,
-    tab.targetStatusId,
-    tab.targetHashtag,
+    targetAccountId,
+    targetStatusId,
+    targetHashtag,
     message,
   ]);
 
@@ -913,7 +917,7 @@ function TimelineTabContent({
     accountUsername,
     tabId: tab.id,
     timelineType: tab.timelineType,
-    hashtag: tab.targetHashtag,
+    hashtag: targetHashtag,
     setPosts,
   });
 
@@ -1220,7 +1224,7 @@ function TabContent({
   onOpenHashtagTimeline: (tab: TabDefinition, hashtag: string) => void;
   onOpenReplyTree: (tab: TabDefinition, post: Post) => void;
 }): React.JSX.Element {
-  if (tab.query !== undefined) {
+  if (tab.timelineType === 'query') {
     return (
       <QueryTabContent
         tab={tab}
@@ -1278,7 +1282,7 @@ interface PaneProps {
 }
 
 function getSubscriptionIds(tab: TabDefinition): string[] {
-  if (tab.query !== undefined) {
+  if (tab.timelineType === 'query') {
     try {
       return compileQuery(tab.query).sources.flatMap((source) =>
         QUERY_STREAM_TYPES[source] ? [querySubscriptionId(tab.id, source)] : [],
@@ -1482,7 +1486,9 @@ export function TimelinePage({
   const [modalOpen, setModalOpen] = useState(false);
   const [modalPaneId, setModalPaneId] = useState<string>('');
   const [newTabAccount, setNewTabAccount] = useState<string>('');
-  const [newTabType, setNewTabType] = useState<TimelineType | 'query'>('home');
+  const [newTabType, setNewTabType] = useState<
+    'home' | 'public' | 'local' | 'favourites' | 'notifications' | 'query'
+  >('home');
   const [newTabQuery, setNewTabQuery] = useState(DEFAULT_QUERY);
   const [queryError, setQueryError] = useState<string | null>(null);
   const [newTabCustomName, setNewTabCustomName] = useState<string>('');
@@ -1573,14 +1579,16 @@ export function TimelinePage({
     const parts = newTabAccount.split('|');
     const serverUrl = parts[0] ?? '';
     const username = parts[1] ?? '';
-    const tab: TabDefinition = {
+    const common = {
       id: generateId(),
       accountServerUrl: serverUrl,
       accountUsername: username,
-      timelineType: newTabType === 'query' ? 'home' : newTabType,
-      query: newTabType === 'query' ? newTabQuery : undefined,
       customName: newTabCustomName.trim() || undefined,
     };
+    const tab: TabDefinition =
+      newTabType === 'query'
+        ? { ...common, timelineType: 'query', query: newTabQuery }
+        : { ...common, timelineType: newTabType };
 
     setTabs((prevTabs) => {
       const nextTabs = [...prevTabs, tab];
@@ -1721,7 +1729,9 @@ export function TimelinePage({
 
   const handleSaveQuery = useCallback(
     async (tabId: string, query: string): Promise<void> => {
-      const next = tabs.map((tab) => (tab.id === tabId ? { ...tab, query } : tab));
+      const next = tabs.map((tab) =>
+        tab.id === tabId && tab.timelineType === 'query' ? { ...tab, query } : tab,
+      );
       await window.api.saveTabs(next);
       setTabs(next);
     },
