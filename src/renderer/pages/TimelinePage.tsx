@@ -18,7 +18,7 @@ import {
   Tooltip,
   Typography,
 } from 'antd';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import type {
@@ -619,8 +619,8 @@ function useTimelineStream({
   tabId,
   timelineType,
   hashtag,
-  listRef,
   preserveScrollPositionOnNewPosts,
+  captureScrollAnchor,
   setPosts,
 }: {
   accountServerUrl: string | undefined;
@@ -628,30 +628,15 @@ function useTimelineStream({
   tabId: string;
   timelineType: TimelineType;
   hashtag?: string;
-  listRef: React.RefObject<HTMLDivElement | null>;
   preserveScrollPositionOnNewPosts: boolean;
+  captureScrollAnchor: () => void;
   setPosts: React.Dispatch<React.SetStateAction<Post[]>>;
 }): void {
-  const scrollHeightBeforeNewPostsRef = useRef<number | null>(null);
   const preserveScrollPositionOnNewPostsRef = useRef(preserveScrollPositionOnNewPosts);
 
   useEffect(() => {
     preserveScrollPositionOnNewPostsRef.current = preserveScrollPositionOnNewPosts;
   }, [preserveScrollPositionOnNewPosts]);
-
-  const preserveScrollPosition = useCallback((): void => {
-    const el = listRef.current;
-    if (!el || scrollHeightBeforeNewPostsRef.current !== null) return;
-
-    scrollHeightBeforeNewPostsRef.current = el.scrollHeight;
-    window.requestAnimationFrame(() => {
-      const previousScrollHeight = scrollHeightBeforeNewPostsRef.current;
-      scrollHeightBeforeNewPostsRef.current = null;
-      if (previousScrollHeight !== null) {
-        el.scrollTop += el.scrollHeight - previousScrollHeight;
-      }
-    });
-  }, [listRef]);
 
   useEffect(() => {
     if (!accountServerUrl || !accountUsername) return;
@@ -672,7 +657,7 @@ function useTimelineStream({
       if (event.event === 'update') {
         const post = event.payload as Post;
         if (preserveScrollPositionOnNewPostsRef.current) {
-          preserveScrollPosition();
+          captureScrollAnchor();
         }
         setPosts((prev) => {
           if (prev.some((p) => p.id === post.id)) return prev;
@@ -691,7 +676,7 @@ function useTimelineStream({
     accountServerUrl,
     accountUsername,
     hashtag,
-    preserveScrollPosition,
+    captureScrollAnchor,
     setPosts,
     tabId,
     timelineType,
@@ -724,6 +709,7 @@ function TimelineTabContent({
   const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
   const { settings } = useSettings();
   const listRef = useRef<HTMLDivElement>(null);
+  const scrollAnchorRef = useRef<{ postId: string; top: number } | null>(null);
   const postsRef = useRef(posts);
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(true);
@@ -737,6 +723,46 @@ function TimelineTabContent({
 
   useEffect(() => {
     postsRef.current = posts;
+  }, [posts]);
+
+  const captureScrollAnchor = useCallback((): void => {
+    if (scrollAnchorRef.current) return;
+
+    const list = listRef.current;
+    if (!list) return;
+
+    const listTop = list.getBoundingClientRect().top;
+    const topRow = Array.from(list.querySelectorAll<HTMLElement>('[data-post-id]')).find(
+      (row) => row.getBoundingClientRect().bottom > listTop,
+    );
+    const postId = topRow?.dataset.postId;
+    if (!topRow || !postId) return;
+
+    const anchor = {
+      postId,
+      top: topRow.getBoundingClientRect().top - listTop,
+    };
+    scrollAnchorRef.current = anchor;
+    window.requestAnimationFrame(() => {
+      if (scrollAnchorRef.current === anchor) {
+        scrollAnchorRef.current = null;
+      }
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    const anchor = scrollAnchorRef.current;
+    const list = listRef.current;
+    if (!anchor || !list) return;
+
+    const anchorRow = Array.from(list.querySelectorAll<HTMLElement>('[data-post-id]')).find(
+      (row) => row.dataset.postId === anchor.postId,
+    );
+    if (anchorRow) {
+      const listTop = list.getBoundingClientRect().top;
+      list.scrollTop += anchorRow.getBoundingClientRect().top - listTop - anchor.top;
+    }
+    scrollAnchorRef.current = null;
   }, [posts]);
 
   const handlePollChange = useCallback((postId: string, poll: PostPoll): void => {
@@ -946,9 +972,9 @@ function TimelineTabContent({
     tabId: tab.id,
     timelineType: tab.timelineType,
     hashtag: tab.targetHashtag,
-    listRef,
     preserveScrollPositionOnNewPosts:
       settings.disableAutoScrollWhenExpanded && expandedPostId !== null,
+    captureScrollAnchor,
     setPosts,
   });
 
@@ -999,7 +1025,6 @@ function TimelineTabContent({
       estimateRowHeight={estimateRowHeight}
       listRef={listRef}
       renderPost={renderPost}
-      disableAutoScroll={settings.disableAutoScrollWhenExpanded && expandedPostId !== null}
       header={
         accountProfile ? (
           <AccountProfileHeader
