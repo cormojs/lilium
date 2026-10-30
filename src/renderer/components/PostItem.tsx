@@ -349,6 +349,11 @@ const Timestamp = styled.a<{ $fontSize: number }>`
   }
 `;
 
+const ApplicationName = styled.span<{ $fontSize: number }>`
+  font-size: ${(props) => props.$fontSize}px;
+  color: #8c8c8c;
+`;
+
 const ActionButton = styled.button<{ $active: boolean; $activeColor: string; $fontSize: number }>`
   background: none;
   border: none;
@@ -776,6 +781,9 @@ export const PostItem = memo(function PostItem({
               {formatTimestamp(post.createdAt)}
             </Timestamp>
           )}
+          {post.applicationName ? (
+            <ApplicationName $fontSize={smallFontSize}>via {post.applicationName}</ApplicationName>
+          ) : null}
           <ActionButton
             $active={favourited}
             $activeColor="#eb2f96"

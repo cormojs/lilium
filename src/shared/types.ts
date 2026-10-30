@@ -301,6 +301,7 @@ export interface Post {
   spoilerText: string;
   sensitive: boolean;
   createdAt: string;
+  applicationName: string | null;
   url: string | null;
   account: {
     id: string;

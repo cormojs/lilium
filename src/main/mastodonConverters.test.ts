@@ -14,6 +14,7 @@ function createStatus(overrides: Partial<mastodon.v1.Status> = {}): mastodon.v1.
     sensitive: false,
     url: 'https://example.com/@alice/1',
     visibility: 'public',
+    application: { name: 'Web' },
     account: {
       id: 'account-1',
       acct: 'alice',
@@ -35,6 +36,18 @@ describe('convertStatus', () => {
     const status = createStatus({ inReplyToId: 'status-parent' });
 
     expect(convertStatus(status).inReplyToId).toBe('status-parent');
+  });
+
+  test('converts non-Web application names and hides the Web client', () => {
+    const mobilePost = createStatus({
+      application: { name: 'Mastodon for Android' },
+    });
+    const webPost = createStatus({
+      application: { name: 'Web' },
+    });
+
+    expect(convertStatus(mobilePost).applicationName).toBe('Mastodon for Android');
+    expect(convertStatus(webPost).applicationName).toBeNull();
   });
 
   test('appends quote-inline content from the quoted status URL when it is missing', () => {
