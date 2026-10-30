@@ -50,6 +50,14 @@ describe('convertStatus', () => {
     expect(convertStatus(webPost).applicationName).toBeNull();
   });
 
+  test('handles statuses without application metadata', () => {
+    const status = createStatus({
+      application: undefined as unknown as mastodon.v1.Status['application'],
+    });
+
+    expect(convertStatus(status).applicationName).toBeNull();
+  });
+
   test('appends quote-inline content from the quoted status URL when it is missing', () => {
     const quotedStatus = createStatus({
       id: 'status-2',

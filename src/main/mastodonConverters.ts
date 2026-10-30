@@ -272,7 +272,8 @@ export function convertAccount(account: mastodon.v1.Account): AccountProfile {
 export function convertStatus(status: mastodon.v1.Status): Post {
   const original = status.reblog ?? status;
   const content = appendMissingQuoteInline(original.content, original.quote);
-  const applicationName = original.application.name.trim();
+  const application = original.application as { name?: string | null } | null | undefined;
+  const applicationName = application?.name?.trim();
   const rebloggedBy = status.reblog
     ? {
         id: status.account.id,
