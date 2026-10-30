@@ -464,4 +464,5 @@ export interface AppSettings {
   compactFontSize: number;
   disableCompactDisplay: boolean;
   mastodonLikeExpandedDisplay: boolean;
+  disableAutoScrollWhenExpanded: boolean;
 }

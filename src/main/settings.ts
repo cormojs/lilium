@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   compactFontSize: 12,
   disableCompactDisplay: false,
   mastodonLikeExpandedDisplay: false,
+  disableAutoScrollWhenExpanded: false,
 };
 
 function getSettingsFilePath(): string {
@@ -27,6 +28,7 @@ const partialAppSettingsSchema: z.ZodType<Partial<AppSettings>> = z
     compactFontSize: z.number(),
     disableCompactDisplay: z.boolean(),
     mastodonLikeExpandedDisplay: z.boolean(),
+    disableAutoScrollWhenExpanded: z.boolean(),
   })
   .partial();
 

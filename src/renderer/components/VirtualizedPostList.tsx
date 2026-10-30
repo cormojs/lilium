@@ -91,6 +91,7 @@ export function VirtualizedPostList({
               <VirtualRow
                 key={virtualItem.key}
                 data-index={virtualItem.index}
+                data-post-id={post.id}
                 ref={virtualizer.measureElement}
                 style={{ transform: `translateY(${String(virtualItem.start - headerHeight)}px)` }}
               >
