@@ -13,11 +13,11 @@ interface SettingsPageProps {
 
 type NumericSettingKey = Exclude<
   keyof AppSettings,
-  'disableCompactDisplay' | 'mastodonLikeExpandedDisplay'
+  'disableCompactDisplay' | 'mastodonLikeExpandedDisplay' | 'disableAutoScrollWhenExpanded'
 >;
 type BooleanSettingKey = Extract<
   keyof AppSettings,
-  'disableCompactDisplay' | 'mastodonLikeExpandedDisplay'
+  'disableCompactDisplay' | 'mastodonLikeExpandedDisplay' | 'disableAutoScrollWhenExpanded'
 >;
 
 const PageContainer = styled.div`
@@ -195,6 +195,18 @@ export function SettingsPage({ onBack }: SettingsPageProps): React.JSX.Element {
             checked={draft.mastodonLikeExpandedDisplay}
             onChange={(checked) => {
               updateBoolean('mastodonLikeExpandedDisplay', checked);
+            }}
+            style={{ marginTop: 8 }}
+          />
+        </SettingRow>
+
+        <SettingRow>
+          <Text strong>ポストを拡大表示している時に自動スクロールを止める</Text>
+          <br />
+          <Switch
+            checked={draft.disableAutoScrollWhenExpanded}
+            onChange={(checked) => {
+              updateBoolean('disableAutoScrollWhenExpanded', checked);
             }}
             style={{ marginTop: 8 }}
           />

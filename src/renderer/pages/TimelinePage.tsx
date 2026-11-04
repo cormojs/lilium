@@ -18,7 +18,7 @@ import {
   Tooltip,
   Typography,
 } from 'antd';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
 import { compileQuery, DEFAULT_QUERY, QUERY_STREAM_TYPES } from '../../shared/query/evaluator.ts';
@@ -624,6 +624,8 @@ function useTimelineStream({
   tabId,
   timelineType,
   hashtag,
+  preserveScrollPositionOnNewPosts,
+  captureScrollAnchor,
   setPosts,
 }: {
   accountServerUrl: string | undefined;
@@ -631,8 +633,16 @@ function useTimelineStream({
   tabId: string;
   timelineType: TimelineType;
   hashtag?: string;
+  preserveScrollPositionOnNewPosts: boolean;
+  captureScrollAnchor: () => void;
   setPosts: React.Dispatch<React.SetStateAction<Post[]>>;
 }): void {
+  const preserveScrollPositionOnNewPostsRef = useRef(preserveScrollPositionOnNewPosts);
+
+  useEffect(() => {
+    preserveScrollPositionOnNewPostsRef.current = preserveScrollPositionOnNewPosts;
+  }, [preserveScrollPositionOnNewPosts]);
+
   useEffect(() => {
     if (!accountServerUrl || !accountUsername) return;
     const streamType = getStreamType(timelineType);
@@ -651,6 +661,9 @@ function useTimelineStream({
       if (event.subscriptionId !== subscriptionId) return;
       if (event.event === 'update') {
         const post = event.payload as Post;
+        if (preserveScrollPositionOnNewPostsRef.current) {
+          captureScrollAnchor();
+        }
         setPosts((prev) => {
           if (prev.some((p) => p.id === post.id)) return prev;
           return [post, ...prev].slice(0, MAX_TIMELINE_ITEMS);
@@ -664,7 +677,15 @@ function useTimelineStream({
       removeListener();
       void window.api.unsubscribeStream(subscriptionId);
     };
-  }, [accountServerUrl, accountUsername, hashtag, setPosts, tabId, timelineType]);
+  }, [
+    accountServerUrl,
+    accountUsername,
+    hashtag,
+    captureScrollAnchor,
+    setPosts,
+    tabId,
+    timelineType,
+  ]);
 }
 
 function TimelineTabContent({
@@ -696,6 +717,7 @@ function TimelineTabContent({
   const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
   const { settings } = useSettings();
   const listRef = useRef<HTMLDivElement>(null);
+  const scrollAnchorRef = useRef<{ postId: string; top: number } | null>(null);
   const postsRef = useRef(posts);
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(true);
@@ -709,6 +731,46 @@ function TimelineTabContent({
 
   useEffect(() => {
     postsRef.current = posts;
+  }, [posts]);
+
+  const captureScrollAnchor = useCallback((): void => {
+    if (scrollAnchorRef.current) return;
+
+    const list = listRef.current;
+    if (!list) return;
+
+    const listTop = list.getBoundingClientRect().top;
+    const topRow = Array.from(list.querySelectorAll<HTMLElement>('[data-post-id]')).find(
+      (row) => row.getBoundingClientRect().bottom > listTop,
+    );
+    const postId = topRow?.dataset.postId;
+    if (!topRow || !postId) return;
+
+    const anchor = {
+      postId,
+      top: topRow.getBoundingClientRect().top - listTop,
+    };
+    scrollAnchorRef.current = anchor;
+    window.requestAnimationFrame(() => {
+      if (scrollAnchorRef.current === anchor) {
+        scrollAnchorRef.current = null;
+      }
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    const anchor = scrollAnchorRef.current;
+    const list = listRef.current;
+    if (!anchor || !list) return;
+
+    const anchorRow = Array.from(list.querySelectorAll<HTMLElement>('[data-post-id]')).find(
+      (row) => row.dataset.postId === anchor.postId,
+    );
+    if (anchorRow) {
+      const listTop = list.getBoundingClientRect().top;
+      list.scrollTop += anchorRow.getBoundingClientRect().top - listTop - anchor.top;
+    }
+    scrollAnchorRef.current = null;
   }, [posts]);
 
   const handlePollChange = useCallback((postId: string, poll: PostPoll): void => {
@@ -918,6 +980,9 @@ function TimelineTabContent({
     tabId: tab.id,
     timelineType: tab.timelineType,
     hashtag: targetHashtag,
+    preserveScrollPositionOnNewPosts:
+      settings.disableAutoScrollWhenExpanded && expandedPostId !== null,
+    captureScrollAnchor,
     setPosts,
   });
 
