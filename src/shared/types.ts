@@ -1,4 +1,6 @@
 import type { mastodon } from 'masto';
+import type { TabDefinition } from './tabDefinition.ts';
+export type { TabDefinition } from './tabDefinition.ts';
 
 export type MastodonStatus = mastodon.v1.Status;
 export type MastodonNotification = mastodon.v1.Notification;
@@ -10,18 +12,6 @@ export interface Account {
   username: string;
   displayName: string;
   avatarUrl: string;
-}
-
-export interface TabDefinition {
-  id: string;
-  accountServerUrl: string;
-  accountUsername: string;
-  timelineType: TimelineType;
-  targetAccountId?: string;
-  targetAccountAcct?: string;
-  targetStatusId?: string;
-  targetHashtag?: string;
-  customName?: string;
 }
 
 /**

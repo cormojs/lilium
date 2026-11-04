@@ -21,6 +21,10 @@ import {
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import sanitizeHtml from 'sanitize-html';
 import styled from 'styled-components';
+import { compileQuery, DEFAULT_QUERY, QUERY_STREAM_TYPES } from '../../shared/query/evaluator.ts';
+import { querySubscriptionId } from '../../shared/query/timeline.ts';
+import { QueryTabContent } from '../components/QueryTabContent.tsx';
+import type { TimelineTabDefinition } from '../../shared/tabDefinition.ts';
 import type {
   Account,
   AccountProfile,
@@ -335,6 +339,7 @@ function buildTabLabel(tab: TabDefinition, accounts: Account[]): string {
   if (tab.customName && tab.customName.trim().length > 0) {
     return tab.customName;
   }
+  if (tab.timelineType === 'query') return 'クエリ';
   if (tab.timelineType === 'account' && tab.targetAccountAcct) {
     return `@${tab.targetAccountAcct}`;
   }
@@ -692,7 +697,7 @@ function TimelineTabContent({
   onOpenHashtagTimeline,
   onOpenReplyTree,
 }: {
-  tab: TabDefinition;
+  tab: TimelineTabDefinition;
   accounts: Account[];
   onReply: (tab: TabDefinition, post: Post) => void;
   onQuote: (tab: TabDefinition, post: Post) => void;
@@ -700,6 +705,9 @@ function TimelineTabContent({
   onOpenHashtagTimeline: (tab: TabDefinition, hashtag: string) => void;
   onOpenReplyTree: (tab: TabDefinition, post: Post) => void;
 }): React.JSX.Element {
+  const targetAccountId = tab.timelineType === 'account' ? tab.targetAccountId : undefined;
+  const targetStatusId = tab.timelineType === 'context' ? tab.targetStatusId : undefined;
+  const targetHashtag = tab.timelineType === 'hashtag' ? tab.targetHashtag : undefined;
   const { message } = App.useApp();
   const [posts, setPosts] = useState<Post[]>([]);
   const [accountProfile, setAccountProfile] = useState<AccountProfile | null>(null);
@@ -820,13 +828,13 @@ function TimelineTabContent({
     hasMoreRef.current = true;
     try {
       if (tab.timelineType === 'account') {
-        if (!tab.targetAccountId) {
+        if (!targetAccountId) {
           throw new Error('アカウントIDが設定されていません');
         }
         const profile = await window.api.fetchAccountProfile({
           serverUrl: accountServerUrl,
           username: accountUsername,
-          accountId: tab.targetAccountId,
+          accountId: targetAccountId,
         });
         setAccountProfile(profile);
       } else {
@@ -836,9 +844,9 @@ function TimelineTabContent({
         serverUrl: accountServerUrl,
         username: accountUsername,
         type: tab.timelineType,
-        accountId: tab.targetAccountId,
-        statusId: tab.targetStatusId,
-        hashtag: tab.targetHashtag,
+        accountId: targetAccountId,
+        statusId: targetStatusId,
+        hashtag: targetHashtag,
       });
       setPosts(result);
     } catch (e) {
@@ -852,9 +860,9 @@ function TimelineTabContent({
     accountServerUrl,
     accountUsername,
     tab.timelineType,
-    tab.targetAccountId,
-    tab.targetStatusId,
-    tab.targetHashtag,
+    targetAccountId,
+    targetStatusId,
+    targetHashtag,
     message,
   ]);
 
@@ -865,7 +873,7 @@ function TimelineTabContent({
 
   const handleToggleFollow = useCallback(async (): Promise<void> => {
     if (!accountServerUrl || !accountUsername || !accountProfile) return;
-    if (!tab.targetAccountId) return;
+    if (!targetAccountId) return;
 
     setFollowBusy(true);
     try {
@@ -874,12 +882,12 @@ function TimelineTabContent({
           ? await window.api.unfollowAccount({
               serverUrl: accountServerUrl,
               username: accountUsername,
-              accountId: tab.targetAccountId,
+              accountId: targetAccountId,
             })
           : await window.api.followAccount({
               serverUrl: accountServerUrl,
               username: accountUsername,
-              accountId: tab.targetAccountId,
+              accountId: targetAccountId,
             });
 
       setAccountProfile((prev) =>
@@ -896,7 +904,7 @@ function TimelineTabContent({
     } finally {
       setFollowBusy(false);
     }
-  }, [accountServerUrl, accountUsername, accountProfile, message, tab.targetAccountId]);
+  }, [accountServerUrl, accountUsername, accountProfile, message, targetAccountId]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
@@ -926,9 +934,9 @@ function TimelineTabContent({
         serverUrl: accountServerUrl,
         username: accountUsername,
         type: tab.timelineType,
-        accountId: tab.targetAccountId,
-        statusId: tab.targetStatusId,
-        hashtag: tab.targetHashtag,
+        accountId: targetAccountId,
+        statusId: targetStatusId,
+        hashtag: targetHashtag,
         maxId: lastPost.id,
       });
       if (result.length > 0) {
@@ -948,9 +956,9 @@ function TimelineTabContent({
     accountServerUrl,
     accountUsername,
     tab.timelineType,
-    tab.targetAccountId,
-    tab.targetStatusId,
-    tab.targetHashtag,
+    targetAccountId,
+    targetStatusId,
+    targetHashtag,
     message,
   ]);
 
@@ -971,7 +979,7 @@ function TimelineTabContent({
     accountUsername,
     tabId: tab.id,
     timelineType: tab.timelineType,
-    hashtag: tab.targetHashtag,
+    hashtag: targetHashtag,
     preserveScrollPositionOnNewPosts:
       settings.disableAutoScrollWhenExpanded && expandedPostId !== null,
     captureScrollAnchor,
@@ -1265,6 +1273,7 @@ function NotificationTabContent({
 function TabContent({
   tab,
   accounts,
+  onSaveQuery,
   onReply,
   onQuote,
   onOpenAccountTimeline,
@@ -1273,12 +1282,27 @@ function TabContent({
 }: {
   tab: TabDefinition;
   accounts: Account[];
+  onSaveQuery: (tabId: string, query: string) => Promise<void>;
   onReply: (tab: TabDefinition, post: Post) => void;
   onQuote: (tab: TabDefinition, post: Post) => void;
   onOpenAccountTimeline: (tab: TabDefinition, target: AccountTimelineTarget) => void;
   onOpenHashtagTimeline: (tab: TabDefinition, hashtag: string) => void;
   onOpenReplyTree: (tab: TabDefinition, post: Post) => void;
 }): React.JSX.Element {
+  if (tab.timelineType === 'query') {
+    return (
+      <QueryTabContent
+        tab={tab}
+        accounts={accounts}
+        onSaveQuery={onSaveQuery}
+        onReply={onReply}
+        onQuote={onQuote}
+        onOpenAccountTimeline={onOpenAccountTimeline}
+        onOpenHashtagTimeline={onOpenHashtagTimeline}
+        onOpenReplyTree={onOpenReplyTree}
+      />
+    );
+  }
   if (tab.timelineType === 'notifications') {
     return (
       <NotificationTabContent
@@ -1314,6 +1338,7 @@ interface PaneProps {
   onRemoveTab: (paneId: string, tabId: string) => void;
   onMoveTab: (tabId: string, fromPaneId: string, direction: 'left' | 'right') => void;
   onRenameTab: (tabId: string, name: string) => void;
+  onSaveQuery: (tabId: string, query: string) => Promise<void>;
   onReply: (tab: TabDefinition, post: Post) => void;
   onQuote: (tab: TabDefinition, post: Post) => void;
   onOpenAccountTimeline: (tab: TabDefinition, target: AccountTimelineTarget) => void;
@@ -1322,6 +1347,15 @@ interface PaneProps {
 }
 
 function getSubscriptionIds(tab: TabDefinition): string[] {
+  if (tab.timelineType === 'query') {
+    try {
+      return compileQuery(tab.query).sources.flatMap((source) =>
+        QUERY_STREAM_TYPES[source] ? [querySubscriptionId(tab.id, source)] : [],
+      );
+    } catch {
+      return [];
+    }
+  }
   const streamType = getStreamType(tab.timelineType);
   if (!streamType) return [];
   if (tab.timelineType === 'notifications') {
@@ -1341,6 +1375,7 @@ function Pane({
   onRemoveTab,
   onMoveTab,
   onRenameTab,
+  onSaveQuery,
   onReply,
   onQuote,
   onOpenAccountTimeline,
@@ -1427,6 +1462,7 @@ function Pane({
       ),
       children: (
         <TabContent
+          onSaveQuery={onSaveQuery}
           tab={tab}
           accounts={accounts}
           onReply={onReply}
@@ -1515,7 +1551,11 @@ export function TimelinePage({
   const [modalOpen, setModalOpen] = useState(false);
   const [modalPaneId, setModalPaneId] = useState<string>('');
   const [newTabAccount, setNewTabAccount] = useState<string>('');
-  const [newTabType, setNewTabType] = useState<TimelineType>('home');
+  const [newTabType, setNewTabType] = useState<
+    'home' | 'public' | 'local' | 'favourites' | 'notifications' | 'query'
+  >('home');
+  const [newTabQuery, setNewTabQuery] = useState(DEFAULT_QUERY);
+  const [queryError, setQueryError] = useState<string | null>(null);
   const [newTabCustomName, setNewTabCustomName] = useState<string>('');
 
   // Load saved data on mount
@@ -1592,16 +1632,28 @@ export function TimelinePage({
 
   const handleConfirmAddTab = useCallback((): void => {
     if (!newTabAccount) return;
+    if (newTabType === 'query') {
+      try {
+        compileQuery(newTabQuery);
+      } catch (error) {
+        setQueryError(error instanceof Error ? error.message : String(error));
+        return;
+      }
+    }
+    setQueryError(null);
     const parts = newTabAccount.split('|');
     const serverUrl = parts[0] ?? '';
     const username = parts[1] ?? '';
-    const tab: TabDefinition = {
+    const common = {
       id: generateId(),
       accountServerUrl: serverUrl,
       accountUsername: username,
-      timelineType: newTabType,
       customName: newTabCustomName.trim() || undefined,
     };
+    const tab: TabDefinition =
+      newTabType === 'query'
+        ? { ...common, timelineType: 'query', query: newTabQuery }
+        : { ...common, timelineType: newTabType };
 
     setTabs((prevTabs) => {
       const nextTabs = [...prevTabs, tab];
@@ -1619,7 +1671,7 @@ export function TimelinePage({
     setNewTabAccount('');
     setNewTabType('home');
     setNewTabCustomName('');
-  }, [newTabAccount, newTabType, newTabCustomName, modalPaneId, persistLayout]);
+  }, [newTabAccount, newTabType, newTabQuery, newTabCustomName, modalPaneId, persistLayout]);
 
   const handleRemoveTab = useCallback(
     (paneId: string, tabId: string): void => {
@@ -1739,6 +1791,17 @@ export function TimelinePage({
       return normalizedPanes;
     });
   }, []);
+
+  const handleSaveQuery = useCallback(
+    async (tabId: string, query: string): Promise<void> => {
+      const next = tabs.map((tab) =>
+        tab.id === tabId && tab.timelineType === 'query' ? { ...tab, query } : tab,
+      );
+      await window.api.saveTabs(next);
+      setTabs(next);
+    },
+    [tabs],
+  );
 
   const handleRenameTab = useCallback((tabId: string, name: string): void => {
     setTabs((prevTabs) => {
@@ -1918,6 +1981,7 @@ export function TimelinePage({
             onRemoveTab={handleRemoveTab}
             onMoveTab={handleMoveTab}
             onRenameTab={handleRenameTab}
+            onSaveQuery={handleSaveQuery}
             onReply={handleReply}
             onQuote={handleQuote}
             onOpenAccountTimeline={handleOpenAccountTimeline}
@@ -1955,10 +2019,30 @@ export function TimelinePage({
               style={{ width: '100%', marginTop: 8 }}
               value={newTabType}
               onChange={setNewTabType}
-              options={TIMELINE_TYPE_OPTIONS}
+              options={[...TIMELINE_TYPE_OPTIONS, { value: 'query', label: 'クエリ' }]}
             />
           </div>
           <div>
+            {newTabType === 'query' ? (
+              <Flex vertical gap={8}>
+                <Text strong>検索クエリ</Text>
+                <Input.TextArea
+                  aria-label="新しいタブの検索クエリ"
+                  value={newTabQuery}
+                  onChange={(event) => {
+                    setNewTabQuery(event.target.value);
+                    setQueryError(null);
+                  }}
+                  autoSize={{ minRows: 3, maxRows: 8 }}
+                  maxLength={10000}
+                />
+                <Text type="secondary">
+                  例: (from (merge (tl :local) (tl :public)) :where (not (null? .media)) :order
+                  (sort .id))
+                </Text>
+                {queryError ? <Text type="danger">{queryError}</Text> : null}
+              </Flex>
+            ) : null}
             <Text strong>タブ名 (任意)</Text>
             <Input
               style={{ marginTop: 8 }}
